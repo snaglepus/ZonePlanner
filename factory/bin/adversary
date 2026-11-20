@@ -1,0 +1,118 @@
+#!/usr/bin/env python3
+"""Run one Codex spec-review round through the vendored Claudex runner.
+
+Usage: adversary <job-id>
+
+For jobs whose adversary provider is `codex`. The orchestrator spawns the
+`spec-adversary` agent instead when the provider is `claude`; both write the
+same file, spec-review/review-<k>.md, so the rest of the factory doesn't care
+which provider reviewed the spec.
+
+Round 1 starts a fresh read-only Codex session in the job's worktree. Later
+rounds resume that same session with the spec writer's dispositions as
+feedback, so Codex checks its earlier findings instead of starting over.
+Diagnostics stay in spec-review/codex/ (inside the gitignored job folder,
+outside the worktree). A failed run writes no review: it is not a verdict.
+Prints `SPEC-REVIEW: <VERDICT>`; exits 1 on a failed run.
+"""
+
+import json
+import subprocess
+import sys
+from pathlib import Path
+
+REPO = Path(__file__).resolve().parents[2]
+FACTORY = REPO / "factory"
+RUNNER = FACTORY / "vendor" / "claudex" / "runner.py"
+CONFIG = json.loads((FACTORY / "config.json").read_text())
+
+
+def die(msg):
+    print(f"adversary: {msg}", file=sys.stderr)
+    sys.exit(1)
+
+
+def short(path, record):
+    """Codex reports absolute paths; show them relative to the worktree or main checkout."""
+    for root in (record.get("repo"), str(REPO)):
+        if root and path and path.startswith(root.rstrip("/") + "/"):
+            return path[len(root.rstrip("/")) + 1:]
+    return path or ""
+
+
+def as_markdown(record, k):
+    r = record["response"]
+    lines = [
+        f"VERDICT: {r['verdict']}",
+        "PROVIDER: codex",
+        f"MODEL: {record.get('effective_model') or record.get('requested_model') or 'Codex CLI default'}",
+        f"SESSION: {record.get('session_id')}",
+        f"SPEC_SHA256: {record['plan_sha256']}",
+        "",
+        f"# Spec review, round {k}",
+        "",
+        "## Summary",
+        r["summary"].strip(),
+        "",
+        "## Findings",
+    ]
+    if not r["findings"]:
+        lines.append("None.")
+    for f in r["findings"]:
+        lines += ["", f"### {f.get('id', '?')} [{f.get('severity', '?')}] {short(f.get('path'), record)}".rstrip(),
+                  f"- Evidence: {f.get('evidence', '').strip()}",
+                  f"- Fix: {f.get('fix', '').strip()}"]
+    lines += ["", "## Coverage"] + ([f"- {c}" for c in r["coverage"]] or ["- (none)"])
+    lines += ["", "## Limitations"] + ([f"- {x}" for x in r["limitations"]] or ["- None reported."])
+    return "\n".join(lines) + "\n"
+
+
+def main(argv):
+    if len(argv) != 1:
+        die("usage: adversary <job-id>")
+    d = FACTORY / "jobs" / argv[0]
+    job = json.loads((d / "job.json").read_text())
+    a = (job.get("agents") or {}).get("adversary") or {}
+    if a.get("provider") != "codex":
+        die(f"{job['id']}'s adversary is {a.get('provider', 'off')}; spawn the spec-adversary agent instead")
+    if job["stage"] != "spec-review":
+        die(f"{job['id']} is in {job['stage']}, not spec-review")
+    k = job["spec_review"]["round"]
+    out = d / "spec-review" / f"review-{k}.md"
+    if out.exists():
+        print(f"SPEC-REVIEW: {out.read_text().split(chr(10), 1)[0].split(':', 1)[1].strip()}")
+        return
+    runs = d / "spec-review" / "codex"
+    runs.mkdir(parents=True, exist_ok=True)
+    cmd = [sys.executable, "-I", str(RUNNER), "review", "--host", "claude",
+           "--repo", job["worktree"], "--plan", str(d / "spec.md"), "--artifacts", str(runs),
+           "--timeout", str(CONFIG.get("adversary", {}).get("timeout_seconds", 900))]
+    if a.get("model"):
+        cmd += ["--model", a["model"]]
+    if a.get("effort"):
+        cmd += ["--effort", a["effort"]]
+    cli = CONFIG.get("adversary", {}).get("codex_cli")
+    if cli:
+        cmd += ["--cli", cli]
+    previous = d / "spec-review" / f"codex-result-{k - 1}.json"
+    if k > 1 and previous.exists():
+        cmd += ["--resume", str(previous),
+                "--feedback", str(d / "spec-review" / f"dispositions-{k - 1}.md")]
+    before = set(runs.glob("claudex-*"))
+    res = subprocess.run(cmd, capture_output=True, text=True)
+    new = sorted(set(runs.glob("claudex-*")) - before, key=lambda p: p.stat().st_mtime)
+    if not new:
+        die(f"the runner didn't start: {(res.stderr or res.stdout).strip()[-800:]}")
+    record = json.loads((new[-1] / "result.json").read_text())
+    if record.get("status") != "completed":
+        (d / "spec-review" / f"codex-failure-{k}.md").write_text(
+            f"# Codex spec review failed, round {k}\n\n{record.get('error', 'unknown error')}\n\n"
+            f"Diagnostics: {new[-1]}\n")
+        die(f"Codex review failed: {record.get('error', 'unknown error')} (diagnostics in {new[-1]})")
+    (d / "spec-review" / f"codex-result-{k}.json").write_text((new[-1] / "result.json").read_text())
+    out.write_text(as_markdown(record, k))
+    print(f"SPEC-REVIEW: {record['response']['verdict']}")
+
+
+if __name__ == "__main__":
+    main(sys.argv[1:])

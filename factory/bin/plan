@@ -1,0 +1,282 @@
+#!/usr/bin/env python3
+"""Check a PRD breakdown and publish it as dependency-ordered tickets.
+
+The planner agent writes factory/plans/<slug>/plan.md and tickets.json. This
+script checks them and turns each ticket into a GitHub issue, a Linear issue
+(through the orchestrator and the Linear MCP) or a chat job, in dependency
+order, so every `Depends on:` line can name real tickets.
+
+Usage:
+  plan check <plan>                      validate tickets.json; print the waves
+  plan publish <plan> github|chat [--no-label]
+                                         create every unpublished ticket, dependencies first
+  plan next <plan>                       Linear: the next ticket to create, as JSON (nothing when done)
+  plan map <plan> <T-id> <KEY-n>         Linear: record the issue you created for a ticket
+  plan status <plan>                     each ticket's wave, ticket, job and stage
+
+<plan> is a slug (factory/plans/<slug>) or a path to the plan folder.
+
+tickets.json:
+  {"prd": "docs/prd.md",
+   "tickets": [{"id": "T1", "title": "...", "body": "...",
+                "prd_sections": ["§2.1"], "acceptance": ["..."],
+                "depends_on": [], "risk_hint": "low|medium|high",
+                "opts": "adversary=codex rounds=1"}]}
+"""
+
+import json
+import re
+import subprocess
+import sys
+from pathlib import Path
+
+REPO = Path(__file__).resolve().parents[2]
+FACTORY = REPO / "factory"
+PLANS = FACTORY / "plans"
+JOBS = FACTORY / "jobs"
+CONFIG = json.loads((FACTORY / "config.json").read_text())
+QUEUE = CONFIG["labels"]["queue"]
+ID = re.compile(r"^T\d+$")
+OPTION = re.compile(r"^(adversary=(claude|codex|off)|rounds=\d+)$")
+
+
+class Bad(Exception):
+    pass
+
+
+def die(msg):
+    print(f"plan: {msg}", file=sys.stderr)
+    sys.exit(1)
+
+
+def plan_dir(arg):
+    p = Path(arg)
+    d = p if p.is_dir() else PLANS / arg
+    if not (d / "tickets.json").exists():
+        die(f"no tickets.json in {d}")
+    return d.resolve()
+
+
+def load(d):
+    try:
+        data = json.loads((d / "tickets.json").read_text())
+    except ValueError as e:
+        raise Bad(f"tickets.json isn't JSON: {e}")
+    return data
+
+
+def published(d):
+    path = d / "published.json"
+    return json.loads(path.read_text()) if path.exists() else {"target": None, "map": {}}
+
+
+def save_published(d, pub):
+    (d / "published.json").write_text(json.dumps(pub, indent=2) + "\n")
+
+
+def validate(data):
+    """Raise Bad on any problem; return the tickets in waves (lists of ids)."""
+    if not isinstance(data, dict) or not isinstance(data.get("tickets"), list) or not data["tickets"]:
+        raise Bad('tickets.json needs {"prd": ..., "tickets": [...]} with at least one ticket')
+    if not data.get("prd"):
+        raise Bad("tickets.json has no prd path")
+    if not (REPO / data["prd"]).exists():
+        raise Bad(f"the PRD {data['prd']} doesn't exist in the repo")
+    tickets, problems = {}, []
+    for t in data["tickets"]:
+        tid = t.get("id", "?")
+        if not ID.match(str(tid)):
+            problems.append(f"{tid}: id must look like T1")
+        if tid in tickets:
+            problems.append(f"{tid}: duplicate id")
+        tickets[tid] = t
+        for key in ("title", "body"):
+            if not str(t.get(key, "")).strip():
+                problems.append(f"{tid}: no {key}")
+        if len(str(t.get("title", ""))) > 80:
+            problems.append(f"{tid}: title over 80 characters")
+        for key in ("prd_sections", "acceptance"):
+            if not isinstance(t.get(key), list) or not t[key]:
+                problems.append(f"{tid}: {key} must be a non-empty list")
+        if not isinstance(t.get("depends_on", []), list):
+            problems.append(f"{tid}: depends_on must be a list")
+        if t.get("risk_hint") not in {"low", "medium", "high"}:
+            problems.append(f"{tid}: risk_hint must be low, medium or high")
+        for opt in str(t.get("opts") or "").split():
+            if not OPTION.match(opt):
+                problems.append(f"{tid}: bad opt {opt!r}; use adversary=claude|codex|off or rounds=<n>")
+    for tid, t in tickets.items():
+        for dep in t.get("depends_on", []):
+            if dep not in tickets:
+                problems.append(f"{tid}: depends on unknown {dep}")
+            if dep == tid:
+                problems.append(f"{tid}: depends on itself")
+    if problems:
+        raise Bad("\n".join(problems))
+    waves, done = [], set()
+    while len(done) < len(tickets):
+        wave = [tid for tid, t in tickets.items()
+                if tid not in done and set(t.get("depends_on", [])) <= done]
+        if not wave:
+            raise Bad("dependency cycle among: " + ", ".join(sorted(set(tickets) - done)))
+        waves.append(sorted(wave, key=lambda x: int(x[1:])))
+        done |= set(wave)
+    return waves
+
+
+def show_ref(target, ref):
+    return f"#{ref}" if target == "github" else ref
+
+
+def render(data, t, pub, slug):
+    deps = []
+    for dep in t.get("depends_on", []):
+        if dep not in pub["map"]:
+            raise Bad(f"{t['id']} depends on {dep}, which isn't published yet")
+        deps.append(show_ref(pub["target"], pub["map"][dep]))
+    lines = [t["body"].strip(), "", "## Acceptance criteria"]
+    lines += [f"- {a}" for a in t["acceptance"]]
+    lines += ["", f"PRD: {data['prd']} {', '.join(t['prd_sections'])}"]
+    if deps:
+        lines.append(f"Depends on: {', '.join(deps)}")
+    if t.get("opts"):
+        lines.append(f"Factory options: {t['opts']}")
+    lines += [f"Planner's risk estimate: {t['risk_hint']}", f"Plan: {slug} {t['id']}"]
+    return "\n".join(lines) + "\n"
+
+
+def ordered(data, waves):
+    by_id = {t["id"]: t for t in data["tickets"]}
+    return [by_id[tid] for wave in waves for tid in wave]
+
+
+def set_target(pub, target):
+    if pub["target"] not in (None, target):
+        raise Bad(f"this plan was already published to {pub['target']}")
+    pub["target"] = target
+
+
+def cmd_check(d):
+    data = load(d)
+    waves = validate(data)
+    by_id = {t["id"]: t for t in data["tickets"]}
+    print(f"{d.name}: {len(by_id)} tickets in {len(waves)} waves from {data['prd']}")
+    for n, wave in enumerate(waves, 1):
+        print(f"wave {n}:")
+        for tid in wave:
+            t = by_id[tid]
+            deps = f" after {', '.join(t.get('depends_on', []))}" if t.get("depends_on") else ""
+            opts = f" [{t['opts']}]" if t.get("opts") else ""
+            print(f"  {tid} ({t['risk_hint']}) {t['title']}{deps}{opts}")
+
+
+def cmd_publish(d, target, label):
+    if target not in {"github", "chat"}:
+        raise Bad("publish creates github or chat tickets; for Linear use `plan next` and `plan map`")
+    data = load(d)
+    waves = validate(data)
+    pub = published(d)
+    set_target(pub, target)
+    for t in ordered(data, waves):
+        if t["id"] in pub["map"]:
+            continue
+        body = render(data, t, pub, d.name)
+        if target == "github":
+            cmd = ["gh", "issue", "create", "--title", t["title"], "--body", body]
+            if label:
+                cmd += ["--label", QUEUE]
+            res = subprocess.run(cmd, cwd=REPO, capture_output=True, text=True)
+            m = re.search(r"/issues/(\d+)\s*$", res.stdout.strip())
+            if res.returncode != 0 or not m:
+                save_published(d, pub)
+                raise Bad(f"gh issue create failed for {t['id']}: {(res.stderr or res.stdout).strip()}")
+            ref = m.group(1)
+        else:
+            payload = {"title": t["title"], "body": body}
+            res = subprocess.run([str(FACTORY / "bin" / "job"), "create", "chat"], cwd=REPO,
+                                 input=json.dumps(payload), capture_output=True, text=True)
+            if res.returncode != 0:
+                save_published(d, pub)
+                raise Bad(f"job create chat failed for {t['id']}: {res.stderr.strip()}")
+            job_id = res.stdout.strip()
+            ref = json.loads((JOBS / job_id / "job.json").read_text())["ref"]
+        pub["map"][t["id"]] = ref
+        save_published(d, pub)
+        print(f"{t['id']} → {show_ref(target, ref)}  {t['title']}")
+
+
+def cmd_next(d):
+    data = load(d)
+    waves = validate(data)
+    pub = published(d)
+    set_target(pub, "linear")
+    for t in ordered(data, waves):
+        if t["id"] not in pub["map"]:
+            print(json.dumps({"id": t["id"], "title": t["title"], "labels": [QUEUE],
+                              "body": render(data, t, pub, d.name)}))
+            return
+
+
+def cmd_map(d, tid, ref):
+    data = load(d)
+    validate(data)
+    if tid not in {t["id"] for t in data["tickets"]}:
+        raise Bad(f"no ticket {tid}")
+    if not re.match(r"^[A-Z][A-Z0-9]*-\d+$", ref):
+        raise Bad(f"{ref!r} isn't a Linear key like ENG-123")
+    pub = published(d)
+    set_target(pub, "linear")
+    if tid in pub["map"] and pub["map"][tid] != ref:
+        raise Bad(f"{tid} is already {pub['map'][tid]}")
+    pub["map"][tid] = ref
+    save_published(d, pub)
+    print(f"{tid} → {ref}")
+
+
+def cmd_status(d):
+    data = load(d)
+    waves = validate(data)
+    pub = published(d)
+    jobs = {}
+    if JOBS.exists():
+        for p in JOBS.iterdir():
+            if (p / "job.json").exists():
+                j = json.loads((p / "job.json").read_text())
+                jobs[(j["source"], j["ref"])] = j
+    rows = [("ticket", "wave", "ref", "job", "stage", "title")]
+    wave_of = {tid: n for n, w in enumerate(waves, 1) for tid in w}
+    for t in ordered(data, waves):
+        ref = pub["map"].get(t["id"])
+        j = jobs.get((pub["target"], ref)) if ref else None
+        rows.append((t["id"], str(wave_of[t["id"]]), show_ref(pub["target"], ref) if ref else "-",
+                     j["id"] if j else "-", j["stage"] if j else ("not started" if ref else "unpublished"),
+                     t["title"]))
+    widths = [max(len(r[i]) for r in rows) for i in range(len(rows[0]))]
+    for r in rows:
+        print("  ".join(c.ljust(w) for c, w in zip(r, widths)).rstrip())
+
+
+def main(argv):
+    if not argv or argv[0] in {"-h", "--help"}:
+        print(__doc__.strip())
+        return
+    cmd, args = argv[0], argv[1:]
+    try:
+        if cmd == "check" and len(args) == 1:
+            cmd_check(plan_dir(args[0]))
+        elif cmd == "publish" and len(args) in {2, 3} and args[2:] in ([], ["--no-label"]):
+            cmd_publish(plan_dir(args[0]), args[1], label=args[2:] != ["--no-label"])
+        elif cmd == "next" and len(args) == 1:
+            cmd_next(plan_dir(args[0]))
+        elif cmd == "map" and len(args) == 3:
+            cmd_map(plan_dir(args[0]), args[1], args[2])
+        elif cmd == "status" and len(args) == 1:
+            cmd_status(plan_dir(args[0]))
+        else:
+            die(f"bad arguments: {' '.join(argv)}\n\n{__doc__.strip()}")
+    except Bad as e:
+        die(str(e))
+
+
+if __name__ == "__main__":
+    main(sys.argv[1:])

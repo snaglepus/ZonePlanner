@@ -1,0 +1,102 @@
+#!/usr/bin/env python3
+"""Map intake's risk and surfaces to the job's agent set.
+
+Usage: route <job-id> [adversary=claude|codex|off] [rounds=<n>]
+
+Overrides also come from the job's stored `opts` (the ticket's `Factory
+options:` line); arguments here win.
+
+Reads `risk` and `surfaces` from intake.md (through job.json), looks them up in
+config.json's `routing`, `surface_reviewers` and `adversary` tables, and
+records the result in job.json with `job agents`. Prints the agent set.
+
+The spec adversary gets `adversary.rounds[risk]` rounds from
+`adversary.provider`. A `security` surface raises the rounds to at least
+`adversary.security_min_rounds` and, when `adversary.security_provider` is set,
+switches provider. `adversary=` and `rounds=` override both for this job.
+"""
+
+import json
+import subprocess
+import sys
+from pathlib import Path
+
+FACTORY = Path(__file__).resolve().parents[1]
+CONFIG = json.loads((FACTORY / "config.json").read_text())
+PROVIDERS = {"claude", "codex", "off"}
+# Effort levels the Agent tool accepts for the claude spec-adversary.
+CLAUDE_EFFORTS = {"low", "medium", "high", "xhigh", "max"}
+
+
+def die(msg):
+    print(f"route: {msg}", file=sys.stderr)
+    sys.exit(1)
+
+
+def adversary_for(intake, overrides):
+    cfg = CONFIG.get("adversary", {"provider": "off", "rounds": {}})
+    rounds = cfg.get("rounds", {}).get(intake["risk"], 0)
+    provider = cfg.get("provider", "claude")
+    if "security" in intake["surfaces"]:
+        rounds = max(rounds, cfg.get("security_min_rounds", 0))
+        provider = cfg.get("security_provider") or provider
+    if "adversary" in overrides:
+        provider = overrides["adversary"]
+        if provider != "off" and rounds == 0:
+            rounds = max(cfg.get("rounds", {}).values(), default=2) or 2
+    if "rounds" in overrides:
+        rounds = overrides["rounds"]
+    if provider == "off" or rounds == 0:
+        return {"provider": "off", "model": None, "effort": None, "rounds": 0}
+    if provider not in PROVIDERS:
+        die(f"adversary provider {provider!r} must be claude, codex or off")
+    effort = cfg.get("efforts", {}).get(provider)
+    if provider == "claude" and effort is not None and effort not in CLAUDE_EFFORTS:
+        die(f"adversary.efforts.claude {effort!r} must be null or one of "
+            + ", ".join(sorted(CLAUDE_EFFORTS)))
+    return {"provider": provider,
+            "model": cfg.get("models", {}).get(provider),
+            "effort": effort,
+            "rounds": rounds}
+
+
+def main(argv):
+    if not argv:
+        die("usage: route <job-id> [adversary=claude|codex|off] [rounds=<n>]")
+    job_id, overrides = argv[0], {}
+    job_bin = str(FACTORY / "bin" / "job")
+    stored = json.loads((FACTORY / "jobs" / job_id / "job.json").read_text()).get("opts") or {}
+    # The ticket's `Factory options:` first, then this call's arguments.
+    for arg in [f"{k}={v}" for k, v in stored.items()] + argv[1:]:
+        key, _, value = arg.partition("=")
+        if key == "adversary" and value in PROVIDERS:
+            overrides["adversary"] = value
+        elif key == "rounds" and value.isdigit():
+            overrides["rounds"] = int(value)
+        else:
+            die(f"bad override {arg!r}; use adversary=claude|codex|off or rounds=<n>")
+    res = subprocess.run([job_bin, "sync", job_id], capture_output=True, text=True)
+    if res.returncode != 0:
+        die(res.stderr.strip())
+    job = json.loads((FACTORY / "jobs" / job_id / "job.json").read_text())
+    intake = job["intake"] or die(f"{job_id} has no intake.md")
+    risk = CONFIG["routing"].get(intake["risk"]) or die(
+        f"risk {intake['risk']!r} isn't in config.json routing ({', '.join(CONFIG['routing'])})")
+    reviewers = dict(risk)
+    for surface in intake["surfaces"]:
+        extra = CONFIG["surface_reviewers"].get(surface)
+        if extra is None:
+            die(f"surface {surface!r} isn't in config.json surface_reviewers ({', '.join(CONFIG['surface_reviewers'])})")
+        reviewers.update(extra)
+    adversary = adversary_for(intake, overrides)
+    agents = {"reviewers": reviewers, "adversary": adversary}
+    res = subprocess.run([job_bin, "agents", job_id, json.dumps(agents)], capture_output=True, text=True)
+    if res.returncode != 0:
+        die(res.stderr.strip())
+    spec = (f"spec review {adversary['rounds']} rounds by {adversary['provider']}"
+            f" ({adversary['model'] or 'CLI default'})" if adversary["rounds"] else "no spec review")
+    print(f"{job_id}: {spec}; reviewers " + ", ".join(f"{k} {v}" for k, v in reviewers.items()))
+
+
+if __name__ == "__main__":
+    main(sys.argv[1:])

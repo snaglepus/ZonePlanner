@@ -5,3 +5,5 @@ ImpeccableVersion.zip
 /.impeccable/tmp/
 /.impeccable/questions/
 /.impeccable/hook.cache.json
+/factory/jobs/
+/.worktrees/

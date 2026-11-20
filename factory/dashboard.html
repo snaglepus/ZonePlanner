@@ -1,0 +1,1261 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Software Factory</title>
+<style>
+  :root {
+    --bg: #14151b;
+    --panel: #1a1c24;
+    --card: #20222c;
+    --card-hover: #252835;
+    --line: #2b2e3b;
+    --text: #e4e5ea;
+    --muted: #868ba0;
+    --faint: #5b6075;
+    --active: #8be9fd;
+    --pass: #50fa7b;
+    --changes: #ffb86c;
+    --human: #ff5555;
+    --merged: #bd93f9;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  button { font: inherit; color: inherit; }
+
+  /* Header */
+  header {
+    display: flex; align-items: baseline; justify-content: space-between; gap: 16px;
+    flex-wrap: wrap; padding: 28px 32px 8px;
+  }
+  h1 { margin: 0; font-size: 18px; font-weight: 600; letter-spacing: -0.01em; }
+  .title { display: flex; align-items: baseline; gap: 20px; flex-wrap: wrap; }
+  .views { display: flex; gap: 2px; padding: 2px; border: 1px solid var(--line); border-radius: 8px; align-self: center; }
+  .views a {
+    padding: 3px 12px; border-radius: 6px; font-size: 12px; color: var(--muted); text-decoration: none;
+  }
+  .views a:hover { color: var(--text); }
+  .views a[aria-current="page"] { background: var(--card-hover); color: var(--text); }
+  .views a:focus-visible, .seg button:focus-visible, .more:focus-visible, .jobs th button:focus-visible {
+    outline: 2px solid var(--active); outline-offset: 1px;
+  }
+  .status { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+  .status .dot {
+    display: inline-block; width: 7px; height: 7px; border-radius: 50%;
+    background: var(--pass); margin-right: 6px; vertical-align: 1px;
+  }
+  .status.error { color: var(--human); }
+  .status.error .dot { background: var(--human); }
+  .banner {
+    margin: 12px 32px 0; padding: 10px 14px; border: 1px solid var(--human);
+    border-radius: 8px; color: var(--human); font-family: var(--mono); font-size: 12px;
+  }
+
+  /* Board */
+  .board {
+    /* Done is a little wider: its cards carry finished titles you scan. */
+    display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)) minmax(0, 1.35fr); gap: 12px;
+    padding: 20px 32px 40px; align-items: start;
+  }
+  .col { min-width: 0; }
+  .col-head {
+    display: flex; align-items: center; gap: 8px; padding: 0 2px 10px;
+    border-bottom: 1px solid var(--line); margin-bottom: 12px; position: relative;
+  }
+  .col-head h2 { margin: 0; font-size: 13px; font-weight: 600; }
+  .col-head .who { font-size: 11px; color: var(--faint); font-family: var(--mono); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .col-head .count {
+    margin-left: auto; font-family: var(--mono); font-size: 11px; color: var(--muted);
+  }
+  .col:not(:last-child):not(:nth-last-child(2)) .col-head::after {
+    content: "›"; position: absolute; right: -10px; top: -2px; color: var(--faint); font-size: 16px;
+  }
+  /* Red only when a job is actually waiting on you. */
+  .col.human.waiting .col-head { border-bottom-color: color-mix(in srgb, var(--human) 55%, transparent); }
+  .col.human.waiting h2 { color: var(--human); }
+  .col.merged-col h2 { color: var(--merged); }
+  .empty { color: var(--faint); font-size: 12px; padding: 4px 2px; }
+
+  /* Cards */
+  .card {
+    display: block; width: 100%; text-align: left; cursor: pointer; color: inherit;
+    background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+    padding: 12px 12px 10px; margin-bottom: 10px;
+    transition: background .15s, border-color .15s, transform .15s;
+  }
+  .card:hover { background: var(--card-hover); transform: translateY(-1px); }
+  .card:focus-visible { outline: 2px solid var(--active); outline-offset: 2px; }
+  .card.live { border-color: color-mix(in srgb, var(--active) 35%, var(--line)); }
+  .card.human {
+    border-color: var(--human);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--human) 40%, transparent),
+                0 8px 24px -12px color-mix(in srgb, var(--human) 60%, transparent);
+  }
+  .card.done { opacity: .72; }
+  .card.done:hover { opacity: 1; }
+  /* Done cards are one line each so the column stays short as it grows. */
+  .card.compact { padding: 7px 10px; margin-bottom: 6px; border-radius: 8px; }
+  .card.compact .card-top { margin-bottom: 2px; }
+  .card.compact .feature {
+    margin: 0; font-size: 12.5px; line-height: 1.35; overflow: hidden;
+    display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2;
+  }
+  .card.compact .meta { margin-top: 3px; }
+  .meta a { color: var(--active); text-decoration: none; }
+  .meta a:hover { text-decoration: underline; }
+  .more {
+    display: block; width: 100%; padding: 6px 0; margin: 2px 0 6px; cursor: pointer;
+    background: none; border: 1px dashed var(--line); border-radius: 8px;
+    font-family: var(--mono); font-size: 11px; color: var(--muted);
+  }
+  .more:hover { color: var(--text); border-color: var(--muted); }
+  .more-link { display: block; text-align: center; font-family: var(--mono); font-size: 11px; color: var(--active); text-decoration: none; }
+  .more-link:hover { text-decoration: underline; }
+  .card.rejected .feature { text-decoration: line-through; text-decoration-color: var(--faint); }
+  .flag.wait { color: var(--changes); }
+  /* Ticket and PR on the left; the flag wraps under them when the column is narrow. */
+  .card-top { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 8px; margin-bottom: 4px; }
+  .num { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+  .card-top .links { min-width: 0; white-space: nowrap; overflow: hidden; }
+  .job-id { font-size: 11px; margin-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .card.compact .job-id { margin-bottom: 1px; }
+  .paused { color: var(--changes); }
+  .pulse {
+    width: 7px; height: 7px; border-radius: 50%; background: var(--active);
+    animation: pulse 1.6s ease-in-out infinite;
+  }
+  .flag {
+    margin-left: auto; font-size: 10px; font-weight: 600; letter-spacing: .06em;
+    text-transform: uppercase; color: var(--human); white-space: nowrap;
+  }
+  .feature { font-size: 13px; line-height: 1.4; margin: 0 0 6px; }
+  .links { display: flex; gap: 10px; font-family: var(--mono); font-size: 11px; }
+  .links a { color: var(--active); text-decoration: none; }
+  .links a:hover { text-decoration: underline; }
+  .meta { display: flex; gap: 10px; margin-top: 8px; font-family: var(--mono); font-size: 10.5px; color: var(--muted); }
+  .meta .risk-high { color: var(--human); } .meta .risk-medium { color: var(--changes); }
+  .chip.gate { flex: 0 0 38px; }
+  .chip.FAIL { border: 1px solid transparent; color: var(--human); background: color-mix(in srgb, var(--human) 16%, transparent); }
+  .branch {
+    font-family: var(--mono); font-size: 11px; color: var(--faint);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .rounds { margin-top: 10px; display: grid; gap: 5px; }
+  .round { display: flex; align-items: center; gap: 4px; }
+  .round .r { font-family: var(--mono); font-size: 10px; color: var(--faint); width: 20px; }
+  .chip {
+    flex: 1; text-align: center; font-family: var(--mono); font-size: 10px;
+    padding: 2px 0; border-radius: 4px; border: 1px dashed var(--faint); color: var(--faint);
+  }
+  .chip.wait { animation: breathe 1.6s ease-in-out infinite; }
+  .chip.PASS {
+    border: 1px solid transparent; color: var(--pass);
+    background: color-mix(in srgb, var(--pass) 14%, transparent);
+  }
+  .chip.CHANGES {
+    border: 1px solid transparent; color: var(--changes);
+    background: color-mix(in srgb, var(--changes) 16%, transparent);
+  }
+  .chip.bad { border: 1px solid var(--human); color: var(--human); }
+  .hint {
+    margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--line);
+    font-family: var(--mono); font-size: 10.5px; color: var(--muted); line-height: 1.6;
+    overflow-wrap: anywhere;
+  }
+
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .25; } }
+  @keyframes breathe { 0%, 100% { opacity: 1; } 50% { opacity: .45; } }
+  @media (prefers-reduced-motion: reduce) { .pulse, .chip.wait { animation: none; } }
+
+  /* Drawer */
+  .scrim {
+    position: fixed; inset: 0; background: rgba(5, 6, 10, .55);
+    opacity: 0; pointer-events: none; transition: opacity .2s;
+  }
+  .drawer {
+    position: fixed; top: 0; right: 0; bottom: 0; width: min(920px, 100vw);
+    background: var(--panel); border-left: 1px solid var(--line);
+    display: grid; grid-template-rows: auto 1fr; transform: translateX(100%);
+    transition: transform .25s ease;
+  }
+  .open .scrim { opacity: 1; pointer-events: auto; }
+  .open .drawer { transform: none; }
+  .d-head { padding: 20px 24px 16px; border-bottom: 1px solid var(--line); position: relative; }
+  .d-head .num { font-size: 12px; }
+  .d-head h3 { margin: 4px 40px 6px 0; font-size: 16px; font-weight: 600; line-height: 1.35; }
+  .close {
+    position: absolute; top: 16px; right: 16px; width: 32px; height: 32px;
+    border-radius: 8px; border: 1px solid var(--line); background: none; cursor: pointer;
+    color: var(--muted); font-size: 18px; line-height: 1;
+  }
+  .close:hover { color: var(--text); border-color: var(--muted); }
+  .d-body { display: grid; grid-template-columns: 200px 1fr; min-height: 0; }
+  .files { border-right: 1px solid var(--line); padding: 14px 10px; overflow-y: auto; }
+  .files .group {
+    font-size: 10px; text-transform: uppercase; letter-spacing: .08em;
+    color: var(--faint); margin: 12px 8px 4px;
+  }
+  .files .group:first-child { margin-top: 0; }
+  .file {
+    display: flex; align-items: center; gap: 8px; width: 100%; text-align: left;
+    background: none; border: 0; border-radius: 6px; padding: 5px 8px; cursor: pointer;
+    font-family: var(--mono); font-size: 12px; color: var(--muted);
+  }
+  .file:hover { background: var(--card); color: var(--text); }
+  .file.on { background: var(--card-hover); color: var(--text); }
+  .file .rn { display: none; }
+  .file .v { width: 6px; height: 6px; border-radius: 50%; background: var(--faint); flex: none; }
+  .v.good { background: var(--pass); } .v.warn { background: var(--changes); } .v.stop { background: var(--human); }
+  .doc { overflow-y: auto; padding: 22px 28px 60px; min-width: 0; }
+
+  /* Rendered markdown */
+  .md { max-width: 680px; line-height: 1.65; }
+  .md h1, .md h2, .md h3, .md h4 { line-height: 1.3; margin: 1.6em 0 .5em; }
+  .md h1 { font-size: 20px; } .md h2 { font-size: 15px; } .md h3 { font-size: 14px; color: var(--muted); }
+  .md > :first-child { margin-top: 0; }
+  .md p, .md ul, .md ol, .md blockquote, .md pre, .md table { margin: 0 0 .9em; }
+  .md ul, .md ol { padding-left: 1.3em; }
+  .md li { margin: .2em 0; }
+  .md li.task { list-style: none; margin-left: -1.3em; }
+  .md li.task::before { content: "☐"; margin-right: .5em; color: var(--faint); }
+  .md li.task.done::before { content: "☑"; color: var(--pass); }
+  .md code {
+    font-family: var(--mono); font-size: 12px; background: var(--card);
+    padding: 1px 5px; border-radius: 4px;
+  }
+  .md pre {
+    background: var(--bg); border: 1px solid var(--line); border-radius: 8px;
+    padding: 12px 14px; overflow-x: auto;
+  }
+  .md pre code { background: none; padding: 0; }
+  .md blockquote { border-left: 2px solid var(--line); padding-left: 12px; color: var(--muted); }
+  .md a { color: var(--active); }
+  .md table { border-collapse: collapse; font-size: 13px; display: block; overflow-x: auto; }
+  .md th, .md td { border: 1px solid var(--line); padding: 5px 9px; text-align: left; }
+  .verdict {
+    display: inline-block; font-family: var(--mono); font-size: 12px; font-weight: 600;
+    padding: 4px 10px; border-radius: 6px; margin-bottom: 14px;
+  }
+  .verdict + * { margin-top: .4em; }
+  .md .head { font-family: var(--mono); font-size: 12px; color: var(--muted); margin: -6px 0 14px; white-space: pre-line; }
+  .verdict.good { color: var(--pass); background: color-mix(in srgb, var(--pass) 14%, transparent); }
+  .verdict.warn { color: var(--changes); background: color-mix(in srgb, var(--changes) 16%, transparent); }
+  .verdict.stop { color: var(--human); background: color-mix(in srgb, var(--human) 16%, transparent); }
+  .note { color: var(--faint); font-size: 13px; }
+  .md .summary {
+    background: var(--card); border: 1px solid var(--line); border-radius: 8px;
+    padding: 12px 16px 4px; margin: 0 0 22px;
+  }
+  .md .summary h2 {
+    margin: 0 0 6px; font-size: 11px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: .08em; color: var(--muted);
+  }
+  .md .summary ul { margin: 0 0 .6em; }
+
+  /* History */
+  .history { padding: 20px 32px 40px; }
+  .history[hidden], .board[hidden] { display: none; }
+  .stats { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)) minmax(0, 1.6fr); gap: 12px; margin-bottom: 18px; }
+  .stat { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; min-width: 0; }
+  .stat h4 {
+    margin: 0 0 4px; font-size: 10.5px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: .08em; color: var(--muted);
+  }
+  .stat .big { font-size: 22px; font-weight: 600; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+  .stat .sub { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+  .bars { display: grid; grid-template-columns: auto 1fr auto; gap: 4px 10px; align-items: center; margin-top: 6px; }
+  .bars .lbl { font-family: var(--mono); font-size: 11px; color: var(--muted); white-space: nowrap; }
+  .bars .track { height: 8px; }
+  .bars .fill { height: 100%; min-width: 2px; background: var(--active); border-radius: 0 4px 4px 0; }
+  .bars .val { font-family: var(--mono); font-size: 11px; color: var(--text); text-align: right; font-variant-numeric: tabular-nums; }
+  .toolbar { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
+  .seg { display: flex; gap: 2px; padding: 2px; border: 1px solid var(--line); border-radius: 8px; }
+  .seg button { background: none; border: 0; border-radius: 6px; padding: 3px 10px; font-size: 12px; color: var(--muted); cursor: pointer; }
+  .seg button[aria-pressed="true"] { background: var(--card-hover); color: var(--text); }
+  .search {
+    flex: 1; min-width: 160px; max-width: 320px; background: var(--card); border: 1px solid var(--line);
+    border-radius: 8px; padding: 5px 10px; font: inherit; font-size: 12.5px; color: var(--text);
+  }
+  .search:focus { outline: none; border-color: var(--active); }
+  .toolbar .count { margin-left: auto; font-family: var(--mono); font-size: 11px; color: var(--muted); }
+  .table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; }
+  .jobs { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 980px; }
+  .jobs th {
+    position: sticky; top: 0; background: var(--panel); text-align: left; font-weight: 600;
+    font-size: 10.5px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted);
+    padding: 0; border-bottom: 1px solid var(--line); white-space: nowrap;
+  }
+  .jobs th button {
+    all: unset; display: block; padding: 9px 12px; cursor: pointer; box-sizing: border-box; width: 100%;
+  }
+  .jobs th button:hover { color: var(--text); }
+  .jobs th span { padding: 9px 12px; display: block; }
+  .jobs th .arrow { display: inline; padding: 0; margin-left: 4px; color: var(--active); }
+  .jobs td { padding: 10px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  .jobs td.num, .jobs td.r { font-family: var(--mono); font-size: 12px; font-variant-numeric: tabular-nums; }
+  .jobs td.r, .jobs th.r { text-align: right; }
+  .jobs .tok > span { display: block; white-space: nowrap; }
+  .jobs .tok > span + span { color: var(--muted); }
+  .jobs th.r button { text-align: right; }
+  .jobs tr.row { cursor: pointer; }
+  .jobs tr.row:hover td { background: var(--card); }
+  .jobs tr.row.on td { background: var(--card); border-bottom-color: transparent; }
+  .jobs .t { font-size: 13px; line-height: 1.4; margin-bottom: 3px; }
+  .jobs .id { font-family: var(--mono); font-size: 11px; color: var(--faint); }
+  .jobs .links { margin-top: 3px; }
+  .jobs .small { font-family: var(--mono); font-size: 11px; color: var(--muted); line-height: 1.6; }
+  .jobs .small b { color: var(--text); font-weight: 500; }
+  .pill {
+    display: inline-block; font-family: var(--mono); font-size: 11px; padding: 1px 8px; border-radius: 999px;
+    border: 1px solid var(--line); color: var(--muted); white-space: nowrap;
+  }
+  .pill.merged { color: var(--merged); border-color: color-mix(in srgb, var(--merged) 45%, transparent); }
+  .pill.rejected { color: var(--changes); border-color: color-mix(in srgb, var(--changes) 45%, transparent); }
+  .pill.needs-human { color: var(--human); border-color: color-mix(in srgb, var(--human) 45%, transparent); }
+  .trail { display: flex; flex-wrap: wrap; gap: 3px; align-items: center; }
+  .trail .chip { flex: none; padding: 1px 6px; }
+  .trail .sep { color: var(--faint); font-size: 11px; margin: 0 2px; }
+  .risk-high { color: var(--human); } .risk-medium { color: var(--changes); } .risk-low { color: var(--muted); }
+  .jobs > tbody > tr.detail > td { background: var(--card); padding: 4px 16px 18px; }
+  .detail-grid { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 24px; }
+  .detail-grid h5 {
+    margin: 10px 0 6px; font-size: 10.5px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: .08em; color: var(--muted);
+  }
+  .mini { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 11.5px; }
+  .jobs .mini th, .jobs .mini td {
+    padding: 4px 8px; background: none; border-bottom: 1px solid var(--line); text-align: right; font-variant-numeric: tabular-nums;
+  }
+  .jobs .mini th { position: static; font-size: 10px; }
+  .jobs .mini th:first-child, .jobs .mini td:first-child { text-align: left; }
+  .jobs .mini tr:last-child td { border-bottom: 0; }
+  .jobs .mini .total td { color: var(--text); font-weight: 600; border-top: 1px solid var(--line); }
+  .open-files {
+    margin-top: 12px; background: none; border: 1px solid var(--line); border-radius: 8px;
+    padding: 5px 12px; font-size: 12px; color: var(--active); cursor: pointer;
+  }
+  .open-files:hover { border-color: var(--active); }
+  .legend {
+    display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: center; margin: 10px 2px 0;
+    font-family: var(--mono); font-size: 11px; color: var(--muted);
+  }
+  .legend .chip { flex: none; padding: 1px 6px; margin-right: 4px; }
+
+  footer {
+    padding: 0 32px 32px; font-family: var(--mono); font-size: 11px; color: var(--faint);
+    display: flex; gap: 20px; flex-wrap: wrap;
+  }
+
+  @media (max-width: 1100px) {
+    .board { grid-template-columns: repeat(4, minmax(0, 1fr)); row-gap: 28px; }
+    .col-head::after { display: none; }
+    .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .stats .stat.wide { grid-column: 1 / -1; }
+    .detail-grid { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  }
+  @media (max-width: 640px) {
+    header { padding: 20px 16px 4px; }
+    .banner { margin: 12px 16px 0; }
+    .board { grid-template-columns: 1fr; padding: 16px 16px 32px; }
+    .history { padding: 16px 16px 32px; }
+    footer { padding: 0 16px 24px; }
+    .d-head { padding: 16px; }
+    .d-body { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
+    .files {
+      border-right: 0; border-bottom: 1px solid var(--line); display: flex; gap: 4px;
+      overflow-x: auto; padding: 8px;
+    }
+    .files .group { display: none; }
+    .file { width: auto; white-space: nowrap; }
+    .file .rn { display: inline; white-space: pre; }
+    .doc { padding: 18px 16px 48px; }
+    /* History rows become cards: title, then outcome · risk · cost · time, then stages, models and tokens. */
+    .table-wrap { overflow: visible; border: 0; border-radius: 0; }
+    .jobs { min-width: 0; display: block; }
+    .jobs > thead { display: none; }
+    .jobs > tbody { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; }
+    .jobs > tbody > tr.row {
+      display: grid; grid-template-columns: auto auto 1fr auto auto; gap: 6px 10px; align-items: center;
+      background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 12px;
+    }
+    .jobs > tbody > tr.row.on { border-bottom-left-radius: 0; border-bottom-right-radius: 0; border-bottom-color: transparent; }
+    .jobs > tbody > tr.row > td { display: block; padding: 0; border: 0; background: none !important; min-width: 0; }
+    .jobs > tbody > tr.row > td:nth-child(1) { grid-column: 1 / -1; }
+    .jobs > tbody > tr.row > td:nth-child(2) { grid-column: 1; grid-row: 2; }
+    .jobs > tbody > tr.row > td:nth-child(3) { grid-column: 2; grid-row: 2; }
+    .jobs > tbody > tr.row > td:nth-child(6) { grid-column: 4; grid-row: 2; }
+    .jobs > tbody > tr.row > td:nth-child(8) { grid-column: 5; grid-row: 2; }
+    .jobs > tbody > tr.row > td:nth-child(4),
+    .jobs > tbody > tr.row > td:nth-child(5) { grid-column: 1 / -1; }
+    /* Tokens get their own line under the models: "412k in · 18k out". */
+    .jobs > tbody > tr.row > td:nth-child(7) { grid-column: 1 / -1; text-align: left; }
+    .jobs .tok > span { display: inline; }
+    .jobs .tok > span + span::before { content: "· "; }
+    .jobs > tbody > tr.row > td:nth-child(9) { display: none; }
+    .jobs > tbody > tr.detail { display: block; margin-top: -8px; }
+    .jobs > tbody > tr.detail > td {
+      display: block; border: 1px solid var(--line); border-top: 0; border-radius: 0 0 10px 10px;
+    }
+    .jobs > tbody > tr > td.empty { display: block; border: 0; }
+    .jobs .mini { display: block; overflow-x: auto; }
+    .jobs .mini th, .jobs .mini td { white-space: nowrap; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="title">
+    <h1>Software factory</h1>
+    <nav class="views" aria-label="View">
+      <a href="#board" data-view="board">Board</a>
+      <a href="#history" data-view="history">History</a>
+    </nav>
+  </div>
+  <div class="status" id="status">connecting…</div>
+</header>
+<div id="banner"></div>
+<main class="board" id="board-view"></main>
+<main class="history" id="history-view" hidden>
+  <div class="stats" id="h-stats"></div>
+  <div class="toolbar">
+    <div class="seg" role="group" aria-label="Which jobs">
+      <button data-filter="done" aria-pressed="true">Completed</button>
+      <button data-filter="all" aria-pressed="false">All jobs</button>
+    </div>
+    <input class="search" id="h-search" type="search" placeholder="Filter by title, ID, ticket or model" aria-label="Filter jobs">
+    <span class="count" id="h-count"></span>
+  </div>
+  <div class="table-wrap"><table class="jobs" id="h-table"></table></div>
+  <div class="legend" aria-label="Stage key">
+    <span><span class="chip">cx1</span><span class="chip">cl1</span>spec review round 1, by Codex or Claude</span>
+    <span><span class="chip">no SR</span>low risk, spec review skipped</span>
+    <span><span class="chip">R1</span>build round 1: gate and reviewers</span>
+    <span><span class="chip PASS">passed</span><span class="chip CHANGES">changes asked</span><span class="chip FAIL">failed</span></span>
+  </div>
+</main>
+<footer>
+  <span>/factory run</span>
+  <span>/factory run &lt;n&gt;</span>
+  <span>/factory &lt;anything&gt;</span>
+  <span id="totals"></span>
+</footer>
+
+<div id="overlay">
+  <div class="scrim" data-close></div>
+  <aside class="drawer" role="dialog" aria-modal="true" aria-labelledby="d-title">
+    <div class="d-head">
+      <div class="num" id="d-num"></div>
+      <h3 id="d-title"></h3>
+      <div class="links" id="d-links"></div>
+      <button class="close" data-close aria-label="Close">×</button>
+    </div>
+    <div class="d-body">
+      <nav class="files" id="d-files"></nav>
+      <article class="doc"><div class="md" id="d-doc"></div></article>
+    </div>
+  </aside>
+</div>
+
+<script>
+const POLL_MS = 2000
+const COLUMNS = [
+  { label: 'Intake', who: 'intake · fable', stages: ['queued', 'intake', 'needs-info'] },
+  { label: 'Spec', who: 'spec-writer · adversary', stages: ['spec', 'spec-review'] },
+  { label: 'Build', who: 'builder · gate', stages: ['build', 'gate'] },
+  { label: 'Review', who: 'routed reviewers', stages: ['review'] },
+  { label: 'Approve', who: 'approver · merge', stages: ['approve', 'merging'] },
+  { label: 'Needs human', who: 'you', stages: ['needs-human'], cls: 'human' },
+  { label: 'Done', who: 'merged · rejected', stages: ['merged', 'rejected'], cls: 'merged-col' },
+]
+const STAGES = new Set(COLUMNS.flatMap((c) => c.stages))
+const LIVE = new Set(['intake', 'spec', 'spec-review', 'build', 'gate', 'review', 'approve', 'merging'])
+const SHORT = { code: 'code', ux: 'ux', ui: 'ui', security: 'sec' }
+const DONE = new Set(['merged', 'rejected'])
+const DONE_SHOWN = 5 // Done cards shown before "Show more"
+
+// Per-browser view preferences. Storage can be blocked; the page works without it.
+const pref = {
+  get(k) { try { return localStorage.getItem(`factory.${k}`) } catch { return null } },
+  set(k, v) { try { localStorage.setItem(`factory.${k}`, v) } catch {} },
+}
+let doneExpanded = pref.get('doneExpanded') === '1'
+const verdictsById = new Map() // job id -> [{ n, v }] of its build rounds, for the history view
+
+const $ = (id) => document.getElementById(id)
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) =>
+  ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c])
+
+let jobs = []
+let lastRender = ''
+const roundCache = new Map() // "<job>/<n>" -> verdicts of a finished round
+let openJobId = null
+let openPath = null
+let openText = null
+
+async function fetchText(url) {
+  const res = await fetch(url, { cache: 'no-store' })
+  if (!res.ok) throw new Error(`${url}: HTTP ${res.status}`)
+  return res.text()
+}
+
+async function fetchFirst(url) {
+  try { return (await fetchText(url)).split('\n')[0].trim() } catch { return null }
+}
+
+// ---- Board ---------------------------------------------------------------
+
+function verdictOf(line) {
+  if (line === null) return 'pending'
+  const m = line.match(/^(?:VERDICT|GATE):\s*(PASS|CHANGES|FAIL)$/)
+  return m ? m[1] : 'invalid'
+}
+
+// A round's verdicts come from its files: the gate first, then each routed reviewer.
+async function roundVerdicts(job, n) {
+  const key = `${job.id}/${n}`
+  if (roundCache.has(key)) return roundCache.get(key)
+  const dir = `jobs/${job.id}/round-${n}/`
+  const v = { gate: verdictOf(await fetchFirst(dir + 'checks.md')), reviews: {} }
+  if (v.gate === 'PASS') {
+    await Promise.all(Object.keys(job.agents?.reviewers || {}).map(async (r) => {
+      v.reviews[r] = verdictOf(await fetchFirst(`${dir}review-${r}.md`))
+    }))
+  }
+  const settled = v.gate === 'FAIL' || (v.gate === 'PASS' && Object.values(v.reviews).every((x) => x === 'PASS' || x === 'CHANGES'))
+  if (settled && n < job.round) roundCache.set(key, v)
+  return v
+}
+
+function chip(label, v, waiting, title, extra = '') {
+  const cls = ['PASS', 'CHANGES', 'FAIL'].includes(v) ? v : v === 'pending' ? (waiting ? 'wait' : '') : 'bad'
+  const full = title.includes(':') ? title : `${title}: ${v}`
+  return `<span class="chip ${extra} ${cls}" title="${esc(full)}">${esc(label)}</span>`
+}
+
+function roundRow(job, n, v) {
+  const current = n === job.round
+  const cells = [chip('gate', v.gate, current && job.stage === 'gate', 'gate', 'gate')]
+  if (v.gate === 'PASS') {
+    for (const r of Object.keys(job.agents.reviewers)) {
+      cells.push(chip(SHORT[r] || r, v.reviews[r], current && job.stage === 'review', r))
+    }
+  }
+  return `<div class="round"><span class="r">R${n}</span>${cells.join('')}</div>`
+}
+
+// The spec review: one chip per adversary round, from job.json (bin/job sync keeps it).
+function specRow(job) {
+  const sr = job.spec_review
+  if (!sr || !sr.limit) return ''
+  const map = { APPROVED: 'PASS', REVISE: 'CHANGES', BLOCKED: 'FAIL' }
+  const who = job.agents?.adversary?.provider || 'adversary'
+  const cells = (sr.verdicts || []).map((v, i) =>
+    chip(`${who === 'codex' ? 'cx' : 'cl'}${i + 1}`, map[v] || v,
+      i + 1 === sr.round && job.stage === 'spec-review', `spec review ${i + 1} (${who})`))
+  return `<div class="round"><span class="r">SR</span>${cells.join('') || '<span class="chip">·</span>'}</div>`
+}
+
+// Working time: the clock stops while a job waits on a person. Mirrors bin/job's
+// active_seconds(): each history stage lasts until the next transition, the last
+// one until now unless it's terminal. Jobs from before 0.2.14 count the stretch
+// before their first recorded transition as working time.
+const PAUSED = new Set(['needs-info', 'needs-human'])
+function activeMs(job, now = Date.now()) {
+  const h = job.history || []
+  if (!h.length) return Math.max(0, (job.ended ? new Date(job.ended) : now) - new Date(job.started))
+  let total = Math.max(0, new Date(h[0].at) - new Date(job.started))
+  h.forEach((e, i) => {
+    const next = h[i + 1]
+    if (PAUSED.has(e.stage) || (!next && DONE.has(e.stage))) return
+    total += Math.max(0, (next ? new Date(next.at) : now) - new Date(e.at))
+  })
+  return total
+}
+
+function elapsed(job) {
+  const min = Math.max(0, Math.floor(activeMs(job) / 60000))
+  const t = min >= 60 ? `${Math.floor(min / 60)}h${String(min % 60).padStart(2, '0')}m` : `${min}m`
+  return PAUSED.has(job.stage) ? `⏸ ${t}` : t
+}
+// The time as markup, with a tooltip while the clock is stopped.
+const timeSpan = (job) => PAUSED.has(job.stage)
+  ? `<span class="paused" title="Timer paused while the job waits on a person">${elapsed(job)}</span>`
+  : `<span>${elapsed(job)}</span>`
+
+// Every input token, cached and uncached, and every output token, across models.
+// null when the job has no per-model breakdown (synced before 0.2.14).
+function tokenTotals(job) {
+  const rows = Object.values(job.cost_by_model || {})
+  if (!rows.length) return Number(job.cost_usd) > 0 ? null : { in: 0, out: 0, uncached: 0, cached: 0 }
+  const sum = (f) => rows.reduce((s, r) => s + (f(r) || 0), 0)
+  const uncached = sum((r) => r.input)
+  const cached = sum((r) => r.cache_read) + sum((r) => r.cache_write)
+  return { in: uncached + cached, out: sum((r) => r.output), uncached, cached }
+}
+
+// The example jobs keep their issue and PR numbers but have no URLs.
+const link = (url, text) =>
+  url ? `<a href="${esc(url)}" target="_blank" rel="noopener">${text}</a>` : `<span>${text}</span>`
+
+function links(job) {
+  const label = job.source === 'linear' ? job.ticket : job.source === 'chat' ? `chat · ${job.ref}` : `issue #${job.issue}`
+  const out = [link(job.issue_url, label)]
+  if (job.pr) out.push(link(job.pr_url, `PR #${job.pr}`))
+  return out.join('')
+}
+
+const money = (job) => `$${Number(job.cost_usd).toFixed(2)}${(job.cost_unpriced || []).length ? '+' : ''}`
+
+// A finished job as one short card: no round chips (the history view has them).
+// Ticket and PR on top, then the job number (the slug repeats the title, which gets two lines).
+function compactCard(job) {
+  const [num] = job.id.split('-')
+  const flag = job.stage === 'rejected' ? '<span class="flag wait">rejected</span>' : ''
+  return `
+    <article class="card done compact ${job.stage}" data-job="${esc(job.id)}" tabindex="0" title="${esc(job.id)}: ${esc(job.title)}">
+      <div class="card-top"><div class="links">${links(job)}</div>${flag}</div>
+      <div class="num job-id">${esc(num)}</div>
+      <p class="feature">${esc(job.title)}</p>
+      <div class="meta"><span>${money(job)}</span>${timeSpan(job)}</div>
+    </article>`
+}
+
+function doneColumn(doneJobs) {
+  const sorted = [...doneJobs].sort((a, b) => (b.ended || '').localeCompare(a.ended || '') || b.id.localeCompare(a.id))
+  const shown = doneExpanded ? sorted : sorted.slice(0, DONE_SHOWN)
+  const hidden = sorted.length - DONE_SHOWN
+  let html = shown.map(compactCard).join('')
+  if (hidden > 0) {
+    html += `<button class="more" data-more aria-expanded="${doneExpanded}">${doneExpanded ? 'Show fewer' : `Show ${hidden} more`}</button>`
+  }
+  if (sorted.length) html += `<a class="more-link" href="#history">All ${sorted.length} in history →</a>`
+  return html
+}
+
+function card(job, rounds) {
+  const live = LIVE.has(job.stage)
+  const human = job.stage === 'needs-human'
+  const done = DONE.has(job.stage)
+  const [num, ...slug] = job.id.split('-')
+  const flag = human ? '<span class="flag">your call</span>'
+    : job.stage === 'needs-info' ? `<span class="flag wait">${job.source === 'chat' ? 'asked you' : 'asked author'}</span>`
+    : job.stage === 'queued' ? '<span class="flag wait">queued</span>'
+    : job.stage === 'rejected' ? '<span class="flag wait">rejected</span>' : ''
+  const risk = job.intake?.risk
+  const meta = [
+    risk ? `<span class="risk-${esc(risk)}">${esc(risk)}</span>` : '',
+    job.depends_on?.length ? `<span>after ${esc(job.depends_on.join(', '))}</span>` : '',
+    `<span>${money(job)}</span>`,
+    timeSpan(job),
+  ].join('')
+  return `
+    <article class="card ${live ? 'live' : ''} ${human ? 'human' : ''} ${done ? 'done' : ''} ${job.stage}"
+             data-job="${esc(job.id)}" tabindex="0">
+      <div class="card-top">
+        ${live ? '<span class="pulse" aria-label="running"></span>' : ''}
+        <div class="links">${links(job)}</div>
+        ${flag}
+      </div>
+      <div class="num job-id">${esc(num)} · ${esc(slug.join('-'))}</div>
+      <p class="feature">${esc(job.title)}</p>
+      ${rounds.length ? `<div class="rounds">${rounds.join('')}</div>` : ''}
+      <div class="meta">${meta}</div>
+      ${human ? `<div class="hint">${job.pr ? `merge PR #${job.pr} to approve<br>or give` : 'give'} feedback: /factory &lt;anything&gt;</div>` : ''}
+    </article>`
+}
+
+async function render() {
+  const problems = []
+  const cards = new Map(COLUMNS.map((c) => [c, []]))
+  const doneJobs = []
+  for (const job of jobs) {
+    if (!STAGES.has(job.stage)) { problems.push(`Job ${job.id} has unknown stage "${job.stage}"`); continue }
+    const rounds = []
+    const verdicts = []
+    const sr = specRow(job)
+    if (sr) rounds.push(sr)
+    for (let n = 1; n <= job.round; n++) {
+      const v = await roundVerdicts(job, n)
+      verdicts.push({ n, v })
+      rounds.push(roundRow(job, n, v))
+    }
+    verdictsById.set(job.id, verdicts)
+    if (DONE.has(job.stage)) doneJobs.push(job)
+    else cards.get(COLUMNS.find((c) => c.stages.includes(job.stage))).push(card(job, rounds))
+  }
+  // Newest first within a column; Done newest-finished first, collapsed to DONE_SHOWN.
+  const html = COLUMNS.map((c) => {
+    const isDone = c.stages.every((st) => DONE.has(st))
+    const body = isDone ? doneColumn(doneJobs) : cards.get(c).reverse().join('')
+    return `
+    <section class="col ${c.cls || ''} ${c.cls === 'human' && cards.get(c).length ? 'waiting' : ''}">
+      <div class="col-head">
+        <h2>${c.label}</h2><span class="who">${c.who}</span>
+        <span class="count">${(isDone ? doneJobs : cards.get(c)).length || ''}</span>
+      </div>
+      ${body || '<div class="empty">—</div>'}
+    </section>`
+  }).join('')
+  const banner = problems.map((p) => `<div class="banner">${esc(p)}</div>`).join('')
+  if (html + banner !== lastRender) {
+    lastRender = html + banner
+    $('board-view').innerHTML = html
+    $('banner').innerHTML = banner
+  }
+  const running = jobs.filter((j) => LIVE.has(j.stage)).length
+  const cost = jobs.reduce((sum, j) => sum + Number(j.cost_usd), 0)
+  const tok = jobs.map(tokenTotals).filter(Boolean).reduce((s, t) => s + t.in + t.out, 0)
+  $('totals').textContent = `${running} running · $${cost.toFixed(2)} API-equivalent · ${fmtTokens(tok)} tokens`
+  renderHistory()
+}
+
+async function poll() {
+  const status = $('status')
+  try {
+    jobs = await loadJobs()
+    await render()
+    if (openJobId) await refreshDrawer()
+    status.className = 'status'
+    status.innerHTML = `<span class="dot"></span>jobs/ · ${new Date().toLocaleTimeString()}`
+  } catch (err) {
+    status.className = 'status error'
+    status.innerHTML = `<span class="dot"></span>${esc(err.message)}`
+  }
+}
+
+// factory/bin/job writes each jobs/<id>/job.json.
+async function loadJobs() {
+  let listing
+  try { listing = await fetchText('jobs/') } catch { return [] }
+  const doc = new DOMParser().parseFromString(listing, 'text/html')
+  const ids = [...doc.querySelectorAll('a')]
+    .map((a) => decodeURIComponent(a.getAttribute('href')))
+    .filter((h) => h.endsWith('/'))
+    .map((h) => h.slice(0, -1))
+    .sort()
+  return Promise.all(ids.map(async (id) => JSON.parse(await fetchText(`jobs/${id}/job.json`))))
+}
+
+// ---- History -------------------------------------------------------------
+
+const hist = {
+  filter: pref.get('historyFilter') === 'all' ? 'all' : 'done',
+  query: '',
+  sort: { key: 'finished', dir: -1 },
+  open: new Set(),
+}
+let lastHistory = ''
+const RISK_RANK = { low: 1, medium: 2, high: 3 }
+
+const fmtDate = (iso) => iso ? new Date(iso).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'
+const fmtTokens = (n) => n >= 1e6 ? `${(n / 1e6).toFixed(2)}M` : n >= 1e3 ? `${Math.round(n / 1e3)}k` : String(n || 0)
+const fmtUsd = (x) => x === null || x === undefined ? 'unpriced' : x > 0 && x < 0.005 ? '<$0.01' : `$${x.toFixed(2)}`
+const fmtMin = (ms) => {
+  const min = Math.max(0, Math.round(ms / 60000))
+  return min >= 60 ? `${Math.floor(min / 60)}h${String(min % 60).padStart(2, '0')}m` : `${min}m`
+}
+// Stage durations: seconds under 10 minutes, where most stages fall.
+const fmtDur = (ms) => {
+  const s = Math.max(0, Math.round(ms / 1000))
+  if (s < 60) return `${s}s`
+  if (s < 600) return `${Math.floor(s / 60)}m ${String(s % 60).padStart(2, '0')}s`
+  return fmtMin(ms)
+}
+
+// One build round as one chip: FAIL if the gate failed, CHANGES if any reviewer asked, PASS if all passed.
+function roundSummary(job, { n, v }) {
+  const reviews = Object.entries(v.reviews || {})
+  const overall = v.gate === 'FAIL' ? 'FAIL'
+    : v.gate !== 'PASS' ? v.gate
+    : reviews.some(([, x]) => x === 'CHANGES') ? 'CHANGES'
+    : reviews.length && reviews.every(([, x]) => x === 'PASS') ? 'PASS' : 'pending'
+  const title = [`gate ${v.gate}`, ...reviews.map(([r, x]) => `${r} ${x}`)].join(', ')
+  return chip(`R${n}`, overall, false, `build round ${n}: ${title}`)
+}
+
+// Where the job went: spec-review rounds, build rounds, outcome.
+function trail(job) {
+  const parts = []
+  const decision = job.intake?.decision
+  if (decision && decision !== 'ACCEPT') parts.push(`<span class="chip CHANGES" title="intake: ${esc(decision)}">${esc(decision.toLowerCase())}</span>`)
+  const sr = job.spec_review
+  if (sr?.verdicts?.length) {
+    const codex = job.agents?.adversary?.provider === 'codex'
+    const who = codex ? 'cx' : 'cl'
+    const map = { APPROVED: 'PASS', REVISE: 'CHANGES', BLOCKED: 'FAIL' }
+    parts.push(sr.verdicts.map((v, i) => chip(`${who}${i + 1}`, map[v] || v, false,
+      `spec review round ${i + 1} by ${codex ? 'Codex' : 'Claude'}: ${v}`)).join(''))
+  } else if (job.agents && !sr?.limit) {
+    parts.push('<span class="chip" title="low risk: no spec review">no SR</span>')
+  }
+  const rounds = verdictsById.get(job.id) || []
+  if (rounds.length) parts.push(rounds.map((r) => roundSummary(job, r)).join(''))
+  if (!parts.length) parts.push('<span class="chip" title="stopped before spec">intake only</span>')
+  return `<div class="trail">${parts.join('<span class="sep">›</span>')}</div>`
+}
+
+function modelsCell(job) {
+  const a = job.agents?.adversary
+  const adv = !a ? '—'
+    : a.provider === 'off' || !a.rounds ? 'off'
+    : `${esc(a.provider)} <b>${esc(a.model)}</b>${a.effort ? ` · ${esc(a.effort)}` : ''}`
+  const rev = Object.entries(job.agents?.reviewers || {}).map(([r, m]) => `${esc(SHORT[r] || r)} <b>${esc(m)}</b>`).join(' · ') || '—'
+  return `<div class="small">spec&nbsp;${adv}<br>review&nbsp;${rev}</div>`
+}
+
+function searchText(job) {
+  return [job.id, job.title, job.ticket, job.pr ? `#${job.pr}` : '', job.stage,
+    ...Object.keys(job.cost_by_model || {}), job.agents?.adversary?.provider || '', job.agents?.adversary?.model || '',
+    ...Object.values(job.agents?.reviewers || {})].join(' ').toLowerCase()
+}
+
+const SORTS = {
+  id: (j) => j.id,
+  title: (j) => j.title.toLowerCase(),
+  outcome: (j) => j.stage,
+  risk: (j) => RISK_RANK[j.intake?.risk] || 0,
+  cost: (j) => Number(j.cost_usd),
+  tokens: (j) => { const t = tokenTotals(j); return t ? t.in + t.out : -1 },
+  time: (j) => activeMs(j),
+  finished: (j) => j.ended || j.started,
+}
+
+function visibleJobs() {
+  const q = hist.query.trim().toLowerCase()
+  const key = SORTS[hist.sort.key]
+  return jobs
+    .filter((j) => hist.filter === 'all' || DONE.has(j.stage))
+    .filter((j) => !q || q.split(/\s+/).every((w) => searchText(j).includes(w)))
+    .sort((a, b) => {
+      const [x, y] = [key(a), key(b)]
+      return (x < y ? -1 : x > y ? 1 : 0) * hist.sort.dir || a.id.localeCompare(b.id)
+    })
+}
+
+function median(xs) {
+  if (!xs.length) return null
+  const s = [...xs].sort((a, b) => a - b)
+  return s.length % 2 ? s[(s.length - 1) / 2] : (s[s.length / 2 - 1] + s[s.length / 2]) / 2
+}
+
+function statsHtml(list) {
+  const merged = list.filter((j) => j.stage === 'merged')
+  const rejected = list.filter((j) => j.stage === 'rejected')
+  const total = list.reduce((s, j) => s + Number(j.cost_usd), 0)
+  const plus = list.some((j) => (j.cost_unpriced || []).length) ? '+' : ''
+  const perMerged = merged.length ? merged.reduce((s, j) => s + Number(j.cost_usd), 0) / merged.length : null
+  const med = median(merged.map((j) => activeMs(j)))
+  const rounds = merged.length ? merged.reduce((s, j) => s + (j.round || 0), 0) / merged.length : null
+
+  const counted = list.map(tokenTotals).filter(Boolean)
+  const tokIn = counted.reduce((s, t) => s + t.in, 0)
+  const tokOut = counted.reduce((s, t) => s + t.out, 0)
+  const perJob = counted.map((t) => t.in + t.out)
+  const tokAvg = perJob.length ? perJob.reduce((s, x) => s + x, 0) / perJob.length : null
+  const tokMed = median(perJob)
+  const uncounted = list.length - counted.length
+
+  const byModel = new Map()
+  let missing = 0
+  for (const j of list) {
+    if (!j.cost_by_model) { if (Number(j.cost_usd) > 0) missing++; continue }
+    for (const [m, r] of Object.entries(j.cost_by_model)) byModel.set(m, (byModel.get(m) || 0) + (r.usd || 0))
+  }
+  const rows = [...byModel].filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1])
+  const max = Math.max(...rows.map(([, v]) => v), 0)
+  const bars = rows.length
+    ? `<div class="bars">${rows.map(([m, v]) => `
+        <span class="lbl">${esc(m)}</span>
+        <div class="track" title="${esc(m)}: $${v.toFixed(2)}"><div class="fill" style="width:${(v / max * 100).toFixed(1)}%"></div></div>
+        <span class="val">$${v.toFixed(2)}</span>`).join('')}</div>`
+    : '<div class="sub">No per-model costs yet.</div>'
+  const note = missing ? `<div class="sub" style="margin-top:6px">${missing} job${missing > 1 ? 's' : ''} not broken down (synced before 0.2.14)</div>` : ''
+
+  return `
+    <div class="stat"><h4>Jobs</h4><div class="big">${list.length}</div>
+      <div class="sub">${merged.length} merged · ${rejected.length} rejected${hist.filter === 'all' ? ` · ${list.length - merged.length - rejected.length} open` : ''}</div></div>
+    <div class="stat"><h4>Median time</h4><div class="big">${med === null ? '—' : fmtMin(med)}</div>
+      <div class="sub" title="Time waiting on a person (needs-info, needs-human) isn't counted">start to merge, excl. waits</div></div>
+    <div class="stat"><h4>Total cost</h4><div class="big">$${total.toFixed(2)}${plus}</div><div class="sub">API-equivalent</div></div>
+    <div class="stat"><h4>Per merged PR</h4><div class="big">${perMerged === null ? '—' : `$${perMerged.toFixed(2)}`}</div>
+      <div class="sub">${rounds === null ? '' : `${rounds.toFixed(1)} build rounds avg`}</div></div>
+    <div class="stat"><h4>Total tokens</h4><div class="big">${counted.length ? fmtTokens(tokIn + tokOut) : '—'}</div>
+      <div class="sub" title="Input counts cached and uncached tokens">${counted.length ? `${fmtTokens(tokIn)} in · ${fmtTokens(tokOut)} out` : ''}${uncounted ? `${counted.length ? ' · ' : ''}${uncounted} not counted` : ''}</div></div>
+    <div class="stat"><h4>Tokens per job</h4><div class="big">${tokAvg === null ? '—' : fmtTokens(Math.round(tokAvg))}</div>
+      <div class="sub">${tokMed === null ? '' : `average · median ${fmtTokens(Math.round(tokMed))}`}</div></div>
+    <div class="stat wide"><h4>Cost by model</h4>${bars}${note}</div>`
+}
+
+function detailHtml(job) {
+  const by = job.cost_by_model
+  let costs
+  if (by && Object.keys(by).length) {
+    const rows = Object.entries(by).sort((a, b) => (b[1].usd || 0) - (a[1].usd || 0))
+    costs = `<table class="mini"><tr><th>Model</th><th>Input</th><th>Cache read</th><th>Cache write</th><th>Output</th><th>Cost</th></tr>
+      ${rows.map(([m, r]) => `<tr><td>${esc(m)}</td><td>${fmtTokens(r.input)}</td><td>${fmtTokens(r.cache_read)}</td>
+        <td>${fmtTokens(r.cache_write)}</td><td>${fmtTokens(r.output)}</td><td>${fmtUsd(r.usd)}</td></tr>`).join('')}
+      <tr class="total"><td>Total</td><td></td><td></td><td></td><td></td><td>${money(job)}</td></tr></table>`
+  } else {
+    costs = `<p class="note">${money(job)} in total. No per-model breakdown: run <code>factory/bin/job sync ${esc(job.id)}</code> to add one.</p>`
+  }
+
+  let timeline
+  if (job.history?.length) {
+    const h = job.history
+    timeline = `<table class="mini"><tr><th>Stage</th><th>Round</th><th>Entered</th><th>Time in stage</th></tr>
+      ${h.map((e, i) => {
+        const next = h[i + 1]?.at || (DONE.has(e.stage) ? null : new Date().toISOString())
+        return `<tr><td>${esc(e.stage)}</td><td>${e.round || '—'}</td><td>${fmtDate(e.at)}</td>
+          <td>${next ? fmtDur(new Date(next) - new Date(e.at)) : '—'}</td></tr>`
+      }).join('')}</table>`
+  } else {
+    timeline = `<p class="note">Started ${fmtDate(job.started)}${job.ended ? `, finished ${fmtDate(job.ended)}` : ''}. Stage times are recorded from 0.2.14 on.</p>`
+  }
+
+  const facts = [
+    job.intake ? `intake <b>${esc(job.intake.decision || '—')}</b>${job.intake.rescoped ? ' (rescoped)' : ''}` : '',
+    job.intake?.surfaces?.length ? `surfaces <b>${esc(job.intake.surfaces.join(', '))}</b>` : '',
+    job.spec_review?.limit ? `spec review <b>${job.spec_review.round}/${job.spec_review.limit}</b>${job.spec_review.approved_sha ? ' approved' : ''}` : '',
+    job.round ? `build rounds <b>${job.round}/${job.round_limit}</b>` : '',
+    job.depends_on?.length ? `after <b>${esc(job.depends_on.join(', '))}</b>` : '',
+    `branch <b>${esc(job.branch)}</b>`,
+  ].filter(Boolean).join('<br>')
+
+  return `<div class="detail-grid">
+    <div><h5>Cost by model</h5>${costs}<h5>Stages</h5>${timeline}</div>
+    <div><h5>Details</h5><div class="small">${facts}</div>
+      <button class="open-files" data-job="${esc(job.id)}">Open job files</button></div>
+  </div>`
+}
+
+const COLS = [
+  { key: 'id', label: 'Job' },
+  { key: 'outcome', label: 'Outcome' },
+  { key: 'risk', label: 'Risk' },
+  { key: null, label: 'Stages' },
+  { key: null, label: 'Models' },
+  { key: 'cost', label: 'Cost', r: true },
+  { key: 'tokens', label: 'Tokens', r: true },
+  { key: 'time', label: 'Time', r: true },
+  { key: 'finished', label: 'Finished', r: true },
+]
+
+function tokensCell(job) {
+  const t = tokenTotals(job)
+  if (!t) return '<span class="tok" title="No per-model breakdown: synced before 0.2.14">—</span>'
+  const title = `input ${t.in.toLocaleString()} (${t.uncached.toLocaleString()} uncached, ${t.cached.toLocaleString()} cached) · output ${t.out.toLocaleString()}`
+  return `<span class="tok" title="${title}"><span>${fmtTokens(t.in)} in</span> <span>${fmtTokens(t.out)} out</span></span>`
+}
+
+function renderHistory() {
+  if (document.body.dataset.view !== 'history') return
+  const list = visibleJobs()
+  const head = `<thead><tr>${COLS.map((c) => {
+    const on = c.key && hist.sort.key === c.key
+    const arrow = on ? `<span class="arrow">${hist.sort.dir > 0 ? '↑' : '↓'}</span>` : ''
+    const aria = on ? ` aria-sort="${hist.sort.dir > 0 ? 'ascending' : 'descending'}"` : ''
+    return `<th class="${c.r ? 'r' : ''}"${aria}>${c.key ? `<button data-sort="${c.key}">${c.label}${arrow}</button>` : `<span>${c.label}</span>`}</th>`
+  }).join('')}</tr></thead>`
+  const body = list.map((j) => {
+    const [num, ...slug] = j.id.split('-')
+    const open = hist.open.has(j.id)
+    const risk = j.intake?.risk
+    return `<tr class="row ${open ? 'on' : ''}" data-row="${esc(j.id)}" tabindex="0" aria-expanded="${open}">
+        <td><div class="t">${esc(j.title)}</div><div class="id">${esc(num)} · ${esc(slug.join('-'))}</div><div class="links">${links(j)}</div></td>
+        <td><span class="pill ${esc(j.stage)}">${esc(j.stage)}</span></td>
+        <td class="num">${risk ? `<span class="risk-${esc(risk)}">${esc(risk)}</span>` : '—'}</td>
+        <td>${trail(j)}</td>
+        <td>${modelsCell(j)}</td>
+        <td class="r">${money(j)}</td>
+        <td class="r">${tokensCell(j)}</td>
+        <td class="r">${timeSpan(j)}</td>
+        <td class="r">${j.ended && DONE.has(j.stage) ? fmtDate(j.ended) : '—'}</td>
+      </tr>${open ? `<tr class="detail"><td colspan="${COLS.length}">${detailHtml(j)}</td></tr>` : ''}`
+  }).join('') || `<tr><td colspan="${COLS.length}" class="empty">${jobs.length ? 'No jobs match.' : 'No jobs yet.'}</td></tr>`
+  const stats = statsHtml(list)
+  const html = stats + '\u0000' + head + body
+  if (html === lastHistory) return
+  lastHistory = html
+  $('h-stats').innerHTML = stats
+  $('h-table').innerHTML = head + `<tbody>${body}</tbody>`
+  $('h-count').textContent = `${list.length} of ${jobs.length}`
+  document.querySelectorAll('[data-filter]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.filter === hist.filter)))
+}
+
+function setView() {
+  const view = location.hash === '#history' ? 'history' : 'board'
+  document.body.dataset.view = view
+  $('board-view').hidden = view !== 'board'
+  $('history-view').hidden = view !== 'history'
+  document.querySelectorAll('[data-view]').forEach((a) => {
+    if (a.dataset.view === view) a.setAttribute('aria-current', 'page')
+    else a.removeAttribute('aria-current')
+  })
+  lastHistory = ''
+  renderHistory()
+}
+// A new view starts at its top, e.g. after "All N in history" at the bottom of the board.
+window.addEventListener('hashchange', () => { setView(); window.scrollTo(0, 0) })
+
+$('h-search').addEventListener('input', (e) => { hist.query = e.target.value; renderHistory() })
+
+// ---- Drawer --------------------------------------------------------------
+
+// python -m http.server serves an HTML index for directories; read its links.
+async function listFiles(dir) {
+  const doc = new DOMParser().parseFromString(await fetchText(dir), 'text/html')
+  const hrefs = [...doc.querySelectorAll('a')].map((a) => decodeURIComponent(a.getAttribute('href')))
+  const out = []
+  for (const h of hrefs) {
+    if (h.endsWith('/')) out.push(...(await listFiles(dir + h)).map((f) => h + f))
+    else if (h.endsWith('.md')) out.push(h)
+  }
+  return out
+}
+
+const ORDER = ['issue.md', 'intake.md', 'spec.md', 'build.md', 'decision.md', 'rejection.md']
+const ROUND_ORDER = ['checks', 'review-code', 'review-security', 'review-ux', 'review-ui', 'merge-checks']
+
+function fileRank(path) {
+  if (ORDER.includes(path)) return [0, ORDER.indexOf(path), path]
+  const round = path.match(/^round-(\d+)\/(.+)\.md$/)
+  if (round) return [2, Number(round[1]) * 10 + ROUND_ORDER.indexOf(round[2]), path]
+  const srv = path.match(/^spec-review\/(review|dispositions)-(\d+)\.md$/)
+  if (srv) return [1, Number(srv[2]) * 2 + (srv[1] === 'dispositions' ? 1 : 0), path]
+  return [1, 100, path] // intake-<k>.md, feedback-<k>.md
+}
+
+function sortFiles(files) {
+  return files.sort((a, b) => {
+    const [x, y] = [fileRank(a), fileRank(b)]
+    return x[0] - y[0] || x[1] - y[1] || x[2].localeCompare(y[2])
+  })
+}
+
+function tone(first) {
+  if (/^(VERDICT:\s*APPROVED|VERDICT:\s*PASS|GATE:\s*PASS|APPROVE|STATUS:\s*READY|DECISION:\s*ACCEPT)$/.test(first)) return 'good'
+  if (/^(VERDICT:\s*REVISE|VERDICT:\s*CHANGES|DECISION:\s*NEEDS-INFO)$/.test(first)) return 'warn'
+  if (/^(VERDICT:\s*BLOCKED|ESCALATE|REJECTED|STATUS:\s*BLOCKED|GATE:\s*FAIL|DECISION:\s*REJECT)$/.test(first)) return 'stop'
+  return null
+}
+
+const firstLines = new Map()
+
+async function refreshDrawer() {
+  const job = jobs.find((j) => j.id === openJobId)
+  if (!job) return
+  $('d-num').textContent = `${job.id} · ${job.stage}${job.round ? ` · round ${job.round}` : ''} · $${Number(job.cost_usd).toFixed(2)}${(job.cost_unpriced || []).length ? '+' : ''} · ${elapsed(job)}`
+  $('d-title').textContent = job.title
+  $('d-links').innerHTML = links(job)
+
+  const base = `jobs/${job.id}/`
+  const files = sortFiles(await listFiles(base))
+  if (!openPath || !files.includes(openPath)) openPath = files[0] || null
+
+  let text = null
+  if (openPath) {
+    text = await fetchText(base + openPath)
+    firstLines.set(base + openPath, text.split('\n')[0].trim())
+  }
+  await Promise.all(files.filter((f) => !firstLines.has(base + f)).map(async (f) => {
+    firstLines.set(base + f, (await fetchText(base + f)).split('\n')[0].trim())
+  }))
+
+  let group = null
+  $('d-files').innerHTML = files.map((f) => {
+    const g = f.includes('/') ? f.split('/')[0].replace('round-', 'Round ').replace('spec-review', 'Spec review') : 'Job'
+    const head = g !== group ? `<div class="group">${esc(g)}</div>` : ''
+    group = g
+    const round = f.match(/^round-(\d+)\//)
+    const srv = f.match(/^spec-review\/(review|dispositions)-(\d+)\.md$/)
+    const name = round
+      ? `<span class="rn">R${round[1]} </span>${esc(f.split('/')[1].replace(/^review-|\.md$/g, ''))}`
+      : srv ? `${esc(srv[1])} ${srv[2]}`
+      : esc(f)
+    const t = tone(firstLines.get(base + f) || '')
+    return `${head}<button class="file ${f === openPath ? 'on' : ''}" data-file="${esc(f)}">
+      <span class="v ${t || ''}"></span>${name}</button>`
+  }).join('') || '<div class="empty">No files yet.</div>'
+
+  if (text !== openText) {
+    openText = text
+    $('d-doc').innerHTML = text === null ? '<p class="note">Intake hasn’t written anything yet.</p>' : markdown(text)
+  }
+}
+
+async function openDrawer(id) {
+  openJobId = id
+  openPath = null
+  openText = undefined
+  document.body.classList.add('open')
+  try {
+    await refreshDrawer()
+  } catch (err) {
+    $('d-doc').innerHTML = `<p class="note">${esc(err.message)}</p>`
+  }
+}
+
+function closeDrawer() {
+  openJobId = null
+  document.body.classList.remove('open')
+}
+
+function toggleRow(id) {
+  hist.open.has(id) ? hist.open.delete(id) : hist.open.add(id)
+  renderHistory()
+}
+
+document.addEventListener('click', (e) => {
+  if (e.target.closest('a')) return
+  if (e.target.closest('[data-more]')) {
+    doneExpanded = !doneExpanded
+    pref.set('doneExpanded', doneExpanded ? '1' : '0')
+    lastRender = ''
+    return render()
+  }
+  const sortEl = e.target.closest('[data-sort]')
+  if (sortEl) {
+    const key = sortEl.dataset.sort
+    hist.sort = hist.sort.key === key ? { key, dir: -hist.sort.dir } : { key, dir: key === 'title' || key === 'id' ? 1 : -1 }
+    return renderHistory()
+  }
+  const filterEl = e.target.closest('[data-filter]')
+  if (filterEl) {
+    hist.filter = filterEl.dataset.filter
+    pref.set('historyFilter', hist.filter)
+    return renderHistory()
+  }
+  const rowEl = e.target.closest('[data-row]')
+  if (rowEl) return toggleRow(rowEl.dataset.row)
+  const cardEl = e.target.closest('[data-job]')
+  if (cardEl) return openDrawer(cardEl.dataset.job)
+  const fileEl = e.target.closest('[data-file]')
+  if (fileEl) {
+    openPath = fileEl.dataset.file
+    openText = undefined
+    $('d-doc').parentElement.scrollTop = 0
+    return refreshDrawer()
+  }
+  if (e.target.closest('[data-close]')) closeDrawer()
+})
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') return closeDrawer()
+  if (e.target.matches?.('input, button')) return
+  const rowEl = e.target.closest?.('[data-row]')
+  if (rowEl && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); return toggleRow(rowEl.dataset.row) }
+  const cardEl = e.target.closest?.('[data-job]')
+  if (cardEl && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); openDrawer(cardEl.dataset.job) }
+})
+
+// ---- Markdown (just enough for the factory's files) ---------------------
+
+function inline(s) {
+  const codes = []
+  s = esc(s).replace(/`([^`]+)`/g, (_, c) => `\u0000${codes.push(c) - 1}\u0000`)
+  s = s
+    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+    .replace(/(^|[^*])\*([^*\s][^*]*)\*/g, '$1<em>$2</em>')
+    .replace(/\[([^\]]+)\]\(((?:https?:\/\/|\.{0,2}\/|#)[^)\s]*)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>')
+  return s.replace(/\u0000(\d+)\u0000/g, (_, i) => `<code>${codes[i]}</code>`)
+}
+
+// Every step's file has a `## Summary` of a few bullets; show it first, in a box.
+function splitSummary(lines) {
+  const start = lines.findIndex((l) => /^##\s+Summary\s*$/.test(l))
+  if (start === -1) return { lines, summary: null }
+  let end = start + 1
+  while (end < lines.length && !/^#{1,2}\s/.test(lines[end])) end++
+  return {
+    lines: [...lines.slice(0, start), ...lines.slice(end)],
+    summary: lines.slice(start + 1, end).join('\n'),
+  }
+}
+
+function markdown(src) {
+  const split = splitSummary(src.replace(/\r/g, '').split('\n'))
+  const lines = split.lines
+  let i = 0
+  let html = ''
+  const first = (lines[0] || '').trim()
+  const t = tone(first)
+  if (t) {
+    html += `<div class="verdict ${t}">${esc(first)}</div>`
+    i = 1
+    // The rest of a KEY: value header block (intake.md, checks.md).
+    const extra = []
+    while (i < lines.length && /^[A-Z][A-Z0-9_-]*:\s/.test(lines[i])) extra.push(lines[i++])
+    if (extra.length) html += `<div class="head">${esc(extra.join('\n'))}</div>`
+  }
+  if (split.summary !== null) html += `<section class="summary"><h2>Summary</h2>${markdown(split.summary)}</section>`
+
+  const isList = (l) => /^\s*([-*+]|\d+\.)\s+/.test(l)
+  const isBlockStart = (l) => /^(#{1,6}\s|```|\s*>|\|)/.test(l) || isList(l)
+
+  while (i < lines.length) {
+    const line = lines[i]
+    if (!line.trim()) { i++; continue }
+
+    if (line.startsWith('```')) {
+      const body = []
+      i++
+      while (i < lines.length && !lines[i].startsWith('```')) body.push(lines[i++])
+      i++
+      html += `<pre><code>${esc(body.join('\n'))}</code></pre>`
+      continue
+    }
+    const h = line.match(/^(#{1,6})\s+(.*)$/)
+    if (h) { const n = Math.min(h[1].length, 4); html += `<h${n}>${inline(h[2])}</h${n}>`; i++; continue }
+
+    if (/^\s*>/.test(line)) {
+      const body = []
+      while (i < lines.length && /^\s*>/.test(lines[i])) body.push(lines[i++].replace(/^\s*>\s?/, ''))
+      html += `<blockquote>${markdown(body.join('\n'))}</blockquote>`
+      continue
+    }
+    if (line.startsWith('|')) {
+      const rows = []
+      while (i < lines.length && lines[i].startsWith('|')) rows.push(lines[i++])
+      const cells = (r) => r.replace(/^\||\|$/g, '').split('|').map((c) => inline(c.trim()))
+      const body = rows.filter((r) => !/^\|[\s:|-]+\|$/.test(r))
+      html += '<table>' + body.map((r, n) => `<tr>${cells(r).map((c) => n ? `<td>${c}</td>` : `<th>${c}</th>`).join('')}</tr>`).join('') + '</table>'
+      continue
+    }
+    if (isList(line)) {
+      const ordered = /^\s*\d+\./.test(line)
+      const items = []
+      while (i < lines.length && (isList(lines[i]) || (/^\s{2,}\S/.test(lines[i]) && items.length))) {
+        const l = lines[i++]
+        if (isList(l)) items.push({ indent: l.match(/^\s*/)[0].length, text: l.replace(/^\s*([-*+]|\d+\.)\s+/, '') })
+        else items[items.length - 1].text += ' ' + l.trim()
+      }
+      const lis = items.map(({ indent, text }) => {
+        const task = text.match(/^\[([ xX])\]\s+(.*)$/)
+        const style = indent ? ` style="margin-left:${indent * 0.6}em"` : ''
+        return task
+          ? `<li class="task ${task[1] === ' ' ? '' : 'done'}"${style}>${inline(task[2])}</li>`
+          : `<li${style}>${inline(text)}</li>`
+      }).join('')
+      html += ordered ? `<ol>${lis}</ol>` : `<ul>${lis}</ul>`
+      continue
+    }
+    const para = []
+    while (i < lines.length && lines[i].trim() && !isBlockStart(lines[i])) para.push(lines[i++])
+    html += `<p>${inline(para.join(' '))}</p>`
+  }
+  return html
+}
+
+setView()
+poll()
+setInterval(poll, POLL_MS)
+</script>
+</body>
+</html>

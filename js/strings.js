@@ -31,6 +31,9 @@ export const meetingSub = (homeName, date, dur) => `${homeName} time · ${date} 
 export const verdictAll = (n) => `All ${n} zones are in Best hours.`;
 export const verdictEdge = (biz, n, names) => `${biz} of ${n} in Best hours. Outside them for ${listJoin(names)}.`;
 export const verdictBad = (items) => `Unsuitable for ${listJoin(items)}.`;
+export const verdictItem = (name, at) => `${name} (${at})`;
+export const verdictWeekendItem = (name, at) => `${name} (${at}, weekend)`;
+export const WEEKEND = "Weekend";
 export const scrubText = (from, to, homeName, verdict) => `${from} to ${to} ${homeName} time. ${verdict}`;
 
 // Header and actions

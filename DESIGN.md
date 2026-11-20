@@ -175,6 +175,10 @@ components:
     rounded: "{rounded.track}"
     height: "32px"
     width: "44px per hour"
+  now-line:
+    backgroundColor: "{colors.ink}"
+    width: "2px"
+    cap: "8px round dot"
 ---
 
 # Design System: ZonePlanner
@@ -217,7 +221,7 @@ A warm-paper palette with one deep sage voice, a peach-and-clay band pair, and t
 - **Pressed Paper** (`paper-deep`): segmented-control track, soft icon-button hover.
 - **Cream Card** (`card`): every card, the sheet, the date pill and floating icon buttons.
 - **Pale Clay** (`night`): Unsuitable-hour segments (20–06) and empty overlap tracks. Outlined by **Clay Rule** (`night-line`), the 1px inset that keeps pale tracks from dissolving into the card.
-- **Ink** (`ink`): primary text. **Soft Ink** (`ink-soft`): legend and small headings. **Field Grey-Brown** (`muted`): secondary text, unselected segments.
+- **Ink** (`ink`): primary text and the now line with its dot cap. **Soft Ink** (`ink-soft`): legend and small headings. **Field Grey-Brown** (`muted`): secondary text, unselected segments.
 - **Paper Rule** (`line`): row dividers, chip borders, the sheet grip.
 
 ### Named Rules
@@ -322,6 +326,8 @@ The hour filter dims, in every row, each 15-minute slot where the Everyone row f
 On desktop, a vertical mouse wheel over the grid scrolls it sideways until either end, then lets the page scroll. A mouse drag on the hour cells pans the grid without selecting (grab cursor at rest, grabbing while dragging, no text selection); a click without moving still selects. The grid itself takes focus: it shows the gold focus ring, inset so it stays inside the card, and Left/Right move it one hour column at a time.
 
 User rows reorder from the header column only, never from the hour cells. Dragging the handle (any pointer), or a 400ms touch long press anywhere on a user row's header (with a light haptic where the device has one), lifts the row: it rides the pointer with a stronger sage-tinted Paper Lift shadow and a 1.02 scale, above the sticky column, and the gold bar steps aside while it is held. The rows it passes slide out of the way on `transform` (0.22s, shared ease). Holding near the top or bottom of the viewport scrolls the page, faster nearer the edge. Dropping inside the board saves the new order; Esc, a drop outside the board, a resize or toggling Edit cancels and the rows return. Nothing lands above the home row. Under reduced motion the lift has no scale and the rows jump into place.
+
+On today's grid a 2px Ink now line crosses the Everyone row and every zone row at the current minute, capped by an 8px round Ink dot in the Everyone row's top padding; the round cap tells it apart from the bar's flat gold tab without relying on colour. It paints above the selection bar and under the header column, takes no pointer events, stays in edit mode, and moves on `transform` only, jumping one minute at a time with no animation. It is hidden on other days. On first load on today the grid opens with the line one hour column right of the header column. A ghost "Now" pill sits in the board header just before Edit, shown only when the line is scrolled off screen or the selected day is not today; it brings the grid back to today and the line, then hides.
 
 ### Bottom sheet
 Zone search opens as a bottom sheet: Cream Card, 26px top corners, a 40px grip, a serif title, the search well, then 56px result rows that hover to Warm Paper. It enters by rising 40px over 0.42s.

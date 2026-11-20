@@ -17,9 +17,12 @@ tests and `npm run sw:stamp` stamps `sw.js`.
 - `app.js`: the entry point. DOM lookups, state, load/save/share, scoring,
   rendering and interactions.
 - `js/time.js`: the time engine (`Intl.DateTimeFormat`): offsets, local parts,
-  zoned midnight, band classification, Good heat steps and UTC offset labels.
-  A zone is an IANA ID string or a fixed offset as a number of minutes from
-  UTC (no `Etc/GMT` IDs).
+  zoned midnight, band classification, Good heat steps, UTC offset labels
+  and the slot position of an instant (`slotAt`). A zone is an IANA ID
+  string or a fixed offset as a number of minutes from UTC (no `Etc/GMT`
+  IDs).
+- `js/clock.js`: the shared minute clock: aligned to the wall-clock minute,
+  pause and resume, injectable time source.
 - `js/zones.js`: the zone list rules: zone validation, the typed-offset
   parser (`parseOffset`: `GMT+11`, `UTC-7`, `+5:30`, `-0330`), user rows (home
   dropped, capped at 7), share-link `z` encoding and parsing (`tz~name` per
@@ -57,8 +60,8 @@ tests and `npm run sw:stamp` stamps `sw.js`.
   `index.html`, the `url()`s in `styles.css` and the import graph from
   `app.js`) and its content hash; the stamp writes both into `sw.js`'s
   `VERSION` and `PRECACHE` lines.
-- `test/`: unit tests (`node:test`) for the time engine, the zone rules, the
-  stored state, the city data, the wheel scroll decision, the row reorder
+- `test/`: unit tests (`node:test`) for the time engine, the shared clock,
+  the zone rules, the stored state, the city data, the wheel scroll decision, the row reorder
   and the hour filter, plus a static
   CSP check of `index.html` (`test/csp.test.js`) and a static `styles.css`
   token check (heat-step contrast and order, `test/tokens.test.js`) and the
@@ -96,10 +99,12 @@ Rules that hold across the app:
   text and never escape. Any strings-module result that goes into `innerHTML`
   is wrapped in `esc()` at the call site in `app.js`, so it is escaped exactly
   once; `textContent`, `setAttribute` and `window.prompt` take it as is.
-- `js/time.js`, `js/zones.js`, `js/state.js`, `js/scroll.js`, `js/reorder.js`,
-  `js/filter.js` and `js/cities.js` stay DOM-free: no `document`, `window`, `location`, `localStorage`, `navigator`
+- `js/time.js`, `js/clock.js`, `js/zones.js`, `js/state.js`, `js/scroll.js`,
+  `js/reorder.js`, `js/filter.js` and `js/cities.js` stay DOM-free: no `document`, `window`, `location`, `localStorage`, `navigator`
   or `history`, so they import in Node.
 - Every `$("id")` / `getElementById` lookup stays in `app.js` with a literal id.
+- Live updates (the now line, the home-zone re-check) subscribe to the one
+  shared clock in `app.js`; don't add your own `setInterval` or minute timers.
 - Touch targets are at least 44px; no horizontal scroll at 390px wide.
 - Any change that adds, removes, renames or edits a file the page loads
   (`index.html`, `styles.css`, any module, any font) must rerun

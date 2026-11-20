@@ -36,6 +36,7 @@ export const CLOCK_24_LABEL = "24-hour clock";
 export const EVERYONE = "Everyone";
 export const HOME_ZONE = "Home zone";
 export const removeZone = (name) => `Remove ${name}`;
+export const changeZone = (name) => `Change ${name}`;
 export const zoneCount = (n, max) => `${n} of ${max}`;
 export const ADD_CITY = "Add City";
 /** A fixed-offset row's name: "UTC+05:30", "UTC−07:00", "UTC+00:00". */
@@ -60,7 +61,7 @@ export const ALL_BUSINESS = "All in Best hours";
 
 // Selection
 export const meetingSub = (homeName, date, dur) => `${homeName} time · ${date} · ${dur}`;
-export const verdictAll = (n) => `All ${n} zones are in Best hours.`;
+export const verdictAll = (n) => n === 1 ? "In Best hours." : `All ${n} zones are in Best hours.`;
 export const verdictEdge = (biz, n, names) => `${biz} of ${n} in Best hours. Outside them for ${listJoin(names)}.`;
 export const verdictBad = (items) => `Unsuitable for ${listJoin(items)}.`;
 export const scrubText = (from, to, homeName, verdict) => `${from} to ${to} ${homeName} time. ${verdict}`;
@@ -79,9 +80,13 @@ export const linkDropped = (n) => `Left out ${n} ${n === 1 ? "zone" : "zones"} f
 export const TIMES_COPIED = "Meeting times copied";
 export const LINK_COPIED = "Link to this plan copied";
 export const added = (name) => `Added ${name}`;
+export const changed = (from, to) => `Changed ${from} to ${to}`;
 export const STATE_RESET = "Your saved zones couldn't be read, so the defaults are back.";
 
 // Zone sheet
+export const ADD_TITLE = "Add City";
+export const changeTitle = (name) => `Change ${name}`;
+export const changeNote = (name) => `Pick a zone to replace ${name}. It keeps its place in the list.`;
 export const ZONES_FULL = "Maximum of 7 time zones. Remove one to add another.";
 export const zonesAdded = (n, max) => `${n} of ${max} zones added`;
 export const noMatch = (query) => `Nothing matches “${query}”. Try a nearby major city.`;

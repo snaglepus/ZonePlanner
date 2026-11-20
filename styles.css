@@ -331,12 +331,13 @@ svg { flex: none; }
 .sheet-inner { display: flex; flex-direction: column; max-height: 86dvh; padding: 8px 16px calc(16px + env(safe-area-inset-bottom)); }
 .sheet-grip { width: 40px; height: 4px; border-radius: 4px; background: var(--line); margin: 2px auto 10px; }
 .sheet-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
-.sheet-head h2 { font: 400 22px/1.2 var(--serif); color: var(--sage); }
+.sheet-head h2 { font: 400 22px/1.2 var(--serif); color: var(--sage); min-width: 0; overflow-wrap: anywhere; }
+.sheet-head .icon-btn { flex: none; }
 .search { display: flex; align-items: center; gap: 10px; min-height: 48px; padding: 0 14px; border-radius: 14px; background: var(--paper); color: var(--muted); }
 .search:focus-within { outline: 2.5px solid var(--gold); outline-offset: 1px; }
 .search input { flex: 1; min-width: 0; border: 0; background: transparent; font: 500 16px var(--sans); color: var(--ink); outline: none; }
 .search input::placeholder { color: #67625A; }
-.sheet-note { font-size: 13px; color: var(--muted); margin: 10px 2px 4px; min-height: 1em; }
+.sheet-note { flex: none; font-size: 13px; color: var(--muted); margin: 10px 2px 4px; min-height: 1em; overflow-wrap: anywhere; }
 .results { list-style: none; margin: 0 -4px; padding: 0 0 8px; overflow-y: auto; overscroll-behavior: contain; }
 .result {
   display: flex; align-items: center; gap: 12px; width: 100%; min-height: 56px; padding: 8px 10px; border: 0; border-radius: 14px;

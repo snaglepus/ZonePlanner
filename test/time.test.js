@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { BAND, SLOT_MS, cellLabel, classify, goodStep, homeDay, hhmm, localParts, offLabel, offsetMin, slotAt, zonedMidnight } from "../js/time.js";
+import { BAND, SLOT_MS, classify, goodStep, homeDay, hour12For, localeHour12, localParts, offLabel, offsetMin, slotAt, zonedMidnight } from "../js/time.js";
 
 const JAN_15 = Date.UTC(2026, 0, 15);
 const HOUR = 3600000;
@@ -75,14 +75,6 @@ test("goodStep is non-zero exactly when classify is Good", () => {
   for (let m = 0; m < 1440; m++) assert.equal(goodStep(m) !== 0, classify(m) === BAND.edge, `minute ${m}`);
 });
 
-const SYD_9AM = zonedMidnight("Australia/Sydney", 2027, 1, 15) + 9 * HOUR;
-test("cellLabel shows a whole hour without minutes", () => {
-  assert.equal(cellLabel("Australia/Sydney", SYD_9AM), "9");
-  assert.equal(cellLabel("Asia/Tokyo", SYD_9AM), "7");
-});
-test("cellLabel shows 3:30 in Kolkata at 09:00 Sydney", () => assert.equal(cellLabel("Asia/Kolkata", SYD_9AM), "3:30"));
-test("cellLabel shows 3:45 in Kathmandu at 09:00 Sydney", () => assert.equal(cellLabel("Asia/Kathmandu", SYD_9AM), "3:45"));
-
 test("homeDay Sydney 2027-01-15 has 24 columns", () => assert.equal(homeDay("Australia/Sydney", 2027, 1, 15).cols, 24));
 test("homeDay Sydney 2027-04-04 has 25 columns", () => assert.equal(homeDay("Australia/Sydney", 2027, 4, 4).cols, 25));
 test("homeDay Sydney 2027-10-03 has 23 columns", () => assert.equal(homeDay("Australia/Sydney", 2027, 10, 3).cols, 23));
@@ -90,9 +82,9 @@ test("homeDay Sydney 2027-10-03 has 23 columns", () => assert.equal(homeDay("Aus
 test("a numeric zone is a fixed offset", () => {
   assert.equal(offsetMin(330, JAN_15), 330);
   const p = localParts(345, JAN_15);
-  assert.equal(hhmm(p), "05:45");
+  assert.equal(p.h, 5);
+  assert.equal(p.m, 45);
 });
-test("cellLabel shows :30 for a -210 fixed offset at a whole UTC hour", () => assert.equal(cellLabel(-210, JAN_15), "20:30"));
 test("fixed offsets keep their gap across DST while Los Angeles shifts", () => {
   const JUL_15 = Date.UTC(2026, 6, 15);
   const gap = (a, b, t) => (offsetMin(a, t) - offsetMin(b, t)) / 60;
@@ -125,4 +117,15 @@ test("slotAt uses the DST day's own slot count", () => {
   assert.equal(slotAt(short.t1, short.t0, short.slots), null);
   assert.equal(slotAt(long.t1 - SLOT_MS, long.t0, long.slots), 99);
   assert.equal(slotAt(long.t1, long.t0, long.slots), null);
+});
+test("hour12For maps hour cycles to a 12-hour clock", () => {
+  assert.equal(hour12For("h11"), true);
+  assert.equal(hour12For("h12"), true);
+  assert.equal(hour12For("h23"), false);
+  assert.equal(hour12For("h24"), false);
+  assert.equal(hour12For(undefined), false);
+});
+test("localeHour12 follows the locale's hour cycle", () => {
+  assert.equal(localeHour12("en-US"), true);
+  assert.equal(localeHour12("en-GB"), false);
 });

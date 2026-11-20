@@ -47,7 +47,6 @@ export const localParts = (tz, t) => {
   return { h: l.getUTCHours(), m: l.getUTCMinutes(), mod: l.getUTCHours() * 60 + l.getUTCMinutes(), dayKey: l.getUTCFullYear() * 10000 + (l.getUTCMonth() + 1) * 100 + l.getUTCDate(), date: l, off };
 };
 export const pad = (n) => String(n).padStart(2, "0");
-export const hhmm = (p) => `${pad(p.h)}:${pad(p.m)}`;
 export const offLabel = (off) => {
   const s = off < 0 ? "−" : "+";
   const a = Math.abs(off);
@@ -62,11 +61,10 @@ export const homeDay = (tz, y, m, d) => {
   const slots = Math.round((t1 - t0) / 900000);
   return { t0, t1, slots, cols: Math.ceil(slots / 4) };
 };
-/** Local time at t in tz (IANA ID or fixed minutes) as a grid cell label: "9", "3:30", "3:45". */
-export const cellLabel = (tz, t) => {
-  const p = localParts(tz, t);
-  return p.m ? `${p.h}:${pad(p.m)}` : String(p.h);
-};
 export const SLOT_MS = 900000;
 /** Fractional 15-minute slot of instant t in a day of n slots from t0, or null outside it. */
 export const slotAt = (t, t0, n) => (t >= t0 && t < t0 + n * SLOT_MS ? (t - t0) / SLOT_MS : null);
+/** Whether an Intl hourCycle is a 12-hour clock; unknown or missing means 24-hour. */
+export const hour12For = (hourCycle) => hourCycle === "h11" || hourCycle === "h12";
+/** The locale's default clock (undefined: the runtime's locale); hourCycle is only reported when an hour is requested. */
+export const localeHour12 = (locale) => hour12For(new Intl.DateTimeFormat(locale, { hour: "numeric" }).resolvedOptions().hourCycle);

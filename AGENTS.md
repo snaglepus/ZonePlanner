@@ -17,10 +17,10 @@ tests and `npm run sw:stamp` stamps `sw.js`.
 - `app.js`: the entry point. DOM lookups, state, load/save/share, scoring,
   rendering and interactions.
 - `js/time.js`: the time engine (`Intl.DateTimeFormat`): offsets, local parts,
-  zoned midnight, band classification, Good heat steps, UTC offset labels
-  and the slot position of an instant (`slotAt`). A zone is an IANA ID
-  string or a fixed offset as a number of minutes from UTC (no `Etc/GMT`
-  IDs).
+  zoned midnight, band classification, Good heat steps, UTC offset labels,
+  the slot position of an instant (`slotAt`) and the locale's default
+  clock (`localeHour12`, from the `hourCycle`). A zone is an IANA ID string
+  or a fixed offset as a number of minutes from UTC (no `Etc/GMT` IDs).
 - `js/clock.js`: the shared minute clock: aligned to the wall-clock minute,
   pause and resume, injectable time source.
 - `js/zones.js`: the zone list rules: zone validation, the typed-offset
@@ -29,7 +29,9 @@ tests and `npm run sw:stamp` stamps `sw.js`.
   city row, `@<minutes>` per offset row), and following a new device zone.
 - `js/state.js`: the stored state shape, its load, validation and
   version-driven migration, and the debounced (250 ms) saver.
-- `js/strings.js`: every user-facing string JavaScript builds (en-AU).
+- `js/strings.js`: every user-facing string JavaScript builds (en-AU),
+  including the single time formatter: `clock` (full or hour-cell form, 12-
+  or 24-hour) and `clockRange` built on it.
 - `js/scroll.js`: the wheel-to-horizontal scroll decision for the hour grid
   (`wheelScroll`).
 - `js/reorder.js`: the pure row reorder for drag-to-reorder (`moveRow`); the
@@ -61,8 +63,8 @@ tests and `npm run sw:stamp` stamps `sw.js`.
   `app.js`) and its content hash; the stamp writes both into `sw.js`'s
   `VERSION` and `PRECACHE` lines.
 - `test/`: unit tests (`node:test`) for the time engine, the shared clock,
-  the zone rules, the stored state, the city data, the wheel scroll decision, the row reorder
-  and the hour filter, plus a static
+  the zone rules, the stored state, the city data, the wheel scroll decision, the row reorder,
+  the hour filter and the time formatter (`test/strings.test.js`), plus a static
   CSP check of `index.html` (`test/csp.test.js`) and a static `styles.css`
   token check (heat-step contrast and order, `test/tokens.test.js`) and the
   service worker's stamp and manifest rules (`test/sw.test.js`).
@@ -83,6 +85,10 @@ Rules that hold across the app:
   backed up to `zoneplanner.state.bak` and reset to the defaults; the old
   `zoneplanner:v1` key is migrated once and never written. Stored zones and
   link zones both go through `userRows` in `js/zones.js`.
+- Every displayed time of day goes through `clock`/`clockRange` in
+  `js/strings.js` with the effective clock, `state.hour12 ?? localeHour12()`.
+  A stored `hour12: null` means follow the locale; the 12h/24h toggle stores
+  `true` or `false`.
 - Offset rows (`{offsetMin}`, a multiple of 15 within ±14:00) are named from
   their offset (`UTC+05:30`, via `offsetName`), never from stored or linked
   text, and have no country.

@@ -162,6 +162,8 @@ svg { flex: none; }
 }
 .seg button[aria-checked="true"] { background: var(--sage); color: var(--on-sage); }
 .seg button:not([aria-checked="true"]):hover { color: var(--ink); }
+/* time-format toggle in the board header: full 44px targets */
+.seg-clock button { min-height: 44px; min-width: 44px; padding: 0 8px; }
 
 .suggest h3 { font-size: 13px; font-weight: 650; color: var(--ink-soft); margin-bottom: 8px; }
 .chips { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; margin: 0 -18px; padding: 0 18px 2px; scroll-padding: 18px; }
@@ -223,7 +225,7 @@ svg { flex: none; }
 .row-name b svg { width: 15px; height: 15px; fill: none; stroke: var(--sage); stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
 .row-name span { display: block; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .row-at { font-variant-numeric: tabular-nums; }
-.row-at b { display: block; font-size: 14px; font-weight: 700; line-height: 1.2; white-space: nowrap; }
+.row-at b { display: block; font-size: 14px; font-weight: 700; line-height: 1.2; }
 .row-at span { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 600; color: var(--muted); margin-top: 2px; }
 .row-at .day { font-size: 11px; font-weight: 700; color: var(--terra); background: var(--terra-tint); border-radius: 6px; padding: 1px 5px; margin-right: 4px; vertical-align: 1px; }
 .row[data-at="night"] .row-at span { color: var(--terra); }
@@ -267,6 +269,8 @@ svg { flex: none; }
 .cell + .cell { box-shadow: inset 1px 0 0 rgba(42, 44, 40, .12); }
 /* labels sit on their own card backing, so a :30/:45 zone changing band under one never costs contrast */
 .cell span { padding: 1px 3px; border-radius: 3px; background: var(--card); color: var(--ink); line-height: 1.2; }
+/* 12-hour am/pm cue, stacked under the number on the same backing */
+.cell span small { display: block; font-size: 9px; font-weight: 700; line-height: 1.1; font-variant-numeric: tabular-nums; }
 
 /* room above the first row for the bar's tab */
 .row-all > .row-head, .row-all > .track { padding-top: 20px; }
@@ -362,7 +366,7 @@ svg { flex: none; }
   .masthead { height: 284px; }
   .brand h1 { font-size: 40px; }
   .meeting-time { font-size: 42px; }
-  .meeting-head { flex-direction: row; justify-content: space-between; align-items: flex-start; }
+  .meeting-head { flex-direction: row; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; }
   .meeting-actions .btn { flex: none; }
 }
 

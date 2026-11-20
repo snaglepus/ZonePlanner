@@ -1,4 +1,4 @@
-import { BAND_NAME, classify, goodStep, homeDay, cellLabel, localParts, pad, hhmm, offLabel, weekday, slotAt } from "./js/time.js";
+import { BAND_NAME, classify, goodStep, homeDay, localParts, localeHour12, pad, offLabel, weekday, slotAt } from "./js/time.js";
 import { createClock } from "./js/clock.js";
 import * as S from "./js/strings.js";
 import { MAX_USER_ZONES, validTz, rowsToLink, rawParam, linkToRows, followHome } from "./js/zones.js";
@@ -64,6 +64,9 @@ const save = () => {
   const zones = state.zones.slice(1).map((z) => ("offsetMin" in z ? { offsetMin: z.offsetMin } : { tz: z.tz, name: z.name }));
   saver.save(serializeState({ zones, hour12: state.hour12, filter: state.filter, len: state.len }));
 };
+/** The clock in use: the user's choice, or the locale's while hour12 is null. */
+const hour12 = () => state.hour12 ?? localeHour12();
+const timeText = (p) => S.clock(p, hour12());
 const shareURL = () => `${location.origin}${location.pathname}#z=${rowsToLink(state.zones)}&d=${state.date}&l=${state.len}`;
 
 // ---------- Model ----------
@@ -118,7 +121,7 @@ const $ = (id) => document.getElementById(id);
 const el = {
   rows: $("rows"), scrub: $("scrub"), selbar: $("selbar"), nowLine: $("nowLine"), nowBtn: $("nowBtn"), timeline: $("timeline"),
   meetingTime: $("meetingTime"), meetingSub: $("meetingSub"), verdict: $("verdict"), suggestions: $("suggestions"),
-  lengthSeg: $("lengthSeg"), filterSeg: $("filterSeg"), filterEmpty: $("filterEmpty"), dateInput: $("dateInput"), dateLabel: $("dateLabel"), zoneCount: $("zoneCount"),
+  lengthSeg: $("lengthSeg"), filterSeg: $("filterSeg"), filterEmpty: $("filterEmpty"), clockSeg: $("clockSeg"), legendBest: $("legendBest"), legendGood: $("legendGood"), dateInput: $("dateInput"), dateLabel: $("dateLabel"), zoneCount: $("zoneCount"),
   addZone: $("addZone"), zoneLimit: $("zoneLimit"), editBtn: $("editBtn"), copyBtn: $("copyBtn"), shareBtn: $("shareBtn"),
   sheet: $("zoneSheet"), search: $("zoneSearch"), results: $("results"), sheetNote: $("sheetNote"), toast: $("toast")
 };
@@ -149,7 +152,8 @@ const actBtn = (act, idx, label, id) => {
   return b;
 };
 
-/** One hour cell per column over the 15-minute band runs; labels only when a zone is given, Good heat steps only when heat is. Slots the filter drops are dimmed. */
+/** One hour cell per column over the 15-minute band runs; labels only when a zone is given, Good heat steps only when heat is. Slots the filter drops are dimmed.
+ * On a 12-hour clock the first cell and each cell where am/pm changes carry the meridiem cue. */
 const trackEl = (bands, z, heat) => {
   const track = make("div", "track");
   track.setAttribute("aria-hidden", "true");
@@ -163,9 +167,17 @@ const trackEl = (bands, z, heat) => {
     i = j;
   }
   const cells = make("div", "cells");
+  const h12 = hour12();
+  let prev = null;
   for (let c = 0; c < model.cols; c++) {
     const cell = make("div", "cell");
-    if (z) cell.append(make("span", null, cellLabel(zoneOf(z), model.t0 + c * 3600000)));
+    if (z) {
+      const p = localParts(zoneOf(z), model.t0 + c * 3600000);
+      const label = make("span", null, S.clock(p, h12, { cell: true }));
+      if (h12 && (!prev || S.meridiem(p.h) !== S.meridiem(prev.h))) label.append(make("small", null, S.meridiem(p.h)));
+      cell.append(label);
+      prev = p;
+    }
     const w = Math.min(4, model.n - 4 * c);
     if (w < 4) cell.style.setProperty("--w", String(w));
     cells.append(cell);
@@ -240,7 +252,7 @@ const longestRun = (min) => {
 const runLabel = ([i, j]) => {
   const a = model.grid[0].parts[i];
   const b = localParts(state.zones[0].tz, model.t0 + j * SLOT_MS);
-  return `${hhmm(a)}–${hhmm(b)}`;
+  return S.clockRange(a, b, hour12());
 };
 const overlapSummary = () => {
   const biz = longestRun(2);
@@ -255,9 +267,9 @@ const renderSuggestions = (list) => {
   el.suggestions.innerHTML = list.map((w) => {
     const p = model.grid[0].parts[w.s];
     const tone = w.night ? "night" : w.edge ? "edge" : "biz";
-    const bad = state.zones.map((z, i) => (w.worst[i] === 0 ? `${z.name} ${hhmm(model.grid[i].parts[w.s])}` : null)).filter(Boolean);
+    const bad = state.zones.map((z, i) => (w.worst[i] === 0 ? `${z.name} ${timeText(model.grid[i].parts[w.s])}` : null)).filter(Boolean);
     const note = w.night ? (bad.length > 1 ? S.inconvenientCount(bad.length) : S.inconvenientOne(bad[0])) : w.edge ? S.bizEdgeCount(w.biz, w.edge) : S.ALL_BUSINESS;
-    return `<button type="button" class="chip" data-s="${w.s}" aria-pressed="${w.s === state.start}"><span class="mark mark-${tone}" aria-hidden="true"></span>${hhmm(p)} <small>${esc(note)}</small></button>`;
+    return `<button type="button" class="chip" data-s="${w.s}" aria-pressed="${w.s === state.start}"><span class="mark mark-${tone}" aria-hidden="true"></span>${esc(timeText(p))} <small>${esc(note)}</small></button>`;
   }).join("");
 };
 
@@ -269,7 +281,7 @@ const renderSelection = () => {
   const a = model.grid[0].parts[s];
   const endT = model.t0 + (s + L) * SLOT_MS;
   const b = localParts(home.tz, endT);
-  el.meetingTime.textContent = `${hhmm(a)} – ${hhmm(b)}`;
+  el.meetingTime.textContent = `${timeText(a)} – ${timeText(b)}`;
   const dateTxt = new Date(model.t0 + 12 * 3600000).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: home.tz });
   el.meetingSub.textContent = S.meetingSub(home.name, dateTxt, S.durLabel(L * SLOT_MIN));
 
@@ -287,12 +299,13 @@ const renderSelection = () => {
     el.verdict.dataset.tone = "bad";
     const bad = names(0).map((z) => {
       const idx = state.zones.indexOf(z);
-      return `${z.name} (${hhmm(model.grid[idx].parts[s])})`;
+      return `${z.name} (${timeText(model.grid[idx].parts[s])})`;
     });
     el.verdict.textContent = S.verdictBad(bad);
   }
 
   // per-row readouts
+  const h12 = hour12();
   const homeKey = model.grid[0].parts[s].dayKey;
   el.rows.querySelectorAll(".row[data-idx]").forEach((row) => {
     const i = +row.dataset.idx;
@@ -302,7 +315,7 @@ const renderSelection = () => {
     const band = w.worst[i];
     row.dataset.at = BAND_NAME[band];
     const dayBadge = p.dayKey !== homeKey ? `<span class="day">${weekday(p.date)}</span>` : "";
-    row.querySelector("[data-at]").innerHTML = `<b>${dayBadge}${hhmm(p)}–${hhmm(q)}</b><span><i class="mark mark-${BAND_NAME[band]}" aria-hidden="true"></i>${esc(S.BAND_LABEL[band])}</span>`;
+    row.querySelector("[data-at]").innerHTML = `<b>${dayBadge}${esc(S.clockRange(p, q, h12))}</b><span><i class="mark mark-${BAND_NAME[band]}" aria-hidden="true"></i>${esc(S.BAND_LABEL[band])}</span>`;
   });
 
   // bar geometry, in slots from the start of the tracks
@@ -311,7 +324,7 @@ const renderSelection = () => {
   el.selbar.style.transform = `translateX(${left + s * slot}px)`;
   el.scrub.max = String(model.n - L);
   el.scrub.value = String(s);
-  el.scrub.setAttribute("aria-valuetext", S.scrubText(hhmm(a), hhmm(b), home.name, el.verdict.textContent));
+  el.scrub.setAttribute("aria-valuetext", S.scrubText(timeText(a), timeText(b), home.name, el.verdict.textContent));
   el.suggestions.querySelectorAll(".chip").forEach((c) => c.setAttribute("aria-pressed", String(+c.dataset.s === s)));
 };
 
@@ -386,12 +399,20 @@ const renderFilter = () => {
   el.filterEmpty.hidden = !empty;
 };
 
+const renderClock = () => {
+  const h12 = hour12();
+  el.clockSeg.querySelectorAll("button").forEach((b) => b.setAttribute("aria-checked", String((b.dataset.h12 === "true") === h12)));
+  el.legendBest.textContent = S.legendBest(h12);
+  el.legendGood.textContent = S.legendGood(h12);
+};
+
 const render = ({ keepStart = false } = {}) => {
   cancelReorder();
   buildModel();
   renderDate();
   renderLength();
   renderFilter();
+  renderClock();
   renderRows();
   const list = suggestions();
   if (!keepStart || state.start == null || state.start > model.n - state.len) state.start = list.length ? list[0].s : 0;
@@ -693,6 +714,28 @@ el.filterSeg.addEventListener("keydown", (e) => {
   setFilter(FILTERS[i]);
 });
 
+el.clockSeg.setAttribute("aria-label", S.TIME_FORMAT);
+el.clockSeg.querySelectorAll("button").forEach((b) => {
+  const on = b.dataset.h12 === "true";
+  b.textContent = on ? S.CLOCK_12 : S.CLOCK_24;
+  b.setAttribute("aria-label", on ? S.CLOCK_12_LABEL : S.CLOCK_24_LABEL);
+});
+el.clockSeg.addEventListener("click", (e) => {
+  const b = e.target.closest("button[data-h12]");
+  if (!b) return;
+  state.hour12 = b.dataset.h12 === "true";
+  render({ keepStart: true });
+});
+el.clockSeg.addEventListener("keydown", (e) => {
+  if (!["ArrowLeft", "ArrowRight"].includes(e.key)) return;
+  const opts = [true, false];
+  const i = opts.indexOf(hour12()) + (e.key === "ArrowRight" ? 1 : -1);
+  if (i < 0 || i >= opts.length) return;
+  state.hour12 = opts[i];
+  render({ keepStart: true });
+  el.clockSeg.querySelector(`[data-h12="${state.hour12}"]`).focus();
+});
+
 const shiftDay = (delta) => {
   const [y, m, d] = state.date.split("-").map(Number);
   const dt = new Date(Date.UTC(y, m - 1, d + delta));
@@ -740,7 +783,7 @@ el.copyBtn.addEventListener("click", () => {
   const lines = state.zones.map((z, i) => {
     const p = model.grid[i].parts[s];
     const q = localParts(zoneOf(z), endT);
-    return `${z.name}: ${weekday(p.date)} ${hhmm(p)}–${hhmm(q)}`;
+    return `${z.name}: ${weekday(p.date)} ${timeText(p)}–${timeText(q)}`;
   });
   copyText(lines.join("\n"), S.TIMES_COPIED);
 });
@@ -775,7 +818,7 @@ const renderResults = () => {
       const q = localParts(n, now);
       return `<li><button type="button" class="result" role="option" data-offset="${n}" ${taken || full ? "disabled" : ""} aria-selected="false">
       <span class="r-main"><b>${esc(S.offsetResult(n))}</b></span>
-      ${taken ? icon("check") : `<span class="r-time">${hhmm(q)}<span>${esc(S.BAND_LABEL[classify(q.mod)])}</span></span>`}
+      ${taken ? icon("check") : `<span class="r-time">${esc(timeText(q))}<span>${esc(S.BAND_LABEL[classify(q.mod)])}</span></span>`}
     </button></li>`;
     }
     const added = state.zones.some((z) => z.tz === c.tz && z.name === c.name);
@@ -783,7 +826,7 @@ const renderResults = () => {
     const p = localParts(c.tz, now);
     return `<li><button type="button" class="result" role="option" data-tz="${esc(c.tz)}" data-name="${esc(c.name)}" ${added || isHome || full ? "disabled" : ""} aria-selected="false">
       <span class="r-main"><b>${esc(c.name)}</b><span>${esc(c.country)} · ${offLabel(p.off)}</span></span>
-      ${added ? icon("check") : `<span class="r-time">${hhmm(p)}<span>${esc(S.BAND_LABEL[classify(p.mod)])}</span></span>`}
+      ${added ? icon("check") : `<span class="r-time">${esc(timeText(p))}<span>${esc(S.BAND_LABEL[classify(p.mod)])}</span></span>`}
     </button></li>`;
   }).join("");
 };

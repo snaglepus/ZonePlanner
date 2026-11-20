@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { BAND, classify, localParts, offLabel, offsetMin, zonedMidnight } from "../js/time.js";
+import { BAND, cellLabel, classify, homeDay, localParts, offLabel, offsetMin, zonedMidnight } from "../js/time.js";
 
 const JAN_15 = Date.UTC(2026, 0, 15);
 const HOUR = 3600000;
@@ -48,3 +48,15 @@ test("20:00 is the edge/night boundary", () => {
   assert.equal(classify(1199), BAND.edge);
   assert.equal(classify(1200), BAND.night);
 });
+
+const SYD_9AM = zonedMidnight("Australia/Sydney", 2027, 1, 15) + 9 * HOUR;
+test("cellLabel shows a whole hour without minutes", () => {
+  assert.equal(cellLabel("Australia/Sydney", SYD_9AM), "9");
+  assert.equal(cellLabel("Asia/Tokyo", SYD_9AM), "7");
+});
+test("cellLabel shows 3:30 in Kolkata at 09:00 Sydney", () => assert.equal(cellLabel("Asia/Kolkata", SYD_9AM), "3:30"));
+test("cellLabel shows 3:45 in Kathmandu at 09:00 Sydney", () => assert.equal(cellLabel("Asia/Kathmandu", SYD_9AM), "3:45"));
+
+test("homeDay Sydney 2027-01-15 has 24 columns", () => assert.equal(homeDay("Australia/Sydney", 2027, 1, 15).cols, 24));
+test("homeDay Sydney 2027-04-04 has 25 columns", () => assert.equal(homeDay("Australia/Sydney", 2027, 4, 4).cols, 25));
+test("homeDay Sydney 2027-10-03 has 23 columns", () => assert.equal(homeDay("Australia/Sydney", 2027, 10, 3).cols, 23));

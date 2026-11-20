@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { AM, PM, clock, clockRange, dayDiffLabel, legendBest, legendGood, meridiem } from "../js/strings.js";
+import { AM, PM, clock, clockChange, clockRange, dayDiffLabel, legendBest, legendGood, meridiem, shiftSize } from "../js/strings.js";
 import { localParts, zonedMidnight } from "../js/time.js";
 
 const t = (h, m) => ({ h, m });
@@ -77,4 +77,19 @@ test("dayDiffLabel words a zone's date against home", () => {
   assert.equal(dayDiffLabel(0), "");
   assert.equal(dayDiffLabel(1), "Tomorrow");
   assert.equal(dayDiffLabel(2), "+2 days");
+});
+
+test("clockChange explains London going back", () => {
+  assert.equal(clockChange("London", false, 60, "Sun 25 Oct", clock(t(2, 0), true)),
+    "Clocks in London go back 1 hour on Sun 25 Oct at 2:00 am. Meetings after that are 1 hour earlier for London relative to zones that do not change.");
+});
+test("clockChange explains a 30-minute change forward", () => {
+  assert.equal(clockChange("Lord Howe Island", true, 30, "Sun 4 Oct", clock(t(2, 0), false)),
+    "Clocks in Lord Howe Island go forward 30 minutes on Sun 4 Oct at 02:00. Meetings after that are 30 minutes later for Lord Howe Island relative to zones that do not change.");
+});
+test("shiftSize", () => {
+  assert.equal(shiftSize(30), "30 minutes");
+  assert.equal(shiftSize(60), "1 hour");
+  assert.equal(shiftSize(90), "1 hour 30 minutes");
+  assert.equal(shiftSize(120), "2 hours");
 });

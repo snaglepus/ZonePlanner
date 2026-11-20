@@ -131,3 +131,58 @@ export const zoneTag = (tz, t) => {
 const dayNumber = (dayKey) => Date.UTC(Math.floor(dayKey / 10000), Math.floor(dayKey / 100) % 100 - 1, dayKey % 100) / 86400000;
 /** Calendar days the zone's local date is ahead of the home zone's at t (+1 tomorrow, −1 yesterday). */
 export const dayDiff = (tz, homeTz, t) => dayNumber(localParts(tz, t).dayKey) - dayNumber(localParts(homeTz, t).dayKey);
+
+const DAY_MS = 86400000;
+/** First UTC offset change in (from, from + spanMs] as {at, before, after}, or null; steps a day at a time, then bisects to the minute. */
+export const nextTransition = (tz, from, spanMs) => {
+  if (typeof tz === "number") return null;
+  const before = offsetMin(tz, from);
+  const end = from + spanMs;
+  for (let lo = from; lo < end;) {
+    let hi = Math.min(lo + DAY_MS, end);
+    if (offsetMin(tz, hi) === before) { lo = hi; continue; }
+    while (hi - lo > 60000) {
+      const mid = lo + Math.floor((hi - lo) / 2);
+      if (offsetMin(tz, mid) === before) lo = mid; else hi = mid;
+    }
+    let at = Math.floor(lo / 60000) * 60000 + 60000;
+    while (offsetMin(tz, at) === before) at += 60000;
+    return { at, before, after: offsetMin(tz, at) };
+  }
+  return null;
+};
+/** The zone's standard offset for a UTC year: the lowest offset at 00:00 UTC on the 1st and 15th of each month. */
+export const standardOffset = (tz, year) => {
+  if (typeof tz === "number") return tz;
+  let min = Infinity;
+  for (let m = 0; m < 12; m++) for (const d of [1, 15]) min = Math.min(min, offsetMin(tz, Date.UTC(year, m, d)));
+  return min;
+};
+/** Whether the zone is ahead of its standard offset at t; never for fixed offsets. */
+export const isDst = (tz, t) => typeof tz !== "number" && offsetMin(tz, t) > standardOffset(tz, new Date(t).getUTCFullYear());
+export const WARN_MS = 14 * DAY_MS;
+/** Per-zone DST status cached by UTC day: status(tz, now) gives {dst, change}, with change the next offset change within WARN_MS of now, else null. */
+export const createDstWatch = ({ transition = nextTransition, standard = standardOffset } = {}) => {
+  const cache = new Map();
+  let day = null;
+  return {
+    status(tz, now) {
+      const d = Math.floor(now / DAY_MS);
+      if (d !== day) { cache.clear(); day = d; }
+      if (!cache.has(tz)) {
+        const start = d * DAY_MS;
+        cache.set(tz, { std: standard(tz, new Date(start).getUTCFullYear()), change: transition(tz, start, 15 * DAY_MS) });
+      }
+      const { std, change } = cache.get(tz);
+      return {
+        dst: typeof tz !== "number" && offsetMin(tz, now) > std,
+        change: change && now < change.at && change.at <= now + WARN_MS ? change : null
+      };
+    }
+  };
+};
+/** Local wall-clock time and date of a change, read on the old clock: {h, m, date} with a UTC-based date. */
+export const changeWall = ({ at, before }) => {
+  const l = new Date(at + before * 60000);
+  return { h: l.getUTCHours(), m: l.getUTCMinutes(), date: l };
+};

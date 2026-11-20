@@ -1,6 +1,6 @@
 ---
 name: ZonePlanner
-description: Compare 3 to 8 time zones and find the meeting hour that works for everyone.
+description: Compare up to 8 time zones (home plus up to 7) and find the meeting hour that works for everyone.
 colors:
   paper: "#F4EDE2"
   paper-deep: "#EADFD1"

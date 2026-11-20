@@ -16,7 +16,7 @@ The primary user is the owner, for personal use: coordinating calls with people 
 
 ## Product Purpose
 
-ZonePlanner helps someone compare 3 to 8 time zones at once and find the best times to hold a meeting. It succeeds when the user can see, in seconds and on a phone, which hours work for everyone, which are only a stretch, and which to avoid.
+ZonePlanner helps someone compare up to 8 time zones at once (home plus up to 7) and find the best times to hold a meeting. It succeeds when the user can see, in seconds and on a phone, which hours work for everyone, which are only a stretch, and which to avoid.
 
 ## Positioning
 
@@ -29,7 +29,7 @@ It focuses on the human cost of an hour, not just the clock arithmetic. Each hou
 
 ## Capabilities and Constraints
 
-- 3 to 8 time zones at a time.
+- Up to 8 time zones at a time: the device's zone as home plus up to 7 more.
 - Hour classification, the same for every zone (no per-zone settings):
   - **Business hours:** 09:00–17:00 local.
   - **Edge hours:** the 3 hours on either side of business hours, 06:00–09:00 and 17:00–20:00 local.

@@ -3,6 +3,7 @@ import * as S from "./js/strings.js";
 import { MAX_USER_ZONES, validTz, rowsToLink, rawParam, linkToRows, followHome } from "./js/zones.js";
 import { STATE_KEY, BACKUP_KEY, LEGACY_KEY, LENS, loadState, serializeState, createSaver } from "./js/state.js";
 import { wheelScroll } from "./js/scroll.js";
+import { moveRow } from "./js/reorder.js";
 import { zoneInfo, abbreviationZones, searchCities } from "./js/search.js";
 
 const SLOT_MIN = 15;
@@ -199,6 +200,12 @@ const renderRows = () => {
     const actions = make("div", "row-actions");
     if (idx !== 0) actions.append(actBtn("remove", idx, S.removeZone(z.name), "x"));
     head.append(name, at, actions);
+    if (idx !== 0) {
+      const grip = make("div", "row-grip");
+      grip.setAttribute("aria-hidden", "true");
+      grip.append(svgUse("grip"));
+      head.append(grip);
+    }
     row.append(head, trackEl(model.grid[idx].bands, z));
     rows.push(row);
   });
@@ -330,6 +337,7 @@ const renderLength = () => {
 };
 
 const render = ({ keepStart = false } = {}) => {
+  cancelReorder();
   buildModel();
   renderDate();
   renderLength();
@@ -355,6 +363,8 @@ const setStart = (s) => {
 el.scrub.addEventListener("input", () => { setStart(+el.scrub.value); revealSelection(); });
 
 el.rows.addEventListener("click", (e) => {
+  // a reorder that just ended never selects or removes
+  if (reordered) { reordered = false; return; }
   const btn = e.target.closest("button[data-act]");
   if (!btn) {
     // a drag that just ended pans only; it never selects
@@ -425,6 +435,164 @@ el.rows.addEventListener("pointerdown", (e) => {
 el.rows.addEventListener("lostpointercapture", endPress);
 addEventListener("blur", endPress);
 
+// reorder: drag a user row's grip, or long-press its header on touch; the home and Everyone rows never move
+const LIFT_MS = 400;
+const SLOP_PX = 8;
+const EDGE_PX = 60;
+const EDGE_SPEED = 16;
+let pending = null;
+let lift = null;
+let reordered = false;
+
+const onPendingMove = (e) => {
+  if (!pending || e.pointerId !== pending.id) return;
+  if (Math.hypot(e.clientX - pending.x, e.clientY - pending.y) > SLOP_PX) { endPending(); return; }
+  pending.lastY = e.clientY;
+};
+const onPendingEnd = (e) => { if (pending && e.pointerId === pending.id) endPending(); };
+const endPending = () => {
+  if (!pending) return;
+  clearTimeout(pending.timer);
+  pending = null;
+  removeEventListener("pointermove", onPendingMove);
+  removeEventListener("pointerup", onPendingEnd);
+  removeEventListener("pointercancel", onPendingEnd);
+  removeEventListener("scroll", endPending, true);
+};
+// a touch press that holds still for LIFT_MS lifts the row, unless the browser took it for scrolling first
+const startPending = (e, row) => {
+  const timer = setTimeout(() => {
+    const { id, lastY } = pending;
+    endPending();
+    startLift(id, row, lastY, true);
+  }, LIFT_MS);
+  pending = { id: e.pointerId, x: e.clientX, y: e.clientY, lastY: e.clientY, timer };
+  addEventListener("pointermove", onPendingMove);
+  addEventListener("pointerup", onPendingEnd);
+  addEventListener("pointercancel", onPendingEnd);
+  addEventListener("scroll", endPending, true);
+};
+
+const edgeSpeed = (y) => {
+  if (y < EDGE_PX) return -Math.ceil(EDGE_SPEED * (EDGE_PX - y) / EDGE_PX);
+  const d = innerHeight - y;
+  return d < EDGE_PX ? Math.ceil(EDGE_SPEED * (EDGE_PX - d) / EDGE_PX) : 0;
+};
+const autoScroll = () => {
+  if (!lift || lift.raf) return;
+  lift.raf = requestAnimationFrame(() => {
+    if (!lift) return;
+    lift.raf = 0;
+    const max = document.documentElement.scrollHeight - innerHeight;
+    const top = Math.max(0, Math.min(max, scrollY + edgeSpeed(lift.y)));
+    if (top === scrollY) return;
+    scrollTo({ top, behavior: "instant" });
+    placeLift();
+  });
+};
+/** Move the lifted row under the pointer, slide the rows it passes and keep the page scrolling at the edges. */
+const placeLift = () => {
+  const { row, from, slots, h, startY } = lift;
+  const at = lift.y + scrollY;
+  const to = 1 + slots.filter((s) => s.idx !== from && s.mid < at).length;
+  lift.to = to;
+  row.style.setProperty("--dy", `${at - startY}px`);
+  for (const s of slots) {
+    if (s.idx === from) continue;
+    const d = from < to && s.idx > from && s.idx <= to ? -h : to < from && s.idx >= to && s.idx < from ? h : 0;
+    s.row.style.transform = d ? `translateY(${d}px)` : "";
+  }
+  autoScroll();
+};
+const onLiftMove = (e) => {
+  if (!lift || e.pointerId !== lift.id) return;
+  lift.y = e.clientY;
+  placeLift();
+};
+const onLiftUp = (e) => {
+  if (!lift || e.pointerId !== lift.id) return;
+  lift.y = e.clientY;
+  placeLift();
+  const { from, to } = lift;
+  const r = el.rows.getBoundingClientRect();
+  const inside = e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom;
+  endLift();
+  if (!inside) return;
+  const next = moveRow(state.zones, from, to);
+  if (next.every((z, i) => z === state.zones[i])) return;
+  state.zones = next;
+  render({ keepStart: true });
+};
+const onLiftCancel = (e) => { if (lift && e.pointerId === lift.id) endLift(); };
+const onLiftKey = (e) => {
+  if (e.key !== "Escape") return;
+  e.preventDefault();
+  endLift();
+};
+const startLift = (id, row, y, touch) => {
+  const top = scrollY;
+  const slots = [...el.rows.querySelectorAll(".row[data-idx]")].filter((r) => +r.dataset.idx >= 1).map((r) => {
+    const b = r.getBoundingClientRect();
+    return { row: r, idx: +r.dataset.idx, mid: b.top + top + b.height / 2 };
+  });
+  lift = { id, row, from: +row.dataset.idx, to: +row.dataset.idx, slots, h: row.getBoundingClientRect().height, startY: y + top, y, raf: 0 };
+  reordered = true;
+  row.style.transformOrigin = `${el.rows.scrollLeft + row.firstElementChild.offsetWidth / 2}px 50%`;
+  row.classList.add("lifted");
+  el.rows.classList.add("reordering");
+  addEventListener("pointermove", onLiftMove);
+  addEventListener("pointerup", onLiftUp);
+  addEventListener("pointercancel", onLiftCancel);
+  addEventListener("keydown", onLiftKey);
+  addEventListener("scroll", placeLift);
+  if (touch && typeof navigator.vibrate === "function") navigator.vibrate(10);
+  placeLift();
+};
+/** End a lift without saving: every transform and listener goes, state.zones is untouched. */
+const endLift = () => {
+  if (!lift) return;
+  const { row, slots, raf } = lift;
+  lift = null;
+  cancelAnimationFrame(raf);
+  removeEventListener("pointermove", onLiftMove);
+  removeEventListener("pointerup", onLiftUp);
+  removeEventListener("pointercancel", onLiftCancel);
+  removeEventListener("keydown", onLiftKey);
+  removeEventListener("scroll", placeLift);
+  row.classList.remove("lifted");
+  row.style.removeProperty("--dy");
+  row.style.transformOrigin = "";
+  for (const s of slots) s.row.style.transform = "";
+  el.rows.classList.remove("reordering");
+  // the click that follows this pointerup is swallowed; a later keyboard click is not
+  setTimeout(() => { reordered = false; });
+};
+const cancelReorder = () => { endPending(); endLift(); };
+
+el.rows.addEventListener("pointerdown", (e) => {
+  endPending();
+  if (lift || !e.isPrimary) return;
+  reordered = false;
+  const head = e.target.closest(".row-head");
+  const row = head && head.parentElement;
+  if (!row || !(+row.dataset.idx >= 1)) return;
+  if (e.target.closest(".row-grip")) {
+    if (e.button === 0) startLift(e.pointerId, row, e.clientY, e.pointerType === "touch");
+    return;
+  }
+  if (e.pointerType === "touch" && !e.target.closest("button[data-act]")) startPending(e, row);
+});
+// registered up front so it is never passive: a pending press only watches, a lifted row owns the touch
+el.rows.addEventListener("touchmove", (e) => {
+  if (lift) { if (e.cancelable) e.preventDefault(); else endLift(); return; }
+  if (pending && !e.cancelable) endPending();
+}, { passive: false });
+el.rows.addEventListener("contextmenu", (e) => {
+  const head = e.target.closest(".row-head");
+  if (head && +head.parentElement.dataset.idx >= 1) e.preventDefault();
+});
+addEventListener("blur", cancelReorder);
+
 el.rows.addEventListener("keydown", (e) => {
   if (e.target !== el.rows || (e.key !== "ArrowRight" && e.key !== "ArrowLeft")) return;
   if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
@@ -466,6 +634,7 @@ $("nextDay").addEventListener("click", () => shiftDay(1));
 el.dateInput.addEventListener("change", () => { if (el.dateInput.value) { state.date = el.dateInput.value; render(); } });
 
 el.editBtn.addEventListener("click", () => {
+  cancelReorder();
   state.editing = !state.editing;
   el.editBtn.setAttribute("aria-pressed", String(state.editing));
   el.editBtn.textContent = state.editing ? S.DONE : S.EDIT;
@@ -548,7 +717,7 @@ el.results.addEventListener("click", (e) => {
 });
 el.sheet.addEventListener("click", (e) => { if (e.target === el.sheet) el.sheet.close(); });
 
-addEventListener("resize", () => renderSelection());
+addEventListener("resize", () => { cancelReorder(); renderSelection(); });
 addEventListener("hashchange", () => { load(); render(); if (el.sheet.open) renderResults(); });
 addEventListener("pagehide", () => saver.flush());
 

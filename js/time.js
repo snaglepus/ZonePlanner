@@ -67,3 +67,6 @@ export const cellLabel = (tz, t) => {
   const p = localParts(tz, t);
   return p.m ? `${p.h}:${pad(p.m)}` : String(p.h);
 };
+export const SLOT_MS = 900000;
+/** Fractional 15-minute slot of instant t in a day of n slots from t0, or null outside it. */
+export const slotAt = (t, t0, n) => (t >= t0 && t < t0 + n * SLOT_MS ? (t - t0) / SLOT_MS : null);

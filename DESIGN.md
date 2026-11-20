@@ -210,7 +210,7 @@ A warm-paper palette with one deep sage voice, a peach-and-clay band pair, and t
 - **Pressed Paper** (`paper-deep`): segmented-control track, soft icon-button hover.
 - **Cream Card** (`card`): every card, the sheet, the date pill and floating icon buttons.
 - **Pale Clay** (`night`): inconvenient-hour segments (20–06) and empty overlap tracks. Outlined by **Clay Rule** (`night-line`), the 1px inset that keeps pale tracks from dissolving into the card.
-- **Ink** (`ink`): primary text. **Soft Ink** (`ink-soft`): legend and small headings. **Field Grey-Brown** (`muted`): secondary text, hour-cell labels on Pale Clay, unselected segments.
+- **Ink** (`ink`): primary text. **Soft Ink** (`ink-soft`): legend and small headings. **Field Grey-Brown** (`muted`): secondary text, unselected segments.
 - **Paper Rule** (`line`): row dividers, chip borders, the sheet grip.
 
 ### Named Rules
@@ -235,7 +235,7 @@ Both are self-hosted variable WOFF2 files (Latin and Latin Extended subsets), pr
 - **Title** (400, 20px, 1.2; 22px in the sheet): card and sheet titles ("Zones", "Add a zone"), and the serif "Everyone" row name that sets the overlap row apart.
 - **Body** (400, 15px, 1.45): running text and footnotes (footnote at 12.5px, max 60ch).
 - **Label** (650, 14px, 0.005em): buttons, chips, segments, date pill, toast. Zone names step up to 16px/650 and row times to 16px/700.
-- **Caption** (500, 12.5–13px, Field Grey-Brown): offsets, country lines, meeting sub-line, chip notes; hour-cell labels at 10.5px/700.
+- **Caption** (500, 12.5–13px, Field Grey-Brown): offsets, country lines, meeting sub-line, chip notes; hour-cell labels at 10.5px/700, in Ink on their Cream Card backing.
 
 ### Named Rules
 **The Serif Speaks the Answer Rule.** Libre Baskerville is used only at 400 weight and only for the wordmark, the meeting time and section titles. Controls, zone names, data and labels are always Hanken Grotesk.
@@ -304,7 +304,7 @@ There is no nav bar. The toolbar is the navigation: previous/next-day icon butto
 ### Hour grid and selection bar (signature)
 The board is one native horizontal scroller. Each row is a sticky header cell (144px, Cream Card, opaque) holding the zone name (ellipsis when long), the country and UTC offset, and the meeting readout, followed by a track of hour cells. Columns are the home zone's hours of the selected day (23, 24 or 25 on daylight-saving days; a 30-minute change leaves a half-width last column), so each column is the same instant in every row. Full cells are 44px wide on a 32px, 9px-radius band inside a track at least 44px tall, separated by a faint 1px rule.
 
-Each cell is labelled, left-aligned in 10.5px/700 tabular figures, with that zone's local time at the column start: `9` on the hour, `3:30` or `3:45` for offset zones. Bands keep their 15-minute accuracy under the cells, so an offset zone changes band part-way through a column: Business Sage solid, Dawn Peach 135° hatched, Pale Clay plain with the Clay Rule inset. Labels recolour for the band under them and carry a soft halo of that band's colour so they stay legible where the band changes.
+Each cell is labelled, left-aligned in 10.5px/700 tabular figures, with that zone's local time at the column start: `9` on the hour, `3:30` or `3:45` for offset zones. Bands keep their 15-minute accuracy under the cells, so an offset zone changes band part-way through a column: Business Sage solid, Dawn Peach 135° hatched, Pale Clay plain with the Clay Rule inset. Each label sits on its own small Cream Card backing (3px radius) in Ink, so it stays legible whatever band runs under it, including where the band changes inside the column. A 1px Paper Rule edges the header column.
 
 The overlap row ("Everyone") sits first with a serif name and the shared-hours summary; its cells have no labels, since the home row's labels already mark the time. Swiping scrolls the cells of every row together while the header column stays put; tapping a cell starts the meeting at the quarter-hour under the finger. A single transparent bar with a 2px gold border, a gold tab on top and Gold Glow spans every row at the chosen time, passing under the header column; it moves on `transform` only, on the shared ease (0.45s), and its width changes without animation. When the selection changes from a chip, the length control, the keyboard or a new day, the grid scrolls just enough to show the whole bar.
 

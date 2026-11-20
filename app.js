@@ -184,10 +184,10 @@ const trackEl = (bands, z) => {
   }
   const cells = make("div", "cells");
   for (let c = 0; c < model.cols; c++) {
-    const cell = make("div", "cell", z ? cellLabel(z.tz, model.t0 + c * 3600000) : null);
+    const cell = make("div", "cell");
+    if (z) cell.append(make("span", null, cellLabel(z.tz, model.t0 + c * 3600000)));
     const w = Math.min(4, model.n - 4 * c);
     if (w < 4) cell.style.setProperty("--w", String(w));
-    if (z) cell.classList.add(`on-${BAND_NAME[bands[Math.min(4 * c + 1, model.n - 1)]]}`);
     cells.append(cell);
   }
   track.append(runs, cells);

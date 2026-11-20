@@ -198,6 +198,7 @@ svg { flex: none; }
 .row-head {
   position: sticky; left: 0; z-index: 3; flex: none; width: var(--head); padding: 8px 10px 8px 18px;
   display: flex; flex-direction: column; justify-content: center; gap: 4px; background: var(--card);
+  box-shadow: 1px 0 0 var(--line);
 }
 .row-name { min-width: 0; }
 .row-name b { display: flex; align-items: center; gap: 6px; font-size: 15px; font-weight: 650; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -223,13 +224,11 @@ svg { flex: none; }
 .seg-night { background: var(--night); }
 .cell {
   flex: none; display: flex; align-items: center; width: calc(var(--w, 4) * var(--slot)); padding-left: 5px; overflow: hidden;
-  font-size: 10.5px; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; color: #6E6457;
+  font-size: 10.5px; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap;
 }
 .cell + .cell { box-shadow: inset 1px 0 0 rgba(42, 44, 40, .12); }
-/* the halo keeps a label readable where a :30/:45 zone changes band under it */
-.cell { text-shadow: 0 0 2px var(--night), 0 0 4px var(--night); }
-.cell.on-biz { color: #EEF1EC; text-shadow: 0 0 2px var(--biz), 0 0 4px var(--biz); }
-.cell.on-edge { color: #5B3418; text-shadow: 0 0 2px var(--edge), 0 0 4px var(--edge); }
+/* labels sit on their own card backing, so a :30/:45 zone changing band under one never costs contrast */
+.cell span { padding: 1px 3px; border-radius: 3px; background: var(--card); color: var(--ink); line-height: 1.2; }
 
 /* room above the first row for the bar's tab */
 .row-all > .row-head, .row-all > .track { padding-top: 20px; }

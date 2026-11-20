@@ -1,4 +1,5 @@
 // Time engine: pure functions over Intl.DateTimeFormat, no DOM.
+// A zone is an IANA ID string or a fixed offset as a number of minutes from UTC.
 
 // Best 09–17, Good 06–09 & 17–20, everything else Unsuitable.
 export const BAND = { biz: 2, edge: 1, night: 0 };
@@ -24,20 +25,22 @@ export const partsFmt = (tz) => {
   }
   return fmtCache.get(tz);
 };
-/** Minutes the zone is ahead of UTC at instant t. */
+/** Minutes the zone (IANA ID or fixed minutes) is ahead of UTC at instant t. */
 export const offsetMin = (tz, t) => {
+  if (typeof tz === "number") return tz;
   const p = {};
   for (const { type, value } of partsFmt(tz).formatToParts(new Date(t))) p[type] = value;
   const asUTC = Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour % 24, +p.minute, +p.second);
   return Math.round((asUTC - Math.floor(t / 1000) * 1000) / 60000);
 };
-/** UTC instant of local midnight on y-m-d in tz. */
+/** UTC instant of local midnight on y-m-d in tz (IANA ID or fixed minutes). */
 export const zonedMidnight = (tz, y, m, d) => {
   const wall = Date.UTC(y, m - 1, d);
   let t = wall - offsetMin(tz, wall) * 60000;
   t = wall - offsetMin(tz, t) * 60000;
   return t;
 };
+/** Local wall-clock parts at t in tz (IANA ID or fixed minutes). */
 export const localParts = (tz, t) => {
   const off = offsetMin(tz, t);
   const l = new Date(t + off * 60000);
@@ -59,7 +62,7 @@ export const homeDay = (tz, y, m, d) => {
   const slots = Math.round((t1 - t0) / 900000);
   return { t0, t1, slots, cols: Math.ceil(slots / 4) };
 };
-/** Local time at t as a grid cell label: "9", "3:30", "3:45". */
+/** Local time at t in tz (IANA ID or fixed minutes) as a grid cell label: "9", "3:30", "3:45". */
 export const cellLabel = (tz, t) => {
   const p = localParts(tz, t);
   return p.m ? `${p.h}:${pad(p.m)}` : String(p.h);

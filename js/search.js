@@ -1,6 +1,7 @@
 // City search and zone naming over the bundled data. DOM-free; the caller
 // passes in the zone list (Intl.supportedValuesOf) so this imports in Node.
 import { CITIES, COUNTRIES, ABBREVIATIONS } from "./cities.js";
+import { parseOffset } from "./zones.js";
 
 // The engine's id for a zone, so aliases match: Chrome and Node report
 // Asia/Kolkata as Asia/Calcutta.
@@ -39,7 +40,7 @@ export const abbreviationZones = (query) => ABBR.get(query.trim().toLowerCase())
 
 /**
  * Ordered results for the Add City sheet: popular cities for a blank query;
- * otherwise abbreviation options, then name prefix, then substring matches,
+ * otherwise a typed offset (`{offsetMin}`), abbreviation options, then name prefix, then substring matches,
  * then zones with no bundled city. Groups after the first are cut to `limit`.
  */
 export const searchCities = (query, { zones = [], limit = 50 } = {}) => {
@@ -53,7 +54,8 @@ export const searchCities = (query, { zones = [], limit = 50 } = {}) => {
     .filter((z) => [z.name, z.country, z.tz].some((s) => norm(s).includes(q)));
   const seen = new Set();
   const fresh = (e) => { const k = `${e.name}|${e.tz}`; if (seen.has(k)) return false; seen.add(k); return true; };
-  const head = abbr.filter(fresh);
+  const off = parseOffset(query);
+  const head = [...(off === null ? [] : [{ offsetMin: off }]), ...abbr.filter(fresh)];
   const rest = [...prefix.map(entry), ...sub.map(entry), ...bare].filter(fresh).slice(0, limit);
   return [...head, ...rest];
 };

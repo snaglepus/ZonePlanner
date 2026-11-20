@@ -18,9 +18,12 @@ tests.
   rendering and interactions.
 - `js/time.js`: the time engine (`Intl.DateTimeFormat`): offsets, local parts,
   zoned midnight, band classification, Good heat steps and UTC offset labels.
-- `js/zones.js`: the zone list rules: zone validation, user rows (home
-  dropped, capped at 7), share-link `z` encoding and parsing, and following a
-  new device zone.
+  A zone is an IANA ID string or a fixed offset as a number of minutes from
+  UTC (no `Etc/GMT` IDs).
+- `js/zones.js`: the zone list rules: zone validation, the typed-offset
+  parser (`parseOffset`: `GMT+11`, `UTC-7`, `+5:30`, `-0330`), user rows (home
+  dropped, capped at 7), share-link `z` encoding and parsing (`tz~name` per
+  city row, `@<minutes>` per offset row), and following a new device zone.
 - `js/state.js`: the stored state shape, its load, validation and
   version-driven migration, and the debounced (250 ms) saver.
 - `js/strings.js`: every user-facing string JavaScript builds (en-AU).
@@ -59,6 +62,9 @@ Rules that hold across the app:
   backed up to `zoneplanner.state.bak` and reset to the defaults; the old
   `zoneplanner:v1` key is migrated once and never written. Stored zones and
   link zones both go through `userRows` in `js/zones.js`.
+- Offset rows (`{offsetMin}`, a multiple of 15 within ±14:00) are named from
+  their offset (`UTC+05:30`, via `offsetName`), never from stored or linked
+  text, and have no country.
 - Any string from the share-link hash or localStorage goes through `esc()` or
   `textContent` before it reaches the DOM. The page also enforces the PRD's
   Content-Security-Policy (§10.3) with a `<meta>` tag at the top of

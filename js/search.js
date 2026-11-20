@@ -25,14 +25,14 @@ const tzCountry = (tz) => tz.split("/")[0].replace(/_/g, " ");
 const entry = (c) => ({ name: c.name, country: COUNTRIES[c.cc] ?? "", tz: c.tz });
 const zoneEntry = (tz) => (topCity(tz) ? entry(topCity(tz)) : { name: prettyTz(tz), country: tzCountry(tz), tz });
 
-/** Row naming: a known name keeps its city's country, an unknown one is kept with no country. */
+/** Row naming: a known name keeps its city's country and code (alias zones match), an unknown one is kept with no country. */
 export const zoneInfo = (tz, name) => {
   if (name) {
-    const c = CITIES.find((x) => x.tz === tz && x.name === name);
-    return { tz, name, country: c ? COUNTRIES[c.cc] ?? "" : "" };
+    const c = CITIES.find((x) => x.name === name && canon(x.tz) === canon(tz));
+    return c ? { tz, name, country: COUNTRIES[c.cc] ?? "", cc: c.cc } : { tz, name, country: "", cc: "" };
   }
   const c = topCity(tz);
-  return c ? { tz, name: c.name, country: COUNTRIES[c.cc] ?? "" } : { tz, name: prettyTz(tz), country: "" };
+  return c ? { tz, name: c.name, country: COUNTRIES[c.cc] ?? "", cc: c.cc } : { tz, name: prettyTz(tz), country: "", cc: "" };
 };
 
 export const abbreviationZones = (query) => ABBR.get(query.trim().toLowerCase()) ?? [];

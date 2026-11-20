@@ -2,6 +2,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { CITIES } from "../js/cities.js";
 import { abbreviationZones, prettyTz, searchCities, zoneInfo } from "../js/search.js";
+import { linkToRows, rowsToLink } from "../js/zones.js";
+import { loadState, serializeState } from "../js/state.js";
 
 const names = (list) => list.map((c) => c.name);
 const at = (list, name) => list.findIndex((c) => c.name === name);
@@ -88,10 +90,22 @@ test("no name and zone pair appears twice", () => {
 test("a query that matches nothing returns []", () => assert.deepEqual(searchCities("zzzz"), []));
 
 test("zoneInfo names rows", () => {
-  assert.deepEqual(zoneInfo("Asia/Kolkata"), { tz: "Asia/Kolkata", name: "Mumbai", country: "India" });
-  assert.deepEqual(zoneInfo("America/Chicago", "Austin"), { tz: "America/Chicago", name: "Austin", country: "United States" });
-  assert.deepEqual(zoneInfo("Asia/Tokyo", "Office"), { tz: "Asia/Tokyo", name: "Office", country: "" });
-  assert.deepEqual(zoneInfo("Australia/Hobart"), { tz: "Australia/Hobart", name: "Hobart", country: "" });
+  assert.deepEqual(zoneInfo("Asia/Kolkata"), { tz: "Asia/Kolkata", name: "Mumbai", country: "India", cc: "IN" });
+  assert.deepEqual(zoneInfo("America/Chicago", "Austin"), { tz: "America/Chicago", name: "Austin", country: "United States", cc: "US" });
+  assert.deepEqual(zoneInfo("Asia/Tokyo", "Office"), { tz: "Asia/Tokyo", name: "Office", country: "", cc: "" });
+  assert.deepEqual(zoneInfo("Australia/Hobart"), { tz: "Australia/Hobart", name: "Hobart", country: "", cc: "" });
+});
+
+test("alias rows keep their country through links and storage", () => {
+  assert.deepEqual(zoneInfo("Asia/Calcutta", "Mumbai"), { tz: "Asia/Calcutta", name: "Mumbai", country: "India", cc: "IN" });
+  const linked = linkToRows(rowsToLink([zoneInfo("Asia/Calcutta")]), "Europe/London").rows;
+  const text = serializeState({ zones: [{ tz: "Asia/Calcutta", name: "Mumbai" }], hour12: null, filter: "all", len: 4 });
+  const stored = loadState(text, null, "Europe/London").state.zones;
+  for (const rows of [linked, stored]) {
+    assert.equal(rows.length, 1);
+    assert.equal(rows[0].tz, "Asia/Calcutta");
+    assert.equal(zoneInfo(rows[0].tz, rows[0].name).cc, "IN");
+  }
 });
 
 test("prettyTz uses the last ID segment", () => {

@@ -787,3 +787,8 @@ setInterval(checkHome, 60000);
 
 load();
 render();
+
+// Offline support. Where service workers are unavailable or fail, the app runs as before.
+if ("serviceWorker" in navigator) {
+  try { navigator.serviceWorker.register("./sw.js").catch(() => {}); } catch { /* no service worker */ }
+}

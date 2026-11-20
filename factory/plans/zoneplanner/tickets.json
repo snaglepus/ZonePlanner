@@ -1,0 +1,339 @@
+{
+  "prd": "docs/ZonePlanner-PRD.md",
+  "tickets": [
+    {
+      "id": "T1",
+      "title": "Split app.js into ES modules with a unit-tested time engine and strings module",
+      "body": "The app is one IIFE in app.js with no tests. Every later ticket needs testable logic, so split it without changing behaviour. Move the existing time engine (offsets, local parts, zoned midnight, band classification, offset labels) into its own ES module with no DOM access; it already handles DST and non-hour offsets, so this ticket adds tests for it rather than rewriting it. Move every user-facing string into one strings module (en-AU spelling) so translation is possible later. Keep app.js as the entry point, loaded with `<script type=\"module\">`, and keep its DOM id lookups there so factory/checks.sh still verifies them. Add a package.json with `\"type\": \"module\"`, no runtime dependencies and a `test` script that runs Node's built-in test runner (`node --test`); factory/checks.sh runs `npm test` when package.json exists. Update AGENTS.md (file layout, how to run tests, the page now needs a static server rather than file://, which the operator has accepted). Out of scope: any visible change, new features, a build or minify step, end-to-end tests.",
+      "prd_sections": ["§7.1", "§10.5", "§11", "§1 Goals 5"],
+      "acceptance": [
+        "`npm test` (node --test, no install needed) passes and includes time-engine cases for: Asia/Kathmandu (+5:45) and Asia/Kolkata (+5:30) offsets, a 23-hour and a 25-hour local day in Australia/Sydney and America/New_York, and the 06:00, 09:00, 17:00 and 20:00 band boundaries.",
+        "`bash factory/checks.sh` passes on the branch.",
+        "Served with `python3 -m http.server`, index.html loads with no console errors and behaves as before: zones render, the selection bar moves, Add zone works, the share link and Copy times work, state survives a reload.",
+        "package.json has no `dependencies`.",
+        "A grep for user-facing English sentences in app.js finds none outside the strings module (toasts, labels, notes and aria-labels all come from it)."
+      ],
+      "depends_on": [],
+      "risk_hint": "medium",
+      "opts": ""
+    },
+    {
+      "id": "T2",
+      "title": "Make the first row the device's time zone and follow it when it changes",
+      "body": "Today the device zone is only used to seed the first row on first run; after that the first row is whatever was saved or shared first, and any row can be promoted with a 'Make home' button. The PRD wants the home row to always be the device's current zone from `Intl.DateTimeFormat().resolvedOptions().timeZone`. Already in place and not to be redone: no location permission is requested, the home row carries the home symbol, the friendly city name comes from the city list (FR-12), and the total is capped at 8 rows. What is left: derive the home row from the device on every load instead of from storage; remove the 'Make home' action and the remove button on the home row; re-check the device zone on `visibilitychange`, on `focus` and every minute, and when it changes swap the home row and show a brief toast such as \"You're now in Los Angeles time\". If the new home zone is already a user row, drop that duplicate. Change the limit wording to the PRD's: \"Maximum of 7 time zones. Remove one to add another.\" Drop the 3-zone minimum that pads the list with defaults on load (defaults are seeded on first run only). The share link stays (operator decision). Define it against the new home rule: a link carries the sender's rows, including the sender's home; the recipient's device zone is always their home row, and the linked zones open as user rows in link order, minus any that equals the recipient's home, capped at 7 with a toast if one had to be dropped. The date and meeting length in the link still apply. Out of scope: the new storage format (T5), Change (T10), reorder (T11).",
+      "prd_sections": ["§4.2 FR-8", "§4.2 FR-9", "§4.2 FR-10", "§4.3 FR-18", "§2 UC4"],
+      "acceptance": [
+        "With stored zones whose first entry is Europe/Paris and the browser zone emulated as America/Los_Angeles, the first row is Los Angeles and Paris is a user row; the home row has no remove or make-home control.",
+        "Changing the emulated zone to Europe/London and firing `visibilitychange` (or waiting one minute) swaps the home row to London and shows a toast naming London.",
+        "A unit test covers the home-change logic: a user zone equal to the new home zone is removed and the order of the other user zones is unchanged.",
+        "With 7 user zones Add zone is disabled and the exact note \"Maximum of 7 time zones. Remove one to add another.\" is visible.",
+        "On a Los Angeles device, opening `#z=Australia/Sydney~Sydney,Europe/London~London&d=2026-12-01&l=4` shows Los Angeles (home), Sydney, London on 1 Dec; opening a link that contains America/Los_Angeles does not add a duplicate row; a unit test covers the link-to-rows function including the 7-zone cap.",
+        "The share button still copies a link, and opening that link on the same device reproduces the same rows, date and length."
+      ],
+      "depends_on": ["T1"],
+      "risk_hint": "medium",
+      "opts": ""
+    },
+    {
+      "id": "T3",
+      "title": "Rebuild the board as a horizontally scrolling hour grid aligned on absolute time",
+      "body": "Today each zone is a strip squeezed to the card width, with ticks every three hours. Rebuild the board as a grid: a fixed header column on the left (zone name and existing details) and, to its right, one row of hour cells per zone that all scroll together horizontally with native touch and trackpad scrolling. Every column is the same instant in every row. Columns are home-zone hours; each cell is labelled with that zone's local time at the start of the column (`9`, or `9:30` / `9:45` when the zone is offset from home by a non-hour amount). The range is the selected home-zone day (23, 24 or 25 hours on DST days), and the existing date toolbar stays for other days. Already in place and to be kept working, not rebuilt: the meeting card (time, verdict, length, suggestions), the gold selection bar with 15-minute precision, the per-row readout of the exact local time at the selected slot, the Everyone row, Copy times and the share link. The one change to selection: it is now set by a tap on the grid (and the existing keyboard scrubber), because dragging on the cells is reserved for scrolling. Phone first: at 390px wide the page itself never scrolls sideways and targets stay 44px. Render with DOM APIs and CSSOM, not `style=\"\"` attributes in HTML strings, so the CSP in T8 can land. Animate only `transform` and `opacity`. Update DESIGN.md's day-strip section to describe the grid. Out of scope: now line (T6), wheel, mouse-drag and arrow-key scrolling (T7), heat map (T12), midnight dividers (T13), reorder (T11).",
+      "prd_sections": ["§4.1 FR-1", "§4.1 FR-2 (native scrolling)", "§4.1 FR-3", "§4.1 FR-5", "§2 UC2", "§2 UC3", "§3 Phone-first", "§6", "§10.1"],
+      "acceptance": [
+        "At 390x844 the hour cells scroll horizontally by touch while the header column stays put; all rows and the Everyone row move together, and `document.documentElement.scrollWidth` equals the viewport width.",
+        "With home Australia/Sydney and rows for Asia/Kolkata and Asia/Kathmandu, the cells under Sydney's `9` read `3:30` and `3:45`; a unit test covers the label function for whole-hour, :30 and :45 differences.",
+        "On a home-zone DST change day (for example 2027-04-04 in Sydney) the grid shows 25 home hours and every column still lines up across rows; on the spring-forward day it shows 23.",
+        "Tapping a cell moves the selection bar to that slot and the meeting card, verdict and per-row readouts update as they do today; a horizontal swipe scrolls without changing the selection.",
+        "The generated row markup contains no `style` attributes set through HTML strings, and the grid's transitions in styles.css use only `transform` and `opacity`."
+      ],
+      "depends_on": ["T1"],
+      "risk_hint": "high",
+      "opts": ""
+    },
+    {
+      "id": "T4",
+      "title": "Add the bundled city dataset, weekend map and abbreviation table",
+      "body": "Search and weekends need real data; today the app has 68 hand-written cities. Add a dev-only generator script that builds a committed data module from a GeoNames cities15000 download: about 500 cities, each with name, ASCII name, aliases, country code, country name, IANA zone, population rank and a `popular` flag on about 100. Add a country-to-weekend map (`{\"SA\": [5,6], \"IL\": [5,6], \"default\": [6,0]}` style, 0 = Sunday, with Fri-Sat and Sunday-only countries filled in) and a small abbreviation table for search (AEST, AEDT, GMT, BST, CET, EST, PST and so on, with ambiguous ones such as IST and CST mapping to every match). The data is committed and never fetched at runtime; the script is never loaded by the page. The existing 68-city list must remain a subset so current saved zones and links keep their names. GeoNames is CC BY 4.0: add a credit line in the repo and in the page footnote (operator decision). If the build environment has no network, the script must accept a path to a local copy of the source file. Out of scope: using the data in the sheet (T9) or for weekends (T14).",
+      "prd_sections": ["§8.3", "§4.8 FR-34 (data)", "§7.1"],
+      "acceptance": [
+        "`npm test` includes data tests that pass: 450 to 550 cities, 90 to 110 flagged popular, every IANA zone accepted by `Intl.DateTimeFormat`, every country code present in the country-name table, no duplicate name+zone pairs.",
+        "The weekend map test shows SA, IL and EG resolve to Fri-Sat and an unlisted country resolves to the default Sat-Sun.",
+        "The abbreviation table test shows IST returns India, Ireland and Israel zones and AEDT returns an Australian eastern zone.",
+        "Every city in the current app.js list (for example Bengaluru, Ho Chi Minh City, St. John's) is present in the new data with the same IANA zone.",
+        "The data module is under 80 KB uncompressed, the generator is not referenced by index.html, and the GeoNames credit appears in the repo and the page footnote."
+      ],
+      "depends_on": ["T1"],
+      "risk_hint": "medium",
+      "opts": ""
+    },
+    {
+      "id": "T5",
+      "title": "Store versioned state in zoneplanner.state with validation and migration",
+      "body": "The app already saves its zones and meeting length to `localStorage` under `zoneplanner:v1` and loads them synchronously before the first render; that part is not to be redone. What is missing is the PRD's format and safety rules. Move to the key `zoneplanner.state` with the agreed shape: `{version: 1, zones: [{tz, name} | {offsetMin}], hour12: true|false|null, filter: \"all\"|\"good\"|\"best\", len}`. The home zone is never stored. Save on every change, debounced 250 ms, and flush on `pagehide`. A `version` field drives one migration function; it also migrates the old `zoneplanner:v1` data once (dropping a first zone that equals the device zone, capping at 7). Validate on load: zone IDs against `Intl.supportedValuesOf('timeZone')`, offsets within plus or minus 14:00, at most 7 zones, names as plain strings capped at 60 characters. Unknown or corrupt state is copied to the backup key `zoneplanner.state.bak` (the app is called ZonePlanner; the PRD's `tzoverlap.state.bak` is not used) and reset to defaults, with a toast. The share link stays: zones arriving in the link hash go through the same validator as stored zones, and a valid link still replaces the saved zones as it does today. Out of scope: the UI for offsets, filter and 12/24 (T16, T17, T18); they only get their validated fields and defaults here.",
+      "prd_sections": ["§8.1", "§8.2", "§10.3 (state validation)", "§3 Local persistence"],
+      "acceptance": [
+        "Unit tests pass for the pure load/validate/migrate functions: valid state round-trips; an unknown zone ID, an offset of +15:00, an eighth zone and a non-object each produce the documented result (dropped entry or full reset).",
+        "With `localStorage['zoneplanner.state']` set to `{bad json`, a reload shows default zones and a toast, and the original text is found under `zoneplanner.state.bak`.",
+        "With only the old `zoneplanner:v1` key present, a reload shows the same user zones in the same order (minus the device zone) and writes `zoneplanner.state` with `version: 1`.",
+        "Two changes within 250 ms cause one `setItem` call (unit test with a fake timer), and a change followed at once by closing the tab is still saved.",
+        "A share link containing an unknown zone ID, a ninth zone or a 200-character name opens with that entry dropped or trimmed by the same validator (unit test), and the resulting rows are saved."
+      ],
+      "depends_on": ["T2"],
+      "risk_hint": "high",
+      "opts": "adversary=codex"
+    },
+    {
+      "id": "T6",
+      "title": "Add the live now line, the Now button and a shared one-minute clock tick",
+      "body": "Add a vertical 'now' line that crosses every row of the grid at the current instant and moves every minute. Add a Now button that appears whenever the line is scrolled off screen (or the selected day is not today) and returns the grid to it; on first load today's grid opens scrolled so the now line is in view. Introduce one shared minute tick, aligned to the wall-clock minute, that the now line, the home-zone re-check from T2 and later live header times all use; pause it while the page is hidden and catch up on return. Keep main-thread work per tick under 4 ms: move the line with `transform`, do not re-render the grid. Follow DESIGN.md (gold stays reserved for the selection bar and focus, so the now line needs its own treatment and a non-colour cue). Out of scope: live times in row headers (T15).",
+      "prd_sections": ["§4.1 FR-4", "§2 UC1", "§10.1 (tick budget)"],
+      "acceptance": [
+        "On today's date the now line sits at the current time in the home row and at the same x position in every other row; with a mocked clock advanced one minute it moves right by one sixtieth of a column.",
+        "Scrolling the grid until the line is off screen shows the Now button; activating it scrolls the line back into view and the button hides. Choosing tomorrow's date shows the button and it returns to today.",
+        "A performance profile of one tick with 8 rows shows under 4 ms of scripting and no grid re-render (the row elements keep their identity across a tick).",
+        "After the tab is hidden for several minutes and shown again, the line is at the correct current time within one second.",
+        "The Now button is a 44px target with an accessible name and is reachable by keyboard."
+      ],
+      "depends_on": ["T3"],
+      "risk_hint": "medium",
+      "opts": ""
+    },
+    {
+      "id": "T7",
+      "title": "Scroll the timeline with mouse wheel, click-and-drag and arrow keys",
+      "body": "T3 gives native touch and trackpad scrolling. Add the remaining desktop inputs from FR-2: a vertical mouse wheel over the grid scrolls it horizontally, click-and-drag with a mouse on the hour cells pans it, and the arrow keys scroll it by one hour when the grid has focus. All rows keep moving together. A drag that moves more than a few pixels must not also select a slot; a plain click still selects. Wheel mapping must not trap page scrolling: when the grid is at either end, or the gesture is already horizontal (trackpad), leave the event alone. The grid needs a visible focus ring and an accessible name. Out of scope: drag-to-reorder rows (T11).",
+      "prd_sections": ["§4.1 FR-2"],
+      "acceptance": [
+        "With a mouse, a vertical wheel over the hour cells scrolls the grid horizontally; at the grid's end the page scrolls vertically instead.",
+        "Pressing and dragging on the hour cells with a mouse pans the grid and leaves the selection where it was; a click without movement selects the slot.",
+        "With the grid focused, Right and Left arrow scroll by one hour column and the focus ring is visible.",
+        "A two-finger horizontal trackpad swipe and a touch swipe still scroll natively with no doubled movement.",
+        "Unit test covers the wheel decision function (vertical vs horizontal delta, at-start and at-end cases)."
+      ],
+      "depends_on": ["T3"],
+      "risk_hint": "medium",
+      "opts": ""
+    },
+    {
+      "id": "T8",
+      "title": "Enforce the strict Content-Security-Policy and remove inline styles",
+      "body": "The app already makes no third-party requests, sets no cookies, self-hosts its fonts and escapes user text with `esc()`; none of that is to be redone. What is missing is the PRD's CSP. Add it as a meta tag in index.html: `default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; connect-src 'self'`. `style-src 'self'` blocks inline `style` attributes, so move the remaining ones (the icon sprite's `style=\"position:absolute\"`, any left in rendering code after T3) into styles.css or CSSOM calls. Add a static test that fails if index.html loses the CSP, gains an inline `style`/`on*` attribute, an inline script or a non-same-origin URL, so later tickets cannot regress it. Update the AGENTS.md rule about `esc()` to mention the CSP. Out of scope: storage validation (T5), the service worker (T19).",
+      "prd_sections": ["§10.3", "§7.1 (client-side only)", "§1 Goals 2"],
+      "acceptance": [
+        "index.html contains the exact CSP meta tag from the PRD and the page loads with zero CSP violation messages in the console while adding, removing and selecting zones and opening a share link.",
+        "`npm test` includes a static check that fails when an inline `style` attribute, inline event handler, inline script or `http(s)://` resource URL is added to index.html.",
+        "The fonts, favicon and masthead artwork still render identically (compare screenshots at 390x844 and 1280x900 before and after)."
+      ],
+      "depends_on": ["T3"],
+      "risk_hint": "medium",
+      "opts": ""
+    },
+    {
+      "id": "T9",
+      "title": "Add City sheet: popular cities list and search by city, country or zone ID",
+      "body": "The zone sheet already exists: it opens from the toolbar button, searches as you type by city, country and IANA ID without regard to diacritics, focuses the field on fine-pointer devices only, shows each result's current time, and disables results at the limit. None of that is to be rebuilt. What is left is to put it on the bundled data from T4 and fill the gaps. Rename the button and sheet to Add City. With an empty query show a scrollable list of the roughly 100 popular cities (today it shows 40 of 68). Search the full list of about 500 cities, also matching ASCII names and aliases, with better matches and more populous cities first. Zones in `Intl.supportedValuesOf('timeZone')` that have no bundled city stay findable by IANA ID, as today. Typing a known abbreviation shows every matching option instead of guessing: IST lists India, Ireland and Israel; CST lists its candidates. The home row's friendly name comes from the same data. Out of scope: fixed-offset entries (T16) and Change mode (T10).",
+      "prd_sections": ["§4.3 FR-13", "§4.3 FR-14", "§4.3 FR-15", "§4.3 FR-17", "§4.2 FR-12"],
+      "acceptance": [
+        "The toolbar button and sheet title read Add City; opening it with an empty field shows about 100 popular cities in a scrollable list.",
+        "A city that is not in today's 68-city list (for example Osaka) is found by typing its name; typing `bombay` finds Mumbai through its alias.",
+        "Typing `IST` lists options for India, Ireland and Israel; typing `AEDT` lists an Australian eastern city. None is auto-selected.",
+        "Unit tests cover the search function: ranking (prefix before substring, popular before obscure), ASCII and alias matches, IANA ID match, abbreviation expansion and an empty result.",
+        "Zones saved or linked under names from the old list still show the same names after this change."
+      ],
+      "depends_on": ["T4"],
+      "risk_hint": "medium",
+      "opts": ""
+    },
+    {
+      "id": "T10",
+      "title": "Change a zone in place and allow deleting below three zones",
+      "body": "Deleting a row already works: each row has a remove button that takes effect at once with a toast. It is not to be rebuilt. Two things are left. First, add Change: every user row gets a Change action that reopens the Add City sheet in a replace mode (title and note say which zone is being changed); picking a result replaces that zone in the same position, and cancelling leaves it untouched. Second, lift the current rule that disables remove at three zones, so any user row can always be deleted and the home row can stand alone. The home row has neither action. Actions stay 44px targets and must fit the header column at 390px; an overflow menu per row is acceptable if the spec chooses it, and the global Edit toggle can go if it is no longer needed. Out of scope: reordering (T11).",
+      "prd_sections": ["§4.4 FR-20 (change, delete)", "§4.4 FR-21", "§4.4 FR-22"],
+      "acceptance": [
+        "With rows Home, London, Tokyo: choosing Change on London and picking Paris yields Home, Paris, Tokyo; the stored state reflects it after reload.",
+        "Opening Change and closing the sheet without picking leaves the row as London.",
+        "With Home plus two user rows, remove is enabled; removing every user row leaves the home row alone with a working Add City button, and a reload does not add zones back.",
+        "The home row shows no Change control, and each Change control has an accessible name including the zone (for example 'Change London') and a 44px hit area at 390px wide."
+      ],
+      "depends_on": ["T2"],
+      "risk_hint": "medium",
+      "opts": ""
+    },
+    {
+      "id": "T11",
+      "title": "Drag to reorder user rows from the header column",
+      "body": "Add a grab handle to every user row's header, always visible. Dragging it picks the row up (lifted shadow, slight scale), the other rows animate out of the way with transforms, and the new order is saved on drop. On touch, a long press of about 400 ms anywhere on the row header also picks the row up, with a light haptic (`navigator.vibrate`) where supported. While dragging, the view auto-scrolls vertically when the row nears the top or bottom edge. Esc, or dropping outside the list, cancels and returns the row to where it was. The home row and the Everyone (overlap) row are fixed: nothing can be dropped above them. A reorder only ever starts in the header column, never from the hour cells, so it cannot conflict with horizontal scrolling. Respect reduced motion. Keyboard reordering is deliberately not included (operator decision).",
+      "prd_sections": ["§4.4 FR-20 (move)", "§4.4 FR-23", "§4.4 FR-23a", "§4.4 FR-23b", "§8.2 (save on drop)"],
+      "acceptance": [
+        "Dragging Tokyo's handle above London reorders the rows, the others slide aside during the drag, and the order survives a reload.",
+        "On a touch device a 400 ms press on a user row header picks it up; a horizontal swipe that starts on the hour cells scrolls the timeline and never starts a reorder.",
+        "Pressing Esc mid-drag, or releasing outside the list, restores the original order and saves nothing.",
+        "A user row cannot be dropped above the home row or the Everyone row; neither of those has a handle.",
+        "With more rows than fit the screen, dragging a row to the bottom edge scrolls the page so it can be dropped on the last position.",
+        "A unit test covers the reorder function (move, clamp below the fixed rows, cancel)."
+      ],
+      "depends_on": ["T2", "T3"],
+      "risk_hint": "high",
+      "opts": ""
+    },
+    {
+      "id": "T12",
+      "title": "Add the Good-hours heat map and rename the bands Best, Good and Unsuitable",
+      "body": "Every slot is already classed and coloured by its local hour (09:00 to 17:00, 06:00 to 09:00 and 17:00 to 20:00, 20:00 to 06:00), each band has a second non-colour channel, and there is a legend. That is not to be rebuilt. Two things are left. First, the PRD's heat map: within the Good bands the colour shifts with distance from the Best window, so 08:00 and 17:00 read as nearly Best and 06:00 and 19:00 as nearly Unsuitable. Keep DESIGN.md's two-channel rule (the hatch or another non-colour cue still marks Good) and AA contrast for the hour label on every step. Add the heat steps as tokens on `:root` and document them in DESIGN.md. Second, the agreed rename: Business / Edge / Inconvenient become Best / Good / Unsuitable in the UI, legend, strings module, PRODUCT.md, DESIGN.md and AGENTS.md. A cell that straddles a band boundary (zones on :30 or :45 offsets) shows both parts. Out of scope: weekend shading (T14), the filter (T17).",
+      "prd_sections": ["§4.6 FR-28", "§4.6 FR-28a", "§1 Product"],
+      "acceptance": [
+        "Within the Good band the 8 and 17 cells are visibly closer to the Best colour than the 6 and 19 cells (at least three distinct steps per side), and the legend shows the gradient; a unit test covers the heat step for each Good hour.",
+        "With the page in greyscale, Best, Good and Unsuitable cells are still distinguishable by pattern or outline.",
+        "Hour labels meet 4.5:1 contrast on every heat step (checked with the tokens in styles.css).",
+        "The legend, verdict, suggestions and row readouts say Best, Good and Unsuitable; the words Business, Edge and Inconvenient no longer appear in the UI or in PRODUCT.md, DESIGN.md and AGENTS.md."
+      ],
+      "depends_on": ["T3"],
+      "risk_hint": "medium",
+      "opts": ""
+    },
+    {
+      "id": "T13",
+      "title": "Draw local-midnight dividers with each zone's date label",
+      "body": "In every row, draw a divider at that zone's local midnight with the date that starts there (for example 'Wed 18'), formatted through `Intl` in the user's locale. Rows on non-hour offsets get the divider at the true position inside the cell, not snapped to a column edge. The label must stay readable when the divider is near the left edge of the scrolled view and must not collide with the hour label. Out of scope: weekend shading (T14) and the header's Tomorrow / Yesterday text (T15).",
+      "prd_sections": ["§4.8 FR-33", "§10.5 (Intl date formats)"],
+      "acceptance": [
+        "With home Australia/Sydney on Wed 18 Nov 2026, the London row shows a divider labelled 'Wed 18' at the column where Sydney reads 11, and the Sydney row's day starts at its left edge with its own date label.",
+        "For Asia/Kathmandu with a Sydney home the divider sits a quarter of the way into a column (the :45 offset), matching the instant of Kathmandu midnight.",
+        "A unit test returns the midnight instants and date labels for a zone across a home day, including a DST-change day.",
+        "With the browser locale set to en-US the label follows that locale's weekday and day format."
+      ],
+      "depends_on": ["T3"],
+      "risk_hint": "low",
+      "opts": ""
+    },
+    {
+      "id": "T14",
+      "title": "Shade weekend hours per zone and count them as Unsuitable in the overlap row",
+      "body": "Shade the hours that fall on a weekend in each row, using that zone's weekend days from the country-to-weekend map in T4: Sat-Sun by default, Fri-Sat for countries such as Saudi Arabia, Israel and Egypt, Sunday only where applicable. The country comes from the row's city; a zone with no known country, and any fixed-offset zone, defaults to Sat-Sun. In the Everyone (overlap) row and in the meeting verdict and suggestions, a slot that is a weekend for any zone counts as Unsuitable. The shading needs a non-colour cue and a legend entry, and must still let the Best / Good / Unsuitable band show through. Out of scope: public holidays and custom working days (out of scope for v1).",
+      "prd_sections": ["§4.8 FR-34", "§4.8 FR-35", "§4.8 FR-36"],
+      "acceptance": [
+        "With the date set to a Friday and rows for Riyadh and London, Riyadh's Friday hours are weekend-shaded and London's are not; on Sunday the reverse holds.",
+        "On a Saturday in the home zone the Everyone row shows no Best or Good overlap for hours that are Saturday in any Sat-Sun zone, and the verdict says the slot is Unsuitable for those zones.",
+        "A zone added by IANA ID with no bundled city uses Sat-Sun.",
+        "Unit tests cover weekend lookup by country, the default, and overlap scoring across a Friday-to-Monday range with mixed weekend rules.",
+        "The legend names the weekend shading and it is distinguishable in greyscale."
+      ],
+      "depends_on": ["T3", "T4"],
+      "risk_hint": "medium",
+      "opts": ""
+    },
+    {
+      "id": "T15",
+      "title": "Show live local time, abbreviation, UTC offset and day difference in row headers",
+      "body": "Row headers already show the city name, the country and the UTC offset, and the time at the selected slot. What is missing is the 'right now' reading for UC1. Add the zone's live local time (updated by the minute tick from T6) and its abbreviation next to the offset where available, for example 'AEDT · UTC+11'. Abbreviations come from `Intl` (`timeZoneName: 'short'`); when the browser only returns a GMT-style string, show the offset alone rather than repeating it. When the zone's current date differs from home, the header shows 'Tomorrow' or 'Yesterday' (or '+1 day' / '−1 day' where the spec finds the words do not fit). The selected-slot readout stays separate and clearly labelled so the two times are not confused. Only the changed text nodes update on a tick. Out of scope: DST badges (T20), the 12/24 toggle (T18).",
+      "prd_sections": ["§4.5 FR-24", "§4.5 FR-25", "§2 UC1"],
+      "acceptance": [
+        "With a mocked clock, each header shows the correct current local time and it changes when the clock advances one minute, without the row being re-created.",
+        "The Sydney header in November reads 'AEDT · UTC+11' and in June 'AEST · UTC+10'; Kathmandu reads 'UTC+5:45' with no duplicated GMT text.",
+        "With home Sydney at 09:00, the Los Angeles header shows 'Yesterday'; with home Los Angeles at 18:00, Sydney shows 'Tomorrow'; zones on the same date show nothing.",
+        "Unit tests cover the abbreviation fallback and the day-difference function across the date line.",
+        "At 390px wide the header content fits its column without truncating the time, and a screen reader reads name, time, offset and day difference in that order."
+      ],
+      "depends_on": ["T6"],
+      "risk_hint": "medium",
+      "opts": ""
+    },
+    {
+      "id": "T16",
+      "title": "Add fixed-offset zones typed as GMT+11, UTC-7, +5:30 or -0330",
+      "body": "Let the user add a zone by offset instead of city. Typing an offset into the Add City search in any of the PRD's formats (`GMT+11`, `UTC-7`, `+5:30`, `GMT+05:45`, `-0330`) shows the parsed offset as the top result, worded 'UTC+11:00 (fixed, no daylight saving)'. Choosing it adds a row named by its offset that never shifts for DST. Extend the time engine so a zone can be a fixed number of minutes from UTC (do not rely on `Etc/GMT` IDs, which cannot express :30 or :45 and have inverted signs). Accept offsets from −14:00 to +14:00 with minutes in 00, 15, 30 or 45 unless the spec finds a reason for others; reject anything else by simply not showing the result. Offset rows use the stored `{offsetMin}` form validated in T5, label cells like any other row (`9:30`), have no country and use a Sat-Sun weekend. A bare 'GMT' or 'UTC' with no number offers UTC+00:00. The share link and Copy times must carry offset rows too: extend the link format so an offset row survives a round trip, validated on the way in. Out of scope: abbreviation search (T9).",
+      "prd_sections": ["§4.3 FR-16", "§3 In scope (add by offset)", "§4.1 FR-3", "§4.8 FR-36", "§10.3 (offset bounds)"],
+      "acceptance": [
+        "Unit tests show the parser returns 660, −420, 330, 345 and −210 minutes for `GMT+11`, `UTC-7`, `+5:30`, `GMT+05:45` and `-0330`, and nothing for `+15`, `GMT+5:99` or `+`.",
+        "Typing `+5:30` shows 'UTC+05:30 (fixed, no daylight saving)' as the first result; choosing it adds a row headed with that offset.",
+        "With the date moved from January to July, a UTC-7 row keeps the same alignment against a UTC+00:00 row while a Los Angeles row shifts by one hour.",
+        "After a reload the offset row is restored; editing storage to `{\"offsetMin\": 900}` drops that entry on load.",
+        "The offset row's cells are labelled with :30 or :45 minutes where its offset from home is not a whole hour.",
+        "Copying the share link with an offset row and opening it reproduces that row; a link with an out-of-range offset drops it."
+      ],
+      "depends_on": ["T5"],
+      "risk_hint": "medium",
+      "opts": ""
+    },
+    {
+      "id": "T17",
+      "title": "Add an All / Good / Best filter driven by the overlap row",
+      "body": "The overlap row already exists: the Everyone row shows, for each slot, the worst band across all rows, with a summary of the longest shared run. It is not to be rebuilt; T3 keeps it scrolling with the grid. What is missing is the filter the PRD's scope lists (section 4.7, which would define it, is absent, so this follows the agreed recommendation). Add a three-way segmented control, All / Good / Best. All shows every hour as normal. Good dims every column where the overlap is Unsuitable, leaving only the hours that work for everyone at Good or better. Best dims everything except columns where every zone is in Best hours. When the filter leaves nothing, say so in plain words ('No hours are Best for everyone on this day'). The chosen filter is saved in the `filter` field from T5 and also limits the suggested times. Dimming needs to survive greyscale. Out of scope: weekend rules (T14 feeds the same overlap function).",
+      "prd_sections": ["§3 In scope (overlap row, All / Good / Best filter)", "§2 UC2", "§1 Product", "§8.2"],
+      "acceptance": [
+        "Selecting Best dims every column except those where all rows are Best; selecting Good also leaves the all-Good columns; All removes the dimming. A unit test covers the column-visibility function.",
+        "With zones that share no Best hour, the Best filter shows the empty-state message instead of a blank grid.",
+        "The filter choice survives a reload and is operable by keyboard as a radio group with the current choice announced.",
+        "Suggested times never include a slot the current filter dims."
+      ],
+      "depends_on": ["T3", "T5"],
+      "risk_hint": "medium",
+      "opts": ""
+    },
+    {
+      "id": "T18",
+      "title": "Add a 12/24-hour toggle",
+      "body": "Every time in the app is currently 24-hour. Add a toggle that switches every displayed time between 12-hour and 24-hour form: hour cell labels, row header times, the meeting card, the selected-slot readouts, suggestions and the text produced by Copy times. The first-run default follows the user's locale (`Intl.DateTimeFormat().resolvedOptions().hourCycle`), as the operator confirmed; after the user chooses, the choice is saved in the `hour12` field from T5. All formatting goes through one function in the time or strings module so nothing is missed. In 12-hour mode the hour cells must stay compact (for example `9` with an am/pm cue at band changes or noon and midnight, as the spec decides) and still fit at 390px. Out of scope: other locale settings.",
+      "prd_sections": ["§3 In scope (12/24-hour toggle)", "§10.5", "§8.2"],
+      "acceptance": [
+        "Switching to 12-hour shows the 15:00 cell as 3 (with its pm cue) and the meeting time as '3:00 pm – 4:00 pm'; switching back shows 15 and '15:00 – 16:00'.",
+        "With no stored state and browser locale en-US the app starts in 12-hour; with en-GB it starts in 24-hour.",
+        "The choice survives a reload and overrides the locale default.",
+        "Unit tests cover the formatter for 00:00, 12:00, 12:30 and 23:45 in both modes.",
+        "The toggle is a labelled 44px control whose state is exposed to assistive technology."
+      ],
+      "depends_on": ["T3", "T5"],
+      "risk_hint": "medium",
+      "opts": ""
+    },
+    {
+      "id": "T19",
+      "title": "Add a service worker so the app loads and works offline",
+      "body": "The operator requires the app to work offline: after one visit it must load and work with no network at all. Today a loaded page keeps working, but a reload or a fresh launch without a network fails. Add a service worker (`sw.js` at the site root, registered from app.js) that precaches everything the app needs: index.html, styles.css, every JavaScript module, the city data module from T4 and the four font files. Serve those from the cache first, with navigations (including share links with a hash) answered by the cached index.html. Version the cache: a new version installs in the background, takes over on the next launch rather than mid-session, and deletes old caches, so a deploy reaches users without a stuck stale copy. It must work under the CSP from T8 with no changes to the policy, make no third-party requests, and never cache or touch `localStorage` data. Because there is no build step, add a small dev script (`npm run sw:stamp`) that writes the precache list and a content-hash version into sw.js, and a unit test that fails when that list or hash is out of date, so every later ticket that adds or changes a file is forced to restamp. Document this in AGENTS.md, along with how to bypass the worker during development. Service workers need HTTPS or localhost (see Prerequisites). Out of scope: install prompts, a web app manifest, background sync, update toasts.",
+      "prd_sections": ["§1 Goals 2", "§1 Product (client-side only)", "§10.1 (repeat visits from cache)", "§7.1"],
+      "acceptance": [
+        "After one online load on localhost, with the browser set to offline, a reload shows the full app: fonts, zones, search over all bundled cities, selection and saved state all work, with no failed requests in the console.",
+        "Offline, opening a share link (`index.html#z=...`) loads the app with the linked zones.",
+        "After a file changes and `npm run sw:stamp` is run, the next online visit installs the new version, and the launch after that serves the new file and has deleted the old cache (one cache remains in Cache Storage).",
+        "`npm test` fails if any local file referenced by index.html, by styles.css `url()` or by the module import graph is missing from the precache list, or if the version hash does not match the files' contents.",
+        "With the worker active the console shows zero CSP violations and the network panel shows only same-origin requests."
+      ],
+      "depends_on": ["T4", "T8"],
+      "risk_hint": "high",
+      "opts": "adversary=codex"
+    },
+    {
+      "id": "T20",
+      "title": "Show a DST badge and a warning when a zone's clocks change within 14 days",
+      "body": "The grid is already correct across DST changes because the time engine works from real offsets; what is missing is telling the user. Add two small badges to row headers. A DST badge appears when the zone is observing daylight saving right now (its current offset is greater than its standard offset for the year). A warning badge appears when the zone's UTC offset will change within the next 14 days; tapping it explains the change in plain words, for example 'Clocks in London go back 1 hour on Sun 25 Oct at 2:00 am. Meetings after that are 1 hour earlier for London relative to zones that do not change.' Find transitions by scanning offsets with the time engine (no bundled tz tables), cache the result per zone and day, and keep it out of the per-minute tick budget. Also flag a selected slot that falls after an upcoming change, since the grid for that date already uses the new offset. Fixed-offset rows never show either badge. Per DESIGN.md terracotta is for cost and warning, gold is not available; the badge needs text or an icon, not colour alone. The explanation is a popover or sheet reachable by keyboard and dismissable with Esc.",
+      "prd_sections": ["§4.5 FR-26", "§3 In scope (DST awareness and warnings)", "§1 Goals 5"],
+      "acceptance": [
+        "With the clock mocked to 2026-07-01, London and New York show the DST badge and Sydney, Singapore and a UTC+10 offset row do not.",
+        "With the clock mocked to 2026-10-20, London shows a warning badge (change on 25 Oct) and Singapore does not; on 2026-10-10 London shows none.",
+        "Activating the warning badge shows the date, local time, direction and size of the change, and Esc closes it with focus returned to the badge.",
+        "Unit tests cover next-transition detection for Europe/London, Australia/Lord_Howe (30-minute shift), America/Phoenix (none) and a fixed offset.",
+        "Transition lookups run once per zone per day, not on every minute tick (verified by a call-count test)."
+      ],
+      "depends_on": ["T15"],
+      "risk_hint": "medium",
+      "opts": ""
+    },
+    {
+      "id": "T21",
+      "title": "Add a small Playwright end-to-end suite for the core use cases",
+      "body": "The PRD asks for end-to-end coverage that is not overkill, and the operator agreed the approach. Add Playwright as a dev dependency only, with a config that serves the repo with a static server, uses a phone viewport (390x844) plus one desktop project, and pins the clock and `timezoneId` per test. Cover the four use cases and the riskiest flows with roughly ten to twelve tests: glance at current times (UC1), find a slot with the filter (UC2), tap a slot and read each zone's time (UC3), travel by changing the emulated zone (UC4), add by search and by offset, change and delete, drag reorder, state surviving reload, corrupt-state recovery, a share link round trip, a DST-change day, an offline reload through the service worker, and zero CSP violations and zero third-party requests during a run. Add an `npm run test:e2e` script and document it in AGENTS.md, including the one-off browser install. Nothing from Playwright may be referenced by the shipped page or the service worker's precache list. factory/checks.sh is protected, so wiring this into the gate is a human step (see Prerequisites). Out of scope: visual-regression snapshots, Lighthouse automation, cross-browser matrices beyond Chromium and WebKit.",
+      "prd_sections": ["§11", "§2 UC1–UC4", "§10.3", "§1 Goals 2"],
+      "acceptance": [
+        "`npm run test:e2e` passes locally after `npm install` and `npx playwright install`, running against a static server it starts itself.",
+        "The suite has a named test for each of UC1 to UC4, and the UC4 test changes `timezoneId` and asserts the home row and toast change.",
+        "One test loads the app with the clock on a DST-change day and asserts cell alignment across two zones.",
+        "One test loads the app, goes offline, reloads and asserts the grid and zone search still work.",
+        "One test fails if any request leaves the origin or any CSP violation is logged during the core flow.",
+        "package.json lists Playwright under `devDependencies` only; `npm test` (unit tests) still runs without installing it."
+      ],
+      "depends_on": ["T5", "T7", "T9", "T10", "T11", "T14", "T16", "T17", "T19", "T20"],
+      "risk_hint": "medium",
+      "opts": ""
+    }
+  ]
+}

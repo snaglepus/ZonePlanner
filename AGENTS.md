@@ -40,6 +40,8 @@ tests and `npm run sw:stamp` stamps `sw.js`.
   (`wheelScroll`).
 - `js/reorder.js`: the pure row reorder for drag-to-reorder (`moveRow`); the
   home row stays fixed at index 0.
+- `js/weekend.js`: weekend rules (`weekendSlots`, `scoredBands`,
+  `overlapBands`): which slots fall on each zone's weekend, scored Unsuitable.
 - `js/filter.js`: the All / Good / Best hour filter (`keptSlots`,
   `windowKept`): which slots of the overlap row are kept, and whether a
   meeting span lies entirely in kept slots.
@@ -68,7 +70,8 @@ tests and `npm run sw:stamp` stamps `sw.js`.
   `VERSION` and `PRECACHE` lines.
 - `test/`: unit tests (`node:test`) for the time engine, the shared clock,
   the zone rules, the stored state, the city data, the wheel scroll decision, the row reorder,
-  the hour filter and the time formatter (`test/strings.test.js`), plus a static
+  the hour filter, the time formatter (`test/strings.test.js`) and the weekend
+  rules (`test/weekend.test.js`), plus a static
   CSP check of `index.html` (`test/csp.test.js`) and a static `styles.css`
   token check (heat-step contrast and order, `test/tokens.test.js`) and the
   service worker's stamp and manifest rules (`test/sw.test.js`).
@@ -81,6 +84,12 @@ Rules that hold across the app:
 - Bands never rely on colour alone (solid, hatched, pale). Zone rows shade
   Good runs in three hatched heat steps by local hour (`goodStep`); the
   Everyone row's Good is flat.
+- Each row's weekend comes from its city's country (`cc` from `zoneInfo`)
+  via `weekendFor`, Sat-Sun when unknown (offset rows have no country, so
+  Sat-Sun), judged per slot by local weekday.
+  Weekend slots carry a 45° line overlay on zone rows and score as
+  Unsuitable in the Everyone row, the overlap summary, the verdict and the
+  suggestions.
 - The home row is always the device zone, recomputed on load and followed
   live; it is never stored or read from a link. The rest are at most 7 user
   rows.
@@ -110,7 +119,7 @@ Rules that hold across the app:
   is wrapped in `esc()` at the call site in `app.js`, so it is escaped exactly
   once; `textContent`, `setAttribute` and `window.prompt` take it as is.
 - `js/time.js`, `js/clock.js`, `js/zones.js`, `js/state.js`, `js/scroll.js`,
-  `js/reorder.js`, `js/filter.js` and `js/cities.js` stay DOM-free: no `document`, `window`, `location`, `localStorage`, `navigator`
+  `js/reorder.js`, `js/filter.js`, `js/weekend.js` and `js/cities.js` stay DOM-free: no `document`, `window`, `location`, `localStorage`, `navigator`
   or `history`, so they import in Node.
 - Every `$("id")` / `getElementById` lookup stays in `app.js` with a literal id.
 - Live updates (the now line, the home-zone re-check, the row headers' live

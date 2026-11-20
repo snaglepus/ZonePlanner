@@ -7,6 +7,7 @@ import { wheelScroll } from "./js/scroll.js";
 import { moveRow } from "./js/reorder.js";
 import { keptSlots, windowKept } from "./js/filter.js";
 import { zoneInfo, abbreviationZones, searchCities } from "./js/search.js";
+import { weekendSlots, scoredBands, overlapBands } from "./js/weekend.js";
 
 const SLOT_MIN = 15;
 const SLOT_MS = SLOT_MIN * 60000;
@@ -85,17 +86,18 @@ const buildModel = () => {
       bands[i] = classify(p.mod);
       heat[i] = goodStep(p.mod);
     }
-    return { bands, heat, parts };
+    const weekend = weekendSlots(zoneOf(z), z.cc, t0, n);
+    return { bands, heat, parts, weekend, score: scoredBands(bands, weekend) };
   });
-  const all = Array.from({ length: n }, (_, i) => Math.min(...grid.map((g) => g.bands[i])));
+  const all = overlapBands(grid);
   model = { t0, n, cols, grid, all, kept: keptSlots(all, state.filter) };
 };
 
-/** Lower cost is better. Each zone costs its worst slot in the window. */
+/** Lower cost is better. Each zone costs its worst scored slot in the window (weekend slots are Unsuitable). */
 const PENALTY = { 2: 0, 1: 2, 0: 9 };
 const windowStats = (s) => {
   const L = state.len;
-  const worst = model.grid.map((g) => { let w = 2; for (let i = s; i < s + L; i++) w = Math.min(w, g.bands[i]); return w; });
+  const worst = model.grid.map((g) => { let w = 2; for (let i = s; i < s + L; i++) w = Math.min(w, g.score[i]); return w; });
   const soft = model.grid.reduce((acc, g) => { for (let i = s; i < s + L; i++) acc += PENALTY[g.bands[i]]; return acc; }, 0);
   const cost = worst.reduce((a, w) => a + PENALTY[w], 0);
   return { s, worst, cost, soft, biz: worst.filter((w) => w === 2).length, edge: worst.filter((w) => w === 1).length, night: worst.filter((w) => w === 0).length };
@@ -152,9 +154,9 @@ const actBtn = (act, idx, label, id) => {
   return b;
 };
 
-/** One hour cell per column over the 15-minute band runs; labels only when a zone is given, Good heat steps only when heat is. Slots the filter drops are dimmed.
+/** One hour cell per column over the 15-minute band runs; labels only when a zone is given, Good heat steps only when heat is, a weekend overlay only when weekend is. Slots the filter drops are dimmed.
  * On a 12-hour clock the first cell and each cell where am/pm changes carry the meridiem cue. */
-const trackEl = (bands, z, heat) => {
+const trackEl = (bands, z, heat, weekend) => {
   const track = make("div", "track");
   track.setAttribute("aria-hidden", "true");
   const runs = make("div", "bands");
@@ -182,7 +184,20 @@ const trackEl = (bands, z, heat) => {
     if (w < 4) cell.style.setProperty("--w", String(w));
     cells.append(cell);
   }
-  track.append(runs, cells);
+  track.append(runs);
+  if (weekend) {
+    const shade = make("div", "weekend");
+    for (let i = 0; i < model.n;) {
+      let j = i;
+      while (j < model.n && weekend[j] === weekend[i]) j++;
+      const seg = make("div", weekend[i] ? "wk-on" : "wk-off");
+      seg.style.setProperty("--w", String(j - i));
+      shade.append(seg);
+      i = j;
+    }
+    track.append(shade);
+  }
+  track.append(cells);
   return track;
 };
 
@@ -227,7 +242,7 @@ const renderRows = () => {
       grip.append(svgUse("grip"));
       head.append(grip);
     }
-    row.append(head, trackEl(model.grid[idx].bands, z, model.grid[idx].heat));
+    row.append(head, trackEl(model.grid[idx].bands, z, model.grid[idx].heat, model.grid[idx].weekend));
     rows.push(row);
   });
   el.rows.style.setProperty("--n", String(model.n));
@@ -309,6 +324,7 @@ const renderSelection = () => {
 
   // verdict
   const n = state.zones.length;
+  const weekendIn = (i) => model.grid[i].weekend.slice(s, s + L).includes(true);
   const names = (band) => state.zones.filter((_, i) => w.worst[i] === band);
   if (w.biz === n) {
     el.verdict.dataset.tone = "biz";
@@ -321,7 +337,8 @@ const renderSelection = () => {
     el.verdict.dataset.tone = "bad";
     const bad = names(0).map((z) => {
       const idx = state.zones.indexOf(z);
-      return `${z.name} (${timeText(model.grid[idx].parts[s])})`;
+      const at = timeText(model.grid[idx].parts[s]);
+      return weekendIn(idx) ? S.verdictWeekendItem(z.name, at) : S.verdictItem(z.name, at);
     });
     el.verdict.textContent = S.verdictBad(bad);
   }
@@ -335,9 +352,10 @@ const renderSelection = () => {
     const p = g.parts[s];
     const q = localParts(zoneOf(state.zones[i]), endT);
     const band = w.worst[i];
+    const label = weekendIn(i) ? S.WEEKEND : S.BAND_LABEL[band];
     row.dataset.at = BAND_NAME[band];
     const dayBadge = p.dayKey !== homeKey ? `<span class="day">${weekday(p.date)}</span>` : "";
-    row.querySelector("[data-at]").innerHTML = `<b>${dayBadge}${esc(S.clockRange(p, q, h12))}</b><span><i class="mark mark-${BAND_NAME[band]}" aria-hidden="true"></i>${esc(S.BAND_LABEL[band])}</span>`;
+    row.querySelector("[data-at]").innerHTML = `<b>${dayBadge}${esc(S.clockRange(p, q, h12))}</b><span><i class="mark mark-${BAND_NAME[band]}" aria-hidden="true"></i>${esc(label)}</span>`;
   });
 
   // bar geometry, in slots from the start of the tracks

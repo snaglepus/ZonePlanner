@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>ZonePlanner</title>
+  <meta name="description" content="Compare 3 to 8 time zones and find the meeting hour that works for everyone.">
+  <meta name="theme-color" content="#F4EDE2">
+  <link rel="preload" href="assets/fonts/hanken-grotesk-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="assets/fonts/libre-baskerville-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%233E5248'/%3E%3Ccircle cx='16' cy='17' r='6' fill='%23E6B089'/%3E%3Cpath d='M4 24c5-5 9-6 12-4s7 1 12-3v11H4z' fill='%23F4EDE2'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <symbol id="i-cal" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-left" viewBox="0 0 24 24"><path d="M14.5 6l-6 6 6 6"/></symbol>
+    <symbol id="i-right" viewBox="0 0 24 24"><path d="M9.5 6l6 6-6 6"/></symbol>
+    <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8.5" y="8.5" width="11" height="11" rx="2.5"/><path d="M15.5 8.5V6a1.5 1.5 0 0 0-1.5-1.5H6A1.5 1.5 0 0 0 4.5 6v8A1.5 1.5 0 0 0 6 15.5h2.5"/></symbol>
+    <symbol id="i-share" viewBox="0 0 24 24"><path d="M12 15V4M8 8l4-4 4 4"/><path d="M5 12v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+    <symbol id="i-home" viewBox="0 0 24 24"><path d="M4 11l8-6.5 8 6.5"/><path d="M6.5 9.5V19h11V9.5"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4 4"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></symbol>
+  </svg>
+
+  <header class="masthead">
+    <div class="sun" aria-hidden="true"></div>
+    <svg class="landscape" viewBox="0 0 400 230" preserveAspectRatio="none" aria-hidden="true">
+      <defs>
+        <filter id="paper" x="-5%" y="-30%" width="110%" height="160%">
+          <feDropShadow dx="0" dy="-1.5" stdDeviation="2.2" flood-color="#3B2A20" flood-opacity=".22"/>
+        </filter>
+      </defs>
+      <path d="M0 112c40-14 70-30 112-22s62 24 100 18 64-34 108-36 60 14 80 22v140H0z" fill="#E2B49A"/>
+      <path d="M0 130c34-6 58-22 96-18s58 22 104 20 70-24 112-22 66 16 88 24v100H0z" fill="#C98F7C" filter="url(#paper)"/>
+      <path d="M0 144c48-2 78-20 126-16s54 20 96 18 64-18 104-14 54 10 74 14v80H0z" fill="#8FA393" filter="url(#paper)"/>
+      <path d="M0 160c40 0 70-12 110-10s70 14 118 12 72-14 112-10 46 8 60 10v60H0z" fill="#56705F" filter="url(#paper)"/>
+      <path d="M0 176c50-8 96-10 150-6s92 10 140 6 80-8 110-6v60H0z" fill="#3E5248" filter="url(#paper)"/>
+      <path d="M0 214c46-6 92-8 142-4s104 10 158 6 74-6 100-5v30H0z" fill="#F4EDE2" filter="url(#paper)"/>
+    </svg>
+    <div class="brand">
+      <h1>ZonePlanner</h1>
+      <p>Find the hour that works everywhere</p>
+    </div>
+  </header>
+
+  <main class="app">
+    <section class="toolbar" aria-label="Day and zones">
+      <div class="datebox">
+        <button class="icon-btn" type="button" id="prevDay" aria-label="Previous day"><svg><use href="#i-left"/></svg></button>
+        <label class="date-pill">
+          <svg class="ico"><use href="#i-cal"/></svg>
+          <span id="dateLabel">Today</span>
+          <input type="date" id="dateInput" aria-label="Meeting date">
+        </label>
+        <button class="icon-btn" type="button" id="nextDay" aria-label="Next day"><svg><use href="#i-right"/></svg></button>
+      </div>
+      <button class="btn btn-primary" type="button" id="addZone"><svg class="ico"><use href="#i-plus"/></svg><span>Add zone</span></button>
+    </section>
+
+    <section class="meeting card" aria-labelledby="meetingTime">
+      <div class="meeting-head">
+        <div>
+          <h2 id="meetingTime" class="meeting-time">--:--</h2>
+          <p class="meeting-sub" id="meetingSub"></p>
+        </div>
+        <div class="meeting-actions">
+          <button class="icon-btn icon-btn-soft" type="button" id="shareBtn" aria-label="Copy link to this plan"><svg><use href="#i-share"/></svg></button>
+          <button class="btn btn-primary" type="button" id="copyBtn"><svg class="ico"><use href="#i-copy"/></svg><span>Copy times</span></button>
+        </div>
+      </div>
+      <p class="verdict" id="verdict" role="status"></p>
+      <div class="meeting-controls">
+        <div class="seg" role="radiogroup" aria-label="Meeting length" id="lengthSeg">
+          <button type="button" role="radio" data-len="2">30m</button>
+          <button type="button" role="radio" data-len="4">1h</button>
+          <button type="button" role="radio" data-len="6">1½h</button>
+          <button type="button" role="radio" data-len="8">2h</button>
+        </div>
+      </div>
+      <div class="suggest">
+        <h3>Suggested</h3>
+        <div class="chips" id="suggestions"></div>
+      </div>
+    </section>
+
+    <section class="board card" aria-labelledby="boardTitle">
+      <div class="board-head">
+        <h2 id="boardTitle">Zones <span class="count" id="zoneCount"></span></h2>
+        <button class="btn btn-ghost" type="button" id="editBtn" aria-pressed="false">Edit</button>
+      </div>
+
+      <div class="timeline" id="timeline">
+        <div class="axis" aria-hidden="true" id="axis"></div>
+        <input type="range" id="scrub" class="scrub" min="0" max="92" step="1" value="0" aria-label="Meeting start time">
+        <div class="rows" id="rows"></div>
+        <div class="selbar" id="selbar" aria-hidden="true"></div>
+      </div>
+
+      <ul class="legend" aria-label="Legend">
+        <li><span class="sw sw-biz"></span>Business <small>9–17</small></li>
+        <li><span class="sw sw-edge"></span>Edge <small>6–9, 17–20</small></li>
+        <li><span class="sw sw-night"></span>Inconvenient</li>
+      </ul>
+    </section>
+
+    <p class="footnote">Times are calculated on your device, and daylight saving and half-hour offsets are included. The day runs on the home zone, which is the first row.</p>
+  </main>
+
+  <dialog class="sheet" id="zoneSheet" aria-labelledby="sheetTitle">
+    <form method="dialog" class="sheet-inner" id="sheetForm">
+      <div class="sheet-grip" aria-hidden="true"></div>
+      <div class="sheet-head">
+        <h2 id="sheetTitle">Add a zone</h2>
+        <button class="icon-btn icon-btn-soft" value="cancel" aria-label="Close"><svg><use href="#i-x"/></svg></button>
+      </div>
+      <label class="search">
+        <svg class="ico"><use href="#i-search"/></svg>
+        <input type="search" id="zoneSearch" placeholder="City, country or zone" autocomplete="off" aria-label="Search time zones">
+      </label>
+      <p class="sheet-note" id="sheetNote"></p>
+      <ul class="results" id="results" role="listbox" aria-label="Matching zones"></ul>
+    </form>
+  </dialog>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="app.js" defer></script>
+</body>
+</html>

@@ -1,0 +1,558 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-19T23:51:57+00:00",
+  "title": "Design System: ZonePlanner",
+  "extensions": {
+    "colorMeta": {
+      "sage": {
+        "role": "primary",
+        "displayName": "Valley Sage",
+        "canonical": "#3E5248",
+        "oklch": "oklch(41.9% 0.030 163)",
+        "tonalRamp": [
+          "#080C0C",
+          "#1D2626",
+          "#354443",
+          "#4F6362",
+          "#6E8383",
+          "#92A3A8",
+          "#BBC8D1",
+          "#E9F0FF"
+        ]
+      },
+      "sage-press": {
+        "role": "primary",
+        "displayName": "Deep Fold Sage",
+        "canonical": "#33453C",
+        "oklch": "oklch(37.2% 0.028 163)",
+        "tonalRamp": [
+          "#080C0C",
+          "#1E2626",
+          "#364343",
+          "#506362",
+          "#6F8384",
+          "#93A3A8",
+          "#BCC7D1",
+          "#EAF0FF"
+        ]
+      },
+      "on-sage": {
+        "role": "primary",
+        "displayName": "Paper on Sage",
+        "canonical": "#F4EDE2",
+        "oklch": "oklch(94.9% 0.016 79)",
+        "tonalRamp": [
+          "#0C0B0B",
+          "#262424",
+          "#433F3F",
+          "#625D5D",
+          "#837C7E",
+          "#A39EA3",
+          "#C7C3CE",
+          "#F0EEFE"
+        ]
+      },
+      "biz": {
+        "role": "primary",
+        "displayName": "Business Sage",
+        "canonical": "#56705F",
+        "oklch": "oklch(51.9% 0.041 156)",
+        "tonalRamp": [
+          "#070D0B",
+          "#1C2724",
+          "#334540",
+          "#4C645E",
+          "#6A857F",
+          "#8FA5A4",
+          "#B9C9CF",
+          "#E8F1FF"
+        ]
+      },
+      "sage-tint": {
+        "role": "primary",
+        "displayName": "Sage Wash",
+        "canonical": "#E3E9E3",
+        "oklch": "oklch(92.8% 0.010 145)",
+        "tonalRamp": [
+          "#0A0B0C",
+          "#222526",
+          "#3D4143",
+          "#5A5F63",
+          "#7A7F84",
+          "#9BA0A9",
+          "#C2C5D2",
+          "#EDEFFF"
+        ]
+      },
+      "edge": {
+        "role": "secondary",
+        "displayName": "Dawn Peach",
+        "canonical": "#E6B089",
+        "oklch": "oklch(79.8% 0.082 57)",
+        "tonalRamp": [
+          "#130805",
+          "#341E15",
+          "#583729",
+          "#7F513E",
+          "#A2715D",
+          "#BE9588",
+          "#DCBDBB",
+          "#FCEBF3"
+        ]
+      },
+      "edge-hatch": {
+        "role": "secondary",
+        "displayName": "Baked Peach",
+        "canonical": "#D99C72",
+        "oklch": "oklch(74.2% 0.092 55)",
+        "tonalRamp": [
+          "#140804",
+          "#361D13",
+          "#5B3525",
+          "#834F39",
+          "#A76E58",
+          "#C39384",
+          "#DFBCB8",
+          "#FEEAF2"
+        ]
+      },
+      "gold": {
+        "role": "tertiary",
+        "displayName": "Lantern Gold",
+        "canonical": "#C99247",
+        "oklch": "oklch(69.9% 0.113 72)",
+        "tonalRamp": [
+          "#140802",
+          "#351E08",
+          "#5A3714",
+          "#825221",
+          "#A67141",
+          "#C19573",
+          "#DEBEAC",
+          "#FDEBEC"
+        ]
+      },
+      "terra": {
+        "role": "tertiary",
+        "displayName": "Terracotta",
+        "canonical": "#A65A3F",
+        "oklch": "oklch(55.1% 0.108 40)",
+        "tonalRamp": [
+          "#160605",
+          "#3A1915",
+          "#622F28",
+          "#8D473D",
+          "#B3655B",
+          "#CD8C87",
+          "#E7B8BA",
+          "#FFE8F3"
+        ]
+      },
+      "terra-tint": {
+        "role": "tertiary",
+        "displayName": "Clay Blush",
+        "canonical": "#F6E3D9",
+        "oklch": "oklch(92.8% 0.025 50)",
+        "tonalRamp": [
+          "#0E0A0B",
+          "#292223",
+          "#483D3E",
+          "#695A5B",
+          "#8A797C",
+          "#A99BA2",
+          "#CCC2CD",
+          "#F3EDFE"
+        ]
+      },
+      "paper": {
+        "role": "neutral",
+        "displayName": "Warm Paper",
+        "canonical": "#F4EDE2",
+        "oklch": "oklch(94.9% 0.016 79)",
+        "tonalRamp": [
+          "#0C0B0B",
+          "#262424",
+          "#433F3F",
+          "#625D5D",
+          "#837C7E",
+          "#A39EA3",
+          "#C7C3CE",
+          "#F0EEFE"
+        ]
+      },
+      "paper-deep": {
+        "role": "neutral",
+        "displayName": "Pressed Paper",
+        "canonical": "#EADFD1",
+        "oklch": "oklch(90.9% 0.022 74)",
+        "tonalRamp": [
+          "#0D0B0A",
+          "#272322",
+          "#453F3D",
+          "#655C5A",
+          "#857C7B",
+          "#A59DA1",
+          "#C9C3CC",
+          "#F1EEFD"
+        ]
+      },
+      "card": {
+        "role": "neutral",
+        "displayName": "Cream Card",
+        "canonical": "#FBF7F0",
+        "oklch": "oklch(97.7% 0.010 82)",
+        "tonalRamp": [
+          "#0C0B0C",
+          "#252425",
+          "#423F42",
+          "#605D60",
+          "#807D82",
+          "#A19EA6",
+          "#C6C4D0",
+          "#EFEEFF"
+        ]
+      },
+      "night": {
+        "role": "neutral",
+        "displayName": "Pale Clay",
+        "canonical": "#EBE2D7",
+        "oklch": "oklch(91.7% 0.018 73)",
+        "tonalRamp": [
+          "#0D0B0B",
+          "#272323",
+          "#443F3F",
+          "#645C5C",
+          "#847C7E",
+          "#A49DA3",
+          "#C8C3CE",
+          "#F1EEFE"
+        ]
+      },
+      "night-line": {
+        "role": "neutral",
+        "displayName": "Clay Rule",
+        "canonical": "#DDD1C3",
+        "oklch": "oklch(86.7% 0.023 72)",
+        "tonalRamp": [
+          "#0D0B0A",
+          "#282322",
+          "#463E3D",
+          "#665C5A",
+          "#867B7B",
+          "#A69DA0",
+          "#CAC3CC",
+          "#F1EEFD"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Ink",
+        "canonical": "#2A2C28",
+        "oklch": "oklch(29.0% 0.008 129)",
+        "tonalRamp": [
+          "#0B0B0C",
+          "#232426",
+          "#3F4043",
+          "#5C5E63",
+          "#7C7E84",
+          "#9D9FA9",
+          "#C3C5D2",
+          "#EEEFFF"
+        ]
+      },
+      "ink-soft": {
+        "role": "neutral",
+        "displayName": "Soft Ink",
+        "canonical": "#4A4B45",
+        "oklch": "oklch(41.0% 0.010 115)",
+        "tonalRamp": [
+          "#0B0B0C",
+          "#242426",
+          "#3F4042",
+          "#5D5E61",
+          "#7D7E83",
+          "#9E9FA7",
+          "#C4C4D1",
+          "#EEEFFF"
+        ]
+      },
+      "muted": {
+        "role": "neutral",
+        "displayName": "Field Grey-Brown",
+        "canonical": "#66625A",
+        "oklch": "oklch(49.7% 0.013 85)",
+        "tonalRamp": [
+          "#0C0B0B",
+          "#262424",
+          "#423F40",
+          "#615D5E",
+          "#817D80",
+          "#A19EA5",
+          "#C6C4CF",
+          "#F0EEFF"
+        ]
+      },
+      "line": {
+        "role": "neutral",
+        "displayName": "Paper Rule",
+        "canonical": "#E3D8CA",
+        "oklch": "oklch(88.7% 0.022 74)",
+        "tonalRamp": [
+          "#0D0B0A",
+          "#272322",
+          "#453F3D",
+          "#655C5A",
+          "#857C7B",
+          "#A59DA1",
+          "#C9C3CC",
+          "#F1EEFD"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "Wordmark only; 40px at 560px+."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Meeting time range; 42px at 560px+."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Card and sheet titles (22px in sheet); the Everyone row name."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Running text and footnotes."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Buttons, chips, segments, date pill, toast; zone names at 16px."
+      },
+      "caption": {
+        "displayName": "Caption",
+        "purpose": "Offsets, countries, sub-lines, chip notes; axis numerals at 11px/600."
+      }
+    },
+    "shadows": [
+      {
+        "name": "paper-lift",
+        "value": "0 10px 28px -18px rgba(62,82,72,.45), 0 1px 2px rgba(62,82,72,.06)",
+        "purpose": "Cards, floating icon buttons, date pill, toast."
+      },
+      {
+        "name": "gold-glow",
+        "value": "0 6px 18px -8px rgba(201,146,71,.55)",
+        "purpose": "Selection bar only."
+      },
+      {
+        "name": "sheet-rise",
+        "value": "0 -12px 40px -12px rgba(42,44,40,.35)",
+        "purpose": "Bottom sheet, over a rgba(42,44,40,.38) scrim."
+      },
+      {
+        "name": "ridge-shadow",
+        "value": "feDropShadow dx=0 dy=-1.5 stdDeviation=2.2 flood #3B2A20 @ .22",
+        "purpose": "Between masthead paper ridges, including the closing paper contour (SVG filter)."
+      },
+      {
+        "name": "strip-rule",
+        "value": "inset 0 0 0 1px #DDD1C3",
+        "purpose": "Keeps pale day strips and swatches from dissolving into the card."
+      }
+    ],
+    "focus": {
+      "value": "outline: 2.5px solid #C99247; outline-offset: 2px",
+      "purpose": "Every focusable control; scrubber focus rings the selection bar."
+    },
+    "motion": [
+      {
+        "name": "ease",
+        "value": "cubic-bezier(.16, 1, .3, 1)",
+        "purpose": "The single easing curve for all transitions."
+      },
+      {
+        "name": "press",
+        "value": "200ms; scale(.97) buttons, scale(.94) icon buttons",
+        "purpose": "Press feedback and colour changes."
+      },
+      {
+        "name": "segment",
+        "value": "250ms",
+        "purpose": "Segmented control selection."
+      },
+      {
+        "name": "toast",
+        "value": "opacity 250ms, translate 350ms",
+        "purpose": "Toast rise."
+      },
+      {
+        "name": "sheet-in",
+        "value": "420ms, from translateY(40px) opacity .4",
+        "purpose": "Bottom sheet entrance."
+      },
+      {
+        "name": "selbar",
+        "value": "450ms on transform and width; none while dragging",
+        "purpose": "Selection bar glide."
+      },
+      {
+        "name": "reduced-motion",
+        "value": "all transitions and animations .01ms",
+        "purpose": "prefers-reduced-motion: reduce."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "wide",
+        "value": "560px",
+        "purpose": "Gutter 24px, taller masthead, larger wordmark and meeting time, meeting actions beside the time."
+      }
+    ],
+    "layout": {
+      "maxWidth": "720px",
+      "mastheadHeight": "268px / 284px",
+      "appOverlap": "-94px",
+      "stackGap": "14px"
+    }
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Sage pill for the main action on a card (Copy times).",
+      "html": "<button class=\"ds-btn-primary\"><svg viewBox=\"0 0 24 24\" width=\"20\" height=\"20\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect x=\"8.5\" y=\"8.5\" width=\"11\" height=\"11\" rx=\"2.5\"/><path d=\"M15.5 8.5V6a1.5 1.5 0 0 0-1.5-1.5H6A1.5 1.5 0 0 0 4.5 6v8A1.5 1.5 0 0 0 6 15.5h2.5\"/></svg><span>Copy times</span></button>",
+      "css": ".ds-btn-primary{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:0 18px;border:0;border-radius:999px;background:var(--sage,#3E5248);color:var(--on-sage,#F4EDE2);font-family:var(--sans);font-weight:650;font-size:14px;letter-spacing:.005em;cursor:pointer;transition:background-color .2s cubic-bezier(.16,1,.3,1),transform .2s cubic-bezier(.16,1,.3,1)}.ds-btn-primary:hover{background:var(--sage-press,#33453C)}.ds-btn-primary:active{transform:scale(.97)}.ds-btn-primary:focus-visible{outline:2.5px solid var(--gold,#C99247);outline-offset:2px}"
+    },
+    {
+      "name": "Band Button",
+      "kind": "button",
+      "refersTo": "button-on-band",
+      "description": "Peach pill used for the primary action when it sits on the sage masthead band (Add zone).",
+      "html": "<div style=\"background:#3E5248;padding:16px;border-radius:12px\"><button class=\"ds-btn-band\"><svg viewBox=\"0 0 24 24\" width=\"20\" height=\"20\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\"><path d=\"M12 5v14M5 12h14\"/></svg><span>Add zone</span></button></div>",
+      "css": ".ds-btn-band{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 18px;border:0;border-radius:999px;background:var(--edge,#E6B089);color:#3A2414;font-family:var(--sans);font-weight:650;font-size:14px;letter-spacing:.005em;cursor:pointer;transition:background-color .2s cubic-bezier(.16,1,.3,1),transform .2s cubic-bezier(.16,1,.3,1)}.ds-btn-band:hover{background:#ECBF9C}.ds-btn-band:active{transform:scale(.97)}.ds-btn-band:focus-visible{outline:2.5px solid var(--gold,#C99247);outline-offset:2px}"
+    },
+    {
+      "name": "Ghost Button",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "Quiet sage text pill for secondary toggles (Edit).",
+      "html": "<button class=\"ds-btn-ghost\" aria-pressed=\"false\">Edit</button>",
+      "css": ".ds-btn-ghost{min-height:44px;padding:0 14px;border:0;border-radius:999px;background:transparent;color:var(--sage,#3E5248);font-family:var(--sans);font-weight:650;font-size:14px;letter-spacing:.005em;cursor:pointer;transition:background-color .2s cubic-bezier(.16,1,.3,1)}.ds-btn-ghost:hover,.ds-btn-ghost[aria-pressed=true]{background:var(--sage-tint,#E3E9E3)}.ds-btn-ghost:focus-visible{outline:2.5px solid var(--gold,#C99247);outline-offset:2px}"
+    },
+    {
+      "name": "Toolbar (date pill and icon buttons)",
+      "kind": "nav",
+      "refersTo": "date-pill",
+      "description": "Day navigation: circular icon buttons around a cream date pill.",
+      "html": "<div class=\"ds-toolbar\"><button class=\"ds-icon-btn\" aria-label=\"Previous day\"><svg viewBox=\"0 0 24 24\"><path d=\"M14.5 6l-6 6 6 6\"/></svg></button><span class=\"ds-date-pill\"><svg viewBox=\"0 0 24 24\"><rect x=\"3.5\" y=\"5\" width=\"17\" height=\"15\" rx=\"3\"/><path d=\"M3.5 10h17M8 3v4M16 3v4\"/></svg>Today, 19 Nov</span><button class=\"ds-icon-btn\" aria-label=\"Next day\"><svg viewBox=\"0 0 24 24\"><path d=\"M9.5 6l6 6-6 6\"/></svg></button></div>",
+      "css": ".ds-toolbar{display:flex;align-items:center;gap:6px;padding:12px;background:var(--paper,#F4EDE2)}.ds-toolbar svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}.ds-icon-btn{display:inline-grid;place-items:center;width:44px;height:44px;border:0;border-radius:50%;background:var(--card,#FBF7F0);color:var(--sage,#3E5248);box-shadow:0 10px 28px -18px rgba(62,82,72,.45),0 1px 2px rgba(62,82,72,.06);cursor:pointer;transition:transform .2s cubic-bezier(.16,1,.3,1)}.ds-icon-btn:active{transform:scale(.94)}.ds-icon-btn:focus-visible{outline:2.5px solid var(--gold,#C99247);outline-offset:2px}.ds-date-pill{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 16px;border-radius:999px;background:var(--card,#FBF7F0);color:var(--ink,#2A2C28);font-family:var(--sans);font-weight:650;font-size:14px;letter-spacing:.005em;box-shadow:0 10px 28px -18px rgba(62,82,72,.45),0 1px 2px rgba(62,82,72,.06)}.ds-date-pill svg{color:var(--sage,#3E5248)}"
+    },
+    {
+      "name": "Suggestion Chip",
+      "kind": "chip",
+      "refersTo": "chip",
+      "description": "Outlined pill for a suggested start time, led by its band mark.",
+      "html": "<div style=\"display:flex;gap:8px\"><button class=\"ds-chip\" aria-pressed=\"true\"><span class=\"ds-mark ds-mark-biz\"></span>14:00 <small>All business</small></button><button class=\"ds-chip\" aria-pressed=\"false\"><span class=\"ds-mark ds-mark-edge\"></span>08:30 <small>Edge: Tokyo</small></button></div>",
+      "css": ".ds-chip{display:inline-flex;align-items:center;gap:8px;min-height:40px;padding:0 14px 0 10px;border:1.5px solid var(--line,#E3D8CA);border-radius:999px;background:transparent;color:var(--ink,#2A2C28);font-family:var(--sans);font-weight:650;font-size:14px;letter-spacing:.005em;font-variant-numeric:tabular-nums;cursor:pointer;transition:border-color .2s,background-color .2s}.ds-chip:hover{border-color:#CFC1B0}.ds-chip[aria-pressed=true]{border-color:var(--sage,#3E5248);background:var(--sage-tint,#E3E9E3);color:var(--sage,#3E5248)}.ds-chip:focus-visible{outline:2.5px solid var(--gold,#C99247);outline-offset:2px}.ds-chip small{font-weight:500;font-size:12px;color:var(--muted,#66625A)}.ds-mark{display:inline-block;width:12px;height:12px;border-radius:50%}.ds-mark-biz{background:var(--biz,#56705F)}.ds-mark-edge{background:repeating-linear-gradient(135deg,var(--edge,#E6B089) 0 2px,#A8683C 2px 3.2px)}"
+    },
+    {
+      "name": "Meeting Length Segments",
+      "kind": "custom",
+      "refersTo": "segmented",
+      "description": "Pill radiogroup for meeting length; selected option fills sage.",
+      "html": "<div class=\"ds-seg\" role=\"radiogroup\"><button role=\"radio\" aria-checked=\"false\">30m</button><button role=\"radio\" aria-checked=\"true\">1h</button><button role=\"radio\" aria-checked=\"false\">1½h</button><button role=\"radio\" aria-checked=\"false\">2h</button></div>",
+      "css": ".ds-seg{display:flex;padding:4px;background:var(--paper-deep,#EADFD1);border-radius:999px;max-width:360px}.ds-seg button{flex:1;min-height:38px;border:0;border-radius:999px;background:transparent;color:var(--muted,#66625A);font-family:var(--sans);font-weight:650;font-size:14px;letter-spacing:.005em;font-variant-numeric:tabular-nums;cursor:pointer;transition:background-color .25s cubic-bezier(.16,1,.3,1),color .25s}.ds-seg button[aria-checked=true]{background:var(--sage,#3E5248);color:var(--on-sage,#F4EDE2)}.ds-seg button:not([aria-checked=true]):hover{color:var(--ink,#2A2C28)}.ds-seg button:focus-visible{outline:2.5px solid var(--gold,#C99247);outline-offset:2px}"
+    },
+    {
+      "name": "Meeting Card with Verdict",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Cream card holding the serif meeting time and a two-channel verdict panel.",
+      "html": "<section class=\"ds-card\"><h2 class=\"ds-time\">14:00 – 15:00</h2><p class=\"ds-sub\">London time · Thu 19 Nov · 1 h</p><p class=\"ds-verdict\">Business hours for everyone.</p><p class=\"ds-verdict ds-verdict-bad\">Inconvenient for Singapore (00:00).</p></section>",
+      "css": ".ds-card{display:grid;gap:14px;max-width:420px;padding:20px 18px 18px;background:var(--card,#FBF7F0);border-radius:22px;box-shadow:0 10px 28px -18px rgba(62,82,72,.45),0 1px 2px rgba(62,82,72,.06);font-family:var(--sans)}.ds-time{margin:0;font:400 34px/1.05 var(--serif);letter-spacing:-.02em;color:var(--sage,#3E5248);font-variant-numeric:lining-nums tabular-nums}.ds-sub{margin:-8px 0 0;font-size:13px;color:var(--muted,#66625A)}.ds-verdict{display:flex;gap:10px;margin:0;padding:11px 14px;border-radius:14px;background:var(--sage-tint,#E3E9E3);color:var(--sage,#3E5248);font-size:14px;font-weight:550;line-height:1.35}.ds-verdict::before{content:\"\";flex:none;width:10px;height:10px;margin-top:4px;border-radius:50%;background:currentColor}.ds-verdict-bad{background:var(--terra-tint,#F6E3D9);color:var(--terra,#A65A3F)}.ds-verdict-bad::before{background:transparent;border:2px solid currentColor}"
+    },
+    {
+      "name": "Day Strip with Selection Bar",
+      "kind": "custom",
+      "refersTo": "day-strip",
+      "description": "Signature: 24h band strip (solid business, hatched edge, pale inconvenient) under the gold selection bar.",
+      "html": "<div class=\"ds-tl\"><div class=\"ds-strip\"><i class=\"ds-n\" style=\"width:25%\"></i><i class=\"ds-e\" style=\"width:12.5%\"></i><i class=\"ds-b\" style=\"width:33.3%\"></i><i class=\"ds-e\" style=\"width:12.5%\"></i><i class=\"ds-n\" style=\"width:16.7%\"></i></div><div class=\"ds-sel\"></div></div>",
+      "css": ".ds-tl{position:relative;max-width:420px;padding:14px 0 6px}.ds-strip{display:flex;height:30px;border-radius:9px;overflow:hidden;box-shadow:inset 0 0 0 1px var(--night-line,#DDD1C3)}.ds-strip i{height:100%}.ds-b{background:var(--biz,#56705F)}.ds-e{background:repeating-linear-gradient(135deg,var(--edge,#E6B089) 0 5px,var(--edge-hatch,#D99C72) 5px 7px)}.ds-n{background:var(--night,#EBE2D7)}.ds-sel{position:absolute;top:8px;bottom:0;left:45%;width:9%;border:2px solid var(--gold,#C99247);border-radius:12px;box-shadow:0 6px 18px -8px rgba(201,146,71,.55);transition:left .45s cubic-bezier(.16,1,.3,1)}.ds-sel::before{content:\"\";position:absolute;left:50%;top:-12px;width:18px;height:9px;margin-left:-9px;background:var(--gold,#C99247);border-radius:9px 9px 0 0}.ds-tl:hover .ds-sel{left:58%}"
+    },
+    {
+      "name": "Zone Search Field",
+      "kind": "input",
+      "refersTo": "input-search",
+      "description": "Warm-paper search well in the bottom sheet; gold ring on focus.",
+      "html": "<label class=\"ds-search\"><svg viewBox=\"0 0 24 24\" width=\"20\" height=\"20\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\"><circle cx=\"11\" cy=\"11\" r=\"6.5\"/><path d=\"M16 16l4 4\"/></svg><input type=\"search\" placeholder=\"City, country or zone\"></label>",
+      "css": ".ds-search{display:flex;align-items:center;gap:10px;min-height:48px;max-width:420px;padding:0 14px;border-radius:14px;background:var(--paper,#F4EDE2);color:var(--muted,#66625A)}.ds-search:focus-within{outline:2.5px solid var(--gold,#C99247);outline-offset:1px}.ds-search input{flex:1;min-width:0;border:0;background:transparent;font:500 16px var(--sans);color:var(--ink,#2A2C28);outline:none}.ds-search input::placeholder{color:var(--muted,#66625A)}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Paper Valley at Dawn",
+    "overview": "ZonePlanner is a working instrument dressed in warm, layered paper. A cut-paper sunrise valley in peach, clay and sage crowns the page; the sage band closes in a waved paper contour, and the instrument's first cream card rests on that contour. Everything below the masthead is calm and legible: one meeting answer, a row of day strips, one gold bar dragged across all of them. The world comes from the user's inspiration image and keeps its materials (paper grain, soft sage-tinted lift, pill controls, a serif voice for answers) while dropping its decoration (rays, birds, trees, waterfalls).\n\nDensity is mobile-first and moderate: a single 720px column, 44px touch targets, 14px between stacked cards. The serif is reserved for what the page is saying (the wordmark, the meeting time, section titles); the grotesk carries every control and every number a person scans. Colour carries meaning first and mood second: sage is business and action, peach is the edge of the day, pale clay is the hours to avoid, gold is the thing you are holding, terracotta is the cost someone pays.",
+    "keyCharacteristics": [
+      "Warm paper neutrals only; no cool greys and no pure white surfaces.",
+      "A layered-paper landscape masthead, sun without rays, five clay-to-sage ridges closed by a waved paper contour, each layer casting a soft upward paper shadow.",
+      "Pills for every control; generous radii (22px cards, 26px sheet).",
+      "Hour bands encoded twice: fill plus pattern or outline, never colour alone.",
+      "One gold selection bar spanning every zone row; gold doubles as the focus ring.",
+      "Tabular lining numerals everywhere a time appears."
+    ],
+    "rules": [
+      {
+        "name": "The Two-Channel Band Rule",
+        "body": "Every hour band carries a second channel besides hue: business is solid, edge is hatched at 135°, inconvenient is pale and outlined (hollow in marks). A band that only differs by colour is a bug.",
+        "section": "colors"
+      },
+      {
+        "name": "The Gold Is the Hand Rule",
+        "body": "Gold marks only what the user is holding or focusing: the selection bar and focus rings. It never decorates, labels or warns.",
+        "section": "colors"
+      },
+      {
+        "name": "The Terracotta Is a Cost Rule",
+        "body": "Terracotta appears only when someone pays for the chosen hour. It is never an accent, a button or a brand colour.",
+        "section": "colors"
+      },
+      {
+        "name": "The Serif Speaks the Answer Rule",
+        "body": "Libre Baskerville is used only at 400 weight and only for the wordmark, the meeting time and section titles. Controls, zone names, data and labels are always Hanken Grotesk.",
+        "section": "typography"
+      },
+      {
+        "name": "The Tabular Time Rule",
+        "body": "Every time, offset and hour tick uses tabular figures (`font-variant-numeric: tabular-nums`) so columns of times align and the headline does not jitter while dragging.",
+        "section": "typography"
+      },
+      {
+        "name": "The Answer-Above-the-Strips Rule",
+        "body": "The meeting card (time, verdict, length, suggestions) always comes before the zone rows; the rows explain the answer, they never precede it.",
+        "section": "layout"
+      },
+      {
+        "name": "The Flat-on-the-Band Rule",
+        "body": "Controls sitting on the sage masthead band drop Paper Lift; the band itself is their ground.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do encode every hour band twice: solid Business Sage, 135° hatched Dawn Peach, plain outlined Pale Clay, with a legend on the board.",
+      "Do keep every touch target at least 44px and every control a pill.",
+      "Do set the meeting time and section titles in Libre Baskerville 400, and everything a user taps or scans in Hanken Grotesk with tabular figures.",
+      "Do lift cards with Paper Lift only; let controls on the sage band sit flat.",
+      "Do reserve Lantern Gold for the selection bar and focus rings, and Terracotta for a cost someone pays.",
+      "Do keep neutrals warm: draw new greys from the paper and clay family."
+    ],
+    "donts": [
+      "Don't distinguish bands by colour alone.",
+      "Don't add rays, birds, trees or waterfalls to the masthead; the sun is a plain disc above layered ridges.",
+      "Don't use gold or terracotta as decoration, branding or a button fill.",
+      "Don't set controls, zone names or data in the serif, or the serif above 400 weight.",
+      "Don't introduce cool greys, pure white surfaces or a second shadow style for cards."
+    ]
+  }
+}

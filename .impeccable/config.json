@@ -1,0 +1,17 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "cream-palette",
+        "value": "*",
+        "files": [
+          "index.html"
+        ],
+        "createdAt": "2026-11-19T23:45:23.938Z",
+        "reason": "brief pins the palette: the user's inspiration image docs/inspiraton.jpg sets the warm paper ground"
+      }
+    ]
+  }
+}

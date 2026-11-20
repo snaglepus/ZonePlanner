@@ -9,7 +9,7 @@ from `docs/inspiraton.jpg` and is binding.
 
 Plain static HTML, CSS and vanilla JavaScript ES modules. No build step and no
 runtime dependencies; `package.json` exists only so `npm test` runs the unit
-tests.
+tests and `npm run sw:stamp` stamps `sw.js`.
 
 - `index.html`: markup and the SVG icon sprite. Loads `app.js` with
   `<script type="module">`.
@@ -43,11 +43,26 @@ tests.
   `node scripts/build-city-data.js [path-to-cities15000.zip]` (no path
   downloads it from GeoNames). Don't hand-edit `js/cities.js`; change the
   generator (or `scripts/pinned-cities.js`, the 68 cities it pins) and rerun it.
+- `sw.js`: the service worker, registered from `app.js` (default scope, the
+  directory it is in). It precaches every file the page loads (`index.html`,
+  `styles.css`, the modules and the fonts) and serves them cache-first, with
+  no runtime caching. Only navigations to the app's own page (the scope
+  directory or its `index.html`, share links included) get the cached
+  `index.html`; other navigations, such as `factory/dashboard.html`, go to the
+  network. Caches are named `zoneplanner:<scope>:<VERSION>`. A new version
+  installs in the background and takes control only once every page using
+  the old one has closed; it then deletes its own scope's older caches.
+- `scripts/stamp-sw.js` (`npm run sw:stamp`) and `scripts/sw-manifest.js`:
+  dev-only, never precached. The manifest works out the precache list (from
+  `index.html`, the `url()`s in `styles.css` and the import graph from
+  `app.js`) and its content hash; the stamp writes both into `sw.js`'s
+  `VERSION` and `PRECACHE` lines.
 - `test/`: unit tests (`node:test`) for the time engine, the zone rules, the
   stored state, the city data, the wheel scroll decision, the row reorder
   and the hour filter, plus a static
   CSP check of `index.html` (`test/csp.test.js`) and a static `styles.css`
-  token check (heat-step contrast and order, `test/tokens.test.js`).
+  token check (heat-step contrast and order, `test/tokens.test.js`) and the
+  service worker's stamp and manifest rules (`test/sw.test.js`).
 - `assets/fonts/`: self-hosted woff2 fonts. Don't add CDN or third-party requests.
 
 Rules that hold across the app:
@@ -86,6 +101,12 @@ Rules that hold across the app:
   or `history`, so they import in Node.
 - Every `$("id")` / `getElementById` lookup stays in `app.js` with a literal id.
 - Touch targets are at least 44px; no horizontal scroll at 390px wide.
+- Any change that adds, removes, renames or edits a file the page loads
+  (`index.html`, `styles.css`, any module, any font) must rerun
+  `npm run sw:stamp` and commit the updated `sw.js`; `npm test` fails
+  otherwise. Local asset references carry no query strings (the stamp
+  rejects them; the content hash versions the cache). `sw.js` is DOM-free and
+  never touches `localStorage`.
 
 ## Setup
 
@@ -101,6 +122,26 @@ python3 -m http.server <port>
 
 Then open `http://localhost:<port>/index.html`. The page loads ES modules, so
 it needs a static server and no longer works opened from `file://`.
+
+### Bypassing the service worker
+
+Service workers need HTTPS or localhost, so the page registers `sw.js` on the
+dev server too. Because the worker is cache-first, a normal reload on a
+localhost port you visited before shows the old files until you bypass it:
+
+- Shift-reload (force reload) bypasses the worker for that load in Chromium,
+  Firefox and Safari.
+- Chrome DevTools, Application, Service workers: tick "Bypass for network" (or
+  "Update on reload").
+- Use a fresh or private browser profile.
+- Run this in the page's console. It is an origin-wide dev reset: it
+  unregisters every registration and deletes every `zoneplanner:` cache, so it
+  clears every copy of the app served from that origin.
+
+  ```js
+  (await navigator.serviceWorker.getRegistrations()).forEach((r) => r.unregister());
+  for (const k of await caches.keys()) if (k.startsWith("zoneplanner:")) await caches.delete(k);
+  ```
 
 ## Validation
 

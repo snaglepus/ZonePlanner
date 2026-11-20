@@ -8,6 +8,7 @@
 #   2. every local file index.html references (href/src) exists
 #   3. styles.css has balanced braces and every url() it uses exists
 #   4. the page has its required ids that app.js looks up
+#   5. npm test, once a package.json exists (unit tests; e2e is separate)
 set -euo pipefail
 
 fail=0
@@ -46,6 +47,12 @@ for b in bad:
     print("FAIL", b, file=sys.stderr)
 sys.exit(1 if bad else 0)
 PY
+
+if [ -f package.json ]; then
+  echo "== Unit tests"
+  if [ -f package-lock.json ]; then npm ci --prefer-offline --no-audit --no-fund; fi
+  npm test || fail=1
+fi
 
 if [ "$fail" -ne 0 ]; then
   echo "checks failed" >&2

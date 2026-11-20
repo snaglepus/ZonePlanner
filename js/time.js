@@ -46,3 +46,16 @@ export const offLabel = (off) => {
   return `UTC${s}${Math.floor(a / 60)}${a % 60 ? ":" + pad(a % 60) : ""}`;
 };
 export const weekday = (d) => d.toLocaleDateString("en-GB", { weekday: "short", timeZone: "UTC" });
+/** Home-zone day on y-m-d: midnights, 15-minute slots and hour columns (23–25 on DST days). */
+export const homeDay = (tz, y, m, d) => {
+  const t0 = zonedMidnight(tz, y, m, d);
+  const next = new Date(Date.UTC(y, m - 1, d + 1));
+  const t1 = zonedMidnight(tz, next.getUTCFullYear(), next.getUTCMonth() + 1, next.getUTCDate());
+  const slots = Math.round((t1 - t0) / 900000);
+  return { t0, t1, slots, cols: Math.ceil(slots / 4) };
+};
+/** Local time at t as a grid cell label: "9", "3:30", "3:45". */
+export const cellLabel = (tz, t) => {
+  const p = localParts(tz, t);
+  return p.m ? `${p.h}:${pad(p.m)}` : String(p.h);
+};

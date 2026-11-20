@@ -42,9 +42,15 @@
   --sage: #3E5248;
   --sage-press: #33453C;
   --sage-tint: #E3E9E3;
-  --biz: #56705F;
-  --edge: #E6B089;
-  --edge-hatch: #D99C72;
+  --best: #56705F;
+  --good: #E6B089;
+  --good-hatch: #D99C72;
+  --good-1: #D4976B;
+  --good-1-hatch: #C88B60;
+  --good-2: #E6B089;
+  --good-2-hatch: #D99C72;
+  --good-3: #F0D2B8;
+  --good-3-hatch: #E7C2A2;
   --night: #EBE2D7;
   --night-line: #DDD1C3;
   --gold: #C99247;
@@ -144,7 +150,7 @@ svg { flex: none; }
 }
 .verdict::before { content: ""; flex: none; width: 10px; height: 10px; margin-top: 4px; border-radius: 50%; background: currentColor; }
 .verdict[data-tone="edge"] { background: #F7E6D6; color: #7A4A2A; }
-.verdict[data-tone="edge"]::before { background: repeating-linear-gradient(135deg, var(--edge) 0 2px, #9C6036 2px 3px); }
+.verdict[data-tone="edge"]::before { background: repeating-linear-gradient(135deg, var(--good) 0 2px, #9C6036 2px 3px); }
 .verdict[data-tone="bad"] { background: var(--terra-tint); color: var(--terra); }
 .verdict[data-tone="bad"]::before { background: transparent; border: 2px solid currentColor; }
 
@@ -172,10 +178,10 @@ svg { flex: none; }
 .chip .mark { width: 12px; height: 12px; }
 .chips-empty { font-size: 14px; color: var(--muted); }
 
-/* marks: filled = business, hatched = edge, hollow = inconvenient */
+/* marks: filled = Best, hatched = Good, hollow = Unsuitable */
 .mark { display: inline-block; flex: none; width: 10px; height: 10px; border-radius: 50%; }
-.mark-biz { background: var(--biz); }
-.mark-edge { background: repeating-linear-gradient(135deg, var(--edge) 0 2px, #A8683C 2px 3.2px); }
+.mark-biz { background: var(--best); }
+.mark-edge { background: repeating-linear-gradient(135deg, var(--good) 0 2px, #A8683C 2px 3.2px); }
 .mark-night { border: 2px solid #A2948A; }
 
 /* ---------- Board ---------- */
@@ -240,8 +246,12 @@ svg { flex: none; }
 .cells { position: relative; }
 .bands { border-radius: 9px; overflow: hidden; box-shadow: inset 0 0 0 1px var(--night-line); }
 .seg-biz, .seg-edge, .seg-night { flex: none; width: calc(var(--w) * var(--slot)); height: 100%; position: relative; }
-.seg-biz { background: var(--biz); }
-.seg-edge { background: repeating-linear-gradient(135deg, var(--edge) 0 5px, var(--edge-hatch) 5px 7px); }
+.seg-biz { background: var(--best); }
+.seg-edge { background: repeating-linear-gradient(135deg, var(--good) 0 5px, var(--good-hatch) 5px 7px); }
+/* zone rows shade Good by hours from Best: heat-1 nearest, heat-3 farthest; the Everyone row stays flat */
+.seg-edge.heat-1 { background: repeating-linear-gradient(135deg, var(--good-1) 0 5px, var(--good-1-hatch) 5px 7px); }
+.seg-edge.heat-2 { background: repeating-linear-gradient(135deg, var(--good-2) 0 5px, var(--good-2-hatch) 5px 7px); }
+.seg-edge.heat-3 { background: repeating-linear-gradient(135deg, var(--good-3) 0 5px, var(--good-3-hatch) 5px 7px); }
 .seg-night { background: var(--night); }
 .cell {
   flex: none; display: flex; align-items: center; width: calc(var(--w, 4) * var(--slot)); padding-left: 5px; overflow: hidden;
@@ -274,8 +284,15 @@ svg { flex: none; }
 .legend li { display: flex; align-items: center; gap: 8px; }
 .legend small { font-weight: 500; color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
 .sw { width: 22px; height: 14px; border-radius: 4px; box-shadow: inset 0 0 0 1px var(--night-line); }
-.sw-biz { background: var(--biz); }
-.sw-edge { background: repeating-linear-gradient(135deg, var(--edge) 0 4px, var(--edge-hatch) 4px 6px); }
+.sw-biz { background: var(--best); }
+/* the three heat steps, nearest Best on the left */
+.sw-edge {
+  width: 36px;
+  background:
+    repeating-linear-gradient(135deg, var(--good-1) 0 4px, var(--good-1-hatch) 4px 6px) left / 34% 100% no-repeat,
+    repeating-linear-gradient(135deg, var(--good-2) 0 4px, var(--good-2-hatch) 4px 6px) center / 34% 100% no-repeat,
+    repeating-linear-gradient(135deg, var(--good-3) 0 4px, var(--good-3-hatch) 4px 6px) right / 34% 100% no-repeat;
+}
 .sw-night { background: var(--night); }
 
 .footnote { font-size: 12.5px; color: var(--muted); padding: 2px 4px; max-width: 60ch; }
@@ -342,6 +359,6 @@ html, body { overflow-x: clip; }
 
 /* toolbar sits on the sage shell band */
 .toolbar .icon-btn, .toolbar .date-pill { box-shadow: none; }
-.toolbar .btn-primary { background: var(--edge); color: #3A2414; }
+.toolbar .btn-primary { background: var(--good); color: #3A2414; }
 .toolbar .btn-primary:hover { background: #ECBF9C; }
 .toolbar .btn-primary:disabled { background: #8E9B92; color: #E8ECE6; }

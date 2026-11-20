@@ -1,4 +1,4 @@
-import { BAND_NAME, classify, homeDay, cellLabel, localParts, pad, hhmm, offLabel, weekday } from "./js/time.js";
+import { BAND_NAME, classify, goodStep, homeDay, cellLabel, localParts, pad, hhmm, offLabel, weekday } from "./js/time.js";
 import * as S from "./js/strings.js";
 import { MAX_USER_ZONES, validTz, rowsToLink, rawParam, linkToRows, followHome } from "./js/zones.js";
 import { STATE_KEY, BACKUP_KEY, LEGACY_KEY, LENS, loadState, serializeState, createSaver } from "./js/state.js";
@@ -69,13 +69,15 @@ const buildModel = () => {
   const { t0, slots: n, cols } = homeDay(home.tz, y, m, d);
   const grid = state.zones.map((z) => {
     const bands = new Array(n);
+    const heat = new Array(n);
     const parts = new Array(n);
     for (let i = 0; i < n; i++) {
       const p = localParts(z.tz, t0 + i * SLOT_MS);
       parts[i] = p;
       bands[i] = classify(p.mod);
+      heat[i] = goodStep(p.mod);
     }
-    return { bands, parts };
+    return { bands, heat, parts };
   });
   const all = Array.from({ length: n }, (_, i) => Math.min(...grid.map((g) => g.bands[i])));
   model = { t0, n, cols, grid, all };
@@ -142,15 +144,15 @@ const actBtn = (act, idx, label, id) => {
   return b;
 };
 
-/** One hour cell per column over the 15-minute band runs; labels only when a zone is given. */
-const trackEl = (bands, z) => {
+/** One hour cell per column over the 15-minute band runs; labels only when a zone is given, Good heat steps only when heat is. */
+const trackEl = (bands, z, heat) => {
   const track = make("div", "track");
   track.setAttribute("aria-hidden", "true");
   const runs = make("div", "bands");
   for (let i = 0; i < model.n;) {
     let j = i;
-    while (j < model.n && bands[j] === bands[i]) j++;
-    const seg = make("div", `seg-${BAND_NAME[bands[i]]}`);
+    while (j < model.n && bands[j] === bands[i] && (!heat || heat[j] === heat[i])) j++;
+    const seg = make("div", `seg-${BAND_NAME[bands[i]]}${heat && heat[i] ? ` heat-${heat[i]}` : ""}`);
     seg.style.setProperty("--w", String(j - i));
     runs.append(seg);
     i = j;
@@ -206,7 +208,7 @@ const renderRows = () => {
       grip.append(svgUse("grip"));
       head.append(grip);
     }
-    row.append(head, trackEl(model.grid[idx].bands, z));
+    row.append(head, trackEl(model.grid[idx].bands, z, model.grid[idx].heat));
     rows.push(row);
   });
   el.rows.style.setProperty("--n", String(model.n));

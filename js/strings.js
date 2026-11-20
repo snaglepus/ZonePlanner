@@ -1,6 +1,6 @@
 // User-facing text (en-AU). Functions return plain text; callers escape for innerHTML.
 
-export const BAND_LABEL = { 2: "Business", 1: "Edge", 0: "Inconvenient" };
+export const BAND_LABEL = { 2: "Best", 1: "Good", 0: "Unsuitable" };
 
 export const listJoin = (arr) => arr.length <= 1 ? arr.join("") : `${arr.slice(0, -1).join(", ")} and ${arr[arr.length - 1]}`;
 /** Meeting length in minutes, e.g. "30 min", "1 h", "1½ h". */
@@ -15,22 +15,22 @@ export const ADD_CITY = "Add City";
 export const rowsLabel = (homeName) => `Hours for each zone. Day runs on ${homeName} time.`;
 
 // Overlap summary
-export const overlapBiz = (range) => `Business ${range}`;
-export const overlapEdge = (range) => `Edge ${range}`;
+export const overlapBiz = (range) => `Best ${range}`;
+export const overlapEdge = (range) => `Good ${range}`;
 export const NO_SHARED = "No shared hours";
 
 // Suggestion chips
 export const NO_WINDOWS = "No windows this day.";
-export const inconvenientCount = (n) => `Inconvenient for ${n} zones`;
-export const inconvenientOne = (who) => `Inconvenient: ${who}`;
-export const bizEdgeCount = (biz, edge) => `${biz} business, ${edge} edge`;
-export const ALL_BUSINESS = "All in business hours";
+export const inconvenientCount = (n) => `Unsuitable for ${n} zones`;
+export const inconvenientOne = (who) => `Unsuitable: ${who}`;
+export const bizEdgeCount = (biz, edge) => `${biz} Best, ${edge} Good`;
+export const ALL_BUSINESS = "All in Best hours";
 
 // Selection
 export const meetingSub = (homeName, date, dur) => `${homeName} time · ${date} · ${dur}`;
-export const verdictAll = (n) => `All ${n} zones are in business hours.`;
-export const verdictEdge = (biz, n, names) => `${biz} of ${n} in business hours. Outside them for ${listJoin(names)}.`;
-export const verdictBad = (items) => `Inconvenient for ${listJoin(items)}.`;
+export const verdictAll = (n) => `All ${n} zones are in Best hours.`;
+export const verdictEdge = (biz, n, names) => `${biz} of ${n} in Best hours. Outside them for ${listJoin(names)}.`;
+export const verdictBad = (items) => `Unsuitable for ${listJoin(items)}.`;
 export const scrubText = (from, to, homeName, verdict) => `${from} to ${to} ${homeName} time. ${verdict}`;
 
 // Header and actions

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { BAND, cellLabel, classify, goodStep, homeDay, localParts, offLabel, offsetMin, zonedMidnight } from "../js/time.js";
+import { BAND, cellLabel, classify, goodStep, homeDay, hhmm, localParts, offLabel, offsetMin, zonedMidnight } from "../js/time.js";
 
 const JAN_15 = Date.UTC(2026, 0, 15);
 const HOUR = 3600000;
@@ -86,3 +86,19 @@ test("cellLabel shows 3:45 in Kathmandu at 09:00 Sydney", () => assert.equal(cel
 test("homeDay Sydney 2027-01-15 has 24 columns", () => assert.equal(homeDay("Australia/Sydney", 2027, 1, 15).cols, 24));
 test("homeDay Sydney 2027-04-04 has 25 columns", () => assert.equal(homeDay("Australia/Sydney", 2027, 4, 4).cols, 25));
 test("homeDay Sydney 2027-10-03 has 23 columns", () => assert.equal(homeDay("Australia/Sydney", 2027, 10, 3).cols, 23));
+
+test("a numeric zone is a fixed offset", () => {
+  assert.equal(offsetMin(330, JAN_15), 330);
+  const p = localParts(345, JAN_15);
+  assert.equal(hhmm(p), "05:45");
+});
+test("cellLabel shows :30 for a -210 fixed offset at a whole UTC hour", () => assert.equal(cellLabel(-210, JAN_15), "20:30"));
+test("fixed offsets keep their gap across DST while Los Angeles shifts", () => {
+  const JUL_15 = Date.UTC(2026, 6, 15);
+  const gap = (a, b, t) => (offsetMin(a, t) - offsetMin(b, t)) / 60;
+  const hourGap = (a, b, t) => (localParts(a, t).h - localParts(b, t).h + 24) % 24;
+  assert.equal(hourGap(-420, 0, JAN_15), 17);
+  assert.equal(hourGap(-420, 0, JUL_15), 17);
+  assert.equal(gap("America/Los_Angeles", 0, JAN_15), -8);
+  assert.equal(gap("America/Los_Angeles", 0, JUL_15), -7);
+});

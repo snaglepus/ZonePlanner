@@ -12,6 +12,9 @@ export const HOME_ZONE = "Home zone";
 export const removeZone = (name) => `Remove ${name}`;
 export const zoneCount = (n, max) => `${n} of ${max}`;
 export const ADD_CITY = "Add City";
+/** A fixed-offset row's name: "UTC+05:30", "UTC−07:00", "UTC+00:00". */
+export const offsetName = (min) => `UTC${min < 0 ? "−" : "+"}${String(Math.floor(Math.abs(min) / 60)).padStart(2, "0")}:${String(Math.abs(min) % 60).padStart(2, "0")}`;
+export const offsetResult = (min) => `${offsetName(min)} (fixed, no daylight saving)`;
 export const rowsLabel = (homeName) => `Hours for each zone. Day runs on ${homeName} time.`;
 
 // Overlap summary

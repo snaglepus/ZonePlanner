@@ -232,7 +232,7 @@ Both are self-hosted variable WOFF2 files (Latin and Latin Extended subsets), pr
 ### Hierarchy
 - **Display** (400, 32px, rising to 40px at 560px+, 1.05, -0.015em): the ZonePlanner wordmark in Valley Sage, on the masthead sky.
 - **Headline** (400, clamp(26px, 7.6vw, 34px), 42px at 560px+, 1.05, -0.02em, lining tabular numerals): the meeting time range, the page's answer.
-- **Title** (400, 20px, 1.2; 22px in the sheet): card and sheet titles ("Zones", "Add a zone"), and the serif "Everyone" row name that sets the overlap row apart.
+- **Title** (400, 20px, 1.2; 22px in the sheet): card and sheet titles ("Zones", "Add City"), and the serif "Everyone" row name that sets the overlap row apart.
 - **Body** (400, 15px, 1.45): running text and footnotes (footnote at 12.5px, max 60ch).
 - **Label** (650, 14px, 0.005em): buttons, chips, segments, date pill, toast. Zone names step up to 16px/650 and row times to 16px/700.
 - **Caption** (500, 12.5–13px, Field Grey-Brown): offsets, country lines, meeting sub-line, chip notes; hour-cell labels at 10.5px/700, in Ink on their Cream Card backing.
@@ -273,7 +273,7 @@ Soft, rounded paper. Every control is a full pill (999px); icon buttons are circ
 Tactile, confident pills that compress slightly when pressed.
 - **Shape:** full pill (999px), min-height 44px, 8px icon gap, 20px stroked icon.
 - **Primary:** Valley Sage with Paper on Sage text, 18px side padding, Label type. Hover presses to Deep Fold Sage; `:active` scales to 0.97 on the shared ease. Disabled turns a flat grey-sage and stops scaling.
-- **On the band:** the toolbar's primary (Add zone) is Dawn Peach with dark brown text and no shadow, hovering lighter.
+- **On the band:** the toolbar's primary (Add City) is Dawn Peach with dark brown text and no shadow, hovering lighter.
 - **Ghost:** transparent with sage text, 14px padding; hover or pressed state fills with Sage Wash.
 - **Icon button:** 44px circle in Cream Card with Paper Lift; the soft variant sits on Warm Paper without shadow and hovers to Pressed Paper. `:active` scales to 0.94.
 
@@ -299,7 +299,7 @@ A 14px-radius status panel led by a 10px mark that repeats the band's second cha
 - **Focus:** 2.5px Lantern Gold outline, 1–2px offset; the date pill shows the same ring, and the keyboard scrubber (visually hidden) draws it around the selection bar.
 
 ### Navigation
-There is no nav bar. The toolbar is the navigation: previous/next-day icon buttons around a cream date pill (calendar icon, native date input layered invisibly over it), and Add zone at the right.
+There is no nav bar. The toolbar is the navigation: previous/next-day icon buttons around a cream date pill (calendar icon, native date input layered invisibly over it), and Add City at the right.
 
 ### Hour grid and selection bar (signature)
 The board is one native horizontal scroller. Each row is a sticky header cell (144px, Cream Card, opaque) holding the zone name (ellipsis when long), the country and UTC offset, and the meeting readout, followed by a track of hour cells. Columns are the home zone's hours of the selected day (23, 24 or 25 on daylight-saving days; a 30-minute change leaves a half-width last column), so each column is the same instant in every row. Full cells are 44px wide on a 32px, 9px-radius band inside a track at least 44px tall, separated by a faint 1px rule.

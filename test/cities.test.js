@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { ABBREVIATIONS, CITIES, COUNTRIES, weekendFor } from "../js/cities.js";
+import { PINNED_CITIES } from "../scripts/pinned-cities.js";
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 const validTz = (tz) => { try { new Intl.DateTimeFormat("en", { timeZone: tz }); return true; } catch { return false; } };
@@ -53,13 +54,11 @@ test("every abbreviation zone is valid", () => {
   for (const [abbr, zones] of Object.entries(ABBREVIATIONS)) for (const tz of zones) assert.ok(validTz(tz), `${abbr}: ${tz}`);
 });
 
-test("all 68 app.js cities keep their name and zone", () => {
-  const block = read("app.js").match(/const CITIES = \[([\s\S]*?)\]\.map\(/)[1];
-  const triples = [...block.matchAll(/\[\s*"([^"]*)"\s*,\s*"([^"]*)"\s*,\s*"([^"]*)"\s*\]/g)];
-  assert.equal(triples.length, 68);
-  for (const [, name, , tz] of triples) assert.ok(CITIES.some((c) => c.name === name && c.tz === tz), `${name} (${tz})`);
+test("all 68 pinned cities keep their name and zone", () => {
+  assert.equal(PINNED_CITIES.length, 68);
+  for (const [name, , tz] of PINNED_CITIES) assert.ok(CITIES.some((c) => c.name === name && c.tz === tz), `${name} (${tz})`);
   for (const name of ["Bengaluru", "Ho Chi Minh City", "St. John's", "Reykjavík", "Zürich", "Kyiv"]) {
-    assert.ok(triples.some(([, n]) => n === name), name);
+    assert.ok(PINNED_CITIES.some(([n]) => n === name), name);
   }
 });
 

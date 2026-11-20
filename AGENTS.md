@@ -26,6 +26,7 @@ tests.
 - `js/strings.js`: every user-facing string JavaScript builds (en-AU).
 - `js/scroll.js`: the wheel-to-horizontal scroll decision for the hour grid
   (`wheelScroll`).
+- `js/search.js`: city search and zone naming (pure, reads `js/cities.js`).
 - `js/cities.js`: generated city data (about 500 cities), the country-to-weekend
   map and the time zone abbreviation table. DOM-free. City data from GeoNames,
   licensed CC BY 4.0; the credit is in its header and the page footnote.
@@ -33,7 +34,7 @@ tests.
   loaded by the page. Regenerate with
   `node scripts/build-city-data.js [path-to-cities15000.zip]` (no path
   downloads it from GeoNames). Don't hand-edit `js/cities.js`; change the
-  generator (or the `CITIES` list in `app.js`, which it pins) and rerun it.
+  generator (or `scripts/pinned-cities.js`, the 68 cities it pins) and rerun it.
 - `test/`: unit tests (`node:test`) for the time engine, the zone rules, the
   stored state, the city data and the wheel scroll decision, plus a static
   CSP check of `index.html` (`test/csp.test.js`).

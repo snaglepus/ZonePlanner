@@ -10,9 +10,9 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { PINNED_CITIES } from "./pinned-cities.js";
 
 const SOURCE_URL = "https://download.geonames.org/export/dump/cities15000.zip";
-const APP_JS = fileURLToPath(new URL("../app.js", import.meta.url));
 const OUT = fileURLToPath(new URL("../js/cities.js", import.meta.url));
 const PINNED_COUNT = 68;
 const TOTAL = 500;
@@ -114,12 +114,8 @@ const printable = (s) => /^[\x20-\x7e]+$/.test(s);
 const validTz = (tz) => { try { new Intl.DateTimeFormat("en", { timeZone: tz }); return true; } catch { return false; } };
 
 function pinnedCities() {
-  const src = readFileSync(APP_JS, "utf8");
-  const block = src.match(/const CITIES = \[([\s\S]*?)\]\.map\(/);
-  if (!block) fail("could not find the CITIES list in app.js");
-  const triples = [...block[1].matchAll(/\[\s*"([^"]*)"\s*,\s*"([^"]*)"\s*,\s*"([^"]*)"\s*\]/g)];
-  if (triples.length !== PINNED_COUNT) fail(`expected ${PINNED_COUNT} cities in app.js, found ${triples.length}`);
-  return triples.map(([, name, , tz]) => ({ name, tz }));
+  if (PINNED_CITIES.length !== PINNED_COUNT) fail(`expected ${PINNED_COUNT} cities in scripts/pinned-cities.js, found ${PINNED_CITIES.length}`);
+  return PINNED_CITIES.map(([name, , tz]) => ({ name, tz }));
 }
 
 async function sourceText(path) {
@@ -169,7 +165,7 @@ function build(rows, pinned) {
 
   const ids = new Set(picked.map((c) => c.id));
   const keys = new Set(picked.map((c) => `${c.name}|${c.tz}`));
-  if (keys.size !== picked.length) fail("app.js has a duplicate name+zone pair");
+  if (keys.size !== picked.length) fail("scripts/pinned-cities.js has a duplicate name+zone pair");
   const take = (r) => {
     const key = `${r.name}|${r.tz}`;
     if (picked.length >= TOTAL || ids.has(r.id) || keys.has(key)) return;

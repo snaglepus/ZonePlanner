@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { AM, PM, clock, clockRange, legendBest, legendGood, meridiem } from "../js/strings.js";
+import { AM, PM, clock, clockRange, dayDiffLabel, legendBest, legendGood, meridiem } from "../js/strings.js";
 import { localParts, zonedMidnight } from "../js/time.js";
 
 const t = (h, m) => ({ h, m });
@@ -70,4 +70,11 @@ test("legend ranges", () => {
   assert.equal(legendBest(true), "9 am–5 pm");
   assert.equal(legendGood(false), "6–9, 17–20");
   assert.equal(legendGood(true), "6–9 am, 5–8 pm");
+});
+test("dayDiffLabel words a zone's date against home", () => {
+  assert.equal(dayDiffLabel(-2), "−2 days");
+  assert.equal(dayDiffLabel(-1), "Yesterday");
+  assert.equal(dayDiffLabel(0), "");
+  assert.equal(dayDiffLabel(1), "Tomorrow");
+  assert.equal(dayDiffLabel(2), "+2 days");
 });

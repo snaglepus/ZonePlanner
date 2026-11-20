@@ -26,7 +26,8 @@ tests and `npm run sw:stamp` stamps `sw.js`.
 - `js/zones.js`: the zone list rules: zone validation, the typed-offset
   parser (`parseOffset`: `GMT+11`, `UTC-7`, `+5:30`, `-0330`), user rows (home
   dropped, capped at 7), share-link `z` encoding and parsing (`tz~name` per
-  city row, `@<minutes>` per offset row), and following a new device zone.
+  city row, `@<minutes>` per offset row), following a new device zone, and
+  swapping one row in place (`replaceRow`).
 - `js/state.js`: the stored state shape, its load, validation and
   version-driven migration, and the debounced (250 ms) saver.
 - `js/strings.js`: every user-facing string JavaScript builds (en-AU),

@@ -6,6 +6,32 @@ export const listJoin = (arr) => arr.length <= 1 ? arr.join("") : `${arr.slice(0
 /** Meeting length in minutes, e.g. "30 min", "1 h", "1½ h". */
 export const durLabel = (m) => m < 60 ? `${m} min` : `${m / 60} h`.replace(".5 h", "½ h").replace(/^0½/, "½");
 
+// Clock: every displayed time of day goes through clock()
+export const AM = "am";
+export const PM = "pm";
+export const meridiem = (h) => (h < 12 ? AM : PM);
+/** A time of day {h, m}: "15:00" / "3:00 pm", or as a cell label "15" / "3", "3:30" (no meridiem). */
+export const clock = (p, hour12, { cell = false } = {}) => {
+  const h = hour12 ? p.h % 12 || 12 : p.h;
+  const mm = String(p.m).padStart(2, "0");
+  if (cell) return p.m ? `${h}:${mm}` : String(h);
+  return hour12 ? `${h}:${mm} ${meridiem(p.h)}` : `${String(h).padStart(2, "0")}:${mm}`;
+};
+/** A compact range: "15:00–16:00", "3:00–4:00 pm", "11:30 am–12:30 pm". */
+export const clockRange = (a, b, hour12) => {
+  const from = clock(a, hour12);
+  const to = clock(b, hour12);
+  if (hour12 && meridiem(a.h) === meridiem(b.h)) return `${from.slice(0, -` ${meridiem(a.h)}`.length)}–${to}`;
+  return `${from}–${to}`;
+};
+export const legendBest = (hour12) => (hour12 ? "9 am–5 pm" : "9–17");
+export const legendGood = (hour12) => (hour12 ? "6–9 am, 5–8 pm" : "6–9, 17–20");
+export const TIME_FORMAT = "Time format";
+export const CLOCK_12 = "12h";
+export const CLOCK_24 = "24h";
+export const CLOCK_12_LABEL = "12-hour clock";
+export const CLOCK_24_LABEL = "24-hour clock";
+
 // Rows
 export const EVERYONE = "Everyone";
 export const HOME_ZONE = "Home zone";

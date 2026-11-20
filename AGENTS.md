@@ -17,8 +17,10 @@ tests and `npm run sw:stamp` stamps `sw.js`.
 - `app.js`: the entry point. DOM lookups, state, load/save/share, scoring,
   rendering and interactions.
 - `js/time.js`: the time engine (`Intl.DateTimeFormat`): offsets, local parts,
-  zoned midnight, band classification, Good heat steps and UTC offset labels.
-  A zone is an IANA ID string or a fixed offset as a number of minutes from
+  zoned midnight, the home day (which starts where the home zone's date
+  really starts, even when local midnight doesn't exist), date changes (day
+  dividers, `dayStarts`), band classification, Good heat steps and UTC offset
+  labels. A zone is an IANA ID string or a fixed offset as a number of minutes from
   UTC (no `Etc/GMT` IDs).
 - `js/zones.js`: the zone list rules: zone validation, the typed-offset
   parser (`parseOffset`: `GMT+11`, `UTC-7`, `+5:30`, `-0330`), user rows (home

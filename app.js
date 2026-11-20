@@ -2,6 +2,7 @@ import { BAND_NAME, classify, homeDay, cellLabel, localParts, pad, hhmm, offLabe
 import * as S from "./js/strings.js";
 import { MAX_USER_ZONES, validTz, rowsToLink, rawParam, linkToRows, followHome } from "./js/zones.js";
 import { STATE_KEY, BACKUP_KEY, LEGACY_KEY, LENS, loadState, serializeState, createSaver } from "./js/state.js";
+import { wheelScroll } from "./js/scroll.js";
 
 const SLOT_MIN = 15;
 const SLOT_MS = SLOT_MIN * 60000;
@@ -398,6 +399,8 @@ el.scrub.addEventListener("input", () => { setStart(+el.scrub.value); revealSele
 el.rows.addEventListener("click", (e) => {
   const btn = e.target.closest("button[data-act]");
   if (!btn) {
+    // a drag that just ended pans only; it never selects
+    if (dragged) { dragged = false; return; }
     // tap a track: start at the quarter-hour under the pointer
     const track = e.target.closest(".track");
     if (!track || state.editing) return;
@@ -412,6 +415,63 @@ el.rows.addEventListener("click", (e) => {
     toast(S.removed(z.name));
   }
   render();
+});
+
+// desktop scrolling: a vertical wheel pans sideways until an end, a mouse drag on the cells pans, arrows step an hour
+const WHEEL_PX = { 0: 1, 1: 40 };
+el.rows.addEventListener("wheel", (e) => {
+  if (e.ctrlKey || e.metaKey || e.shiftKey) return;
+  const k = WHEEL_PX[e.deltaMode] ?? el.rows.clientWidth;
+  const d = wheelScroll(e.deltaX * k, e.deltaY * k, el.rows.scrollLeft, el.rows.scrollWidth - el.rows.clientWidth);
+  if (!d) return;
+  e.preventDefault();
+  el.rows.scrollLeft += d;
+}, { passive: false });
+
+const DRAG_PX = 5;
+let press = null;
+let dragged = false;
+const onPressMove = (e) => {
+  if (!press || e.pointerId !== press.id) return;
+  if (!(e.buttons & 1)) { endPress(); return; }
+  const dx = e.clientX - press.startX;
+  if (!press.dragging) {
+    if (Math.abs(dx) <= DRAG_PX) return;
+    press.dragging = true;
+    dragged = true;
+    el.rows.setPointerCapture(press.id);
+    el.rows.classList.add("dragging");
+  }
+  el.rows.scrollLeft = press.startScrollLeft - dx;
+};
+const onPressEnd = (e) => { if (press && e.pointerId === press.id) endPress(); };
+const endPress = () => {
+  if (!press) return;
+  const { id } = press;
+  press = null;
+  removeEventListener("pointermove", onPressMove);
+  removeEventListener("pointerup", onPressEnd);
+  removeEventListener("pointercancel", onPressEnd);
+  el.rows.classList.remove("dragging");
+  if (el.rows.hasPointerCapture(id)) el.rows.releasePointerCapture(id);
+};
+el.rows.addEventListener("pointerdown", (e) => {
+  dragged = false;
+  if (e.pointerType !== "mouse" || e.button !== 0 || !e.target.closest(".track")) return;
+  endPress();
+  press = { id: e.pointerId, startX: e.clientX, startScrollLeft: el.rows.scrollLeft, dragging: false };
+  addEventListener("pointermove", onPressMove);
+  addEventListener("pointerup", onPressEnd);
+  addEventListener("pointercancel", onPressEnd);
+});
+el.rows.addEventListener("lostpointercapture", endPress);
+addEventListener("blur", endPress);
+
+el.rows.addEventListener("keydown", (e) => {
+  if (e.target !== el.rows || (e.key !== "ArrowRight" && e.key !== "ArrowLeft")) return;
+  if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
+  e.preventDefault();
+  el.rows.scrollLeft += (e.key === "ArrowRight" ? 4 : -4) * trackGeom().slot;
 });
 
 el.suggestions.addEventListener("click", (e) => {

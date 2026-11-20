@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { BAND, SLOT_MS, abbrOf, classify, dayDiff, goodStep, homeDay, hour12For, localeHour12, localParts, offLabel, offsetMin, slotAt, zoneAbbr, zoneTag, zonedMidnight } from "../js/time.js";
+import { BAND, SLOT_MS, WARN_MS, abbrOf, changeWall, classify, createDstWatch, dayDiff, goodStep, homeDay, hour12For, isDst, localeHour12, localParts, nextTransition, offLabel, offsetMin, slotAt, zoneAbbr, zoneTag, zonedMidnight } from "../js/time.js";
 
 const JAN_15 = Date.UTC(2026, 0, 15);
 const HOUR = 3600000;
@@ -166,4 +166,53 @@ test("dayDiff crosses a year boundary", () => {
 test("dayDiff can be two days", () => {
   assert.equal(dayDiff(840, -720, Date.UTC(2026, 0, 15, 11)), 2);
   assert.equal(dayDiff(-720, 840, Date.UTC(2026, 0, 15, 11)), -2);
+});
+
+const DAY_MS = 86400000;
+const LONDON_BACK = Date.UTC(2026, 9, 25, 1);
+test("nextTransition finds London going back on 25 Oct 2026", () => {
+  assert.deepEqual(nextTransition("Europe/London", Date.UTC(2026, 9, 20), 14 * DAY_MS), { at: LONDON_BACK, before: 60, after: 0 });
+});
+test("nextTransition finds Lord Howe's 30-minute shift", () => {
+  assert.deepEqual(nextTransition("Australia/Lord_Howe", Date.UTC(2026, 8, 25), 14 * DAY_MS), { at: Date.UTC(2026, 9, 3, 15, 30), before: 630, after: 660 });
+});
+test("nextTransition is null without a change", () => {
+  assert.equal(nextTransition("America/Phoenix", Date.UTC(2026, 0, 1), 365 * DAY_MS), null);
+  assert.equal(nextTransition(600, Date.UTC(2026, 0, 1), 365 * DAY_MS), null);
+});
+test("isDst on 1 Jul 2026", () => {
+  const t = Date.UTC(2026, 6, 1);
+  assert.equal(isDst("Europe/London", t), true);
+  assert.equal(isDst("America/New_York", t), true);
+  assert.equal(isDst("Australia/Sydney", t), false);
+  assert.equal(isDst("Asia/Singapore", t), false);
+  assert.equal(isDst(600, t), false);
+});
+test("the watch warns of a change within 14 days of now", () => {
+  const watch = createDstWatch();
+  assert.equal(WARN_MS, 14 * DAY_MS);
+  assert.deepEqual(watch.status("Europe/London", Date.UTC(2026, 9, 20, 12)).change, { at: LONDON_BACK, before: 60, after: 0 });
+  assert.equal(watch.status("Europe/London", Date.UTC(2026, 9, 20, 12)).dst, true);
+  assert.equal(watch.status("Asia/Singapore", Date.UTC(2026, 9, 20, 12)).change, null);
+  assert.equal(watch.status("Europe/London", Date.UTC(2026, 9, 10, 12)).change, null);
+  assert.deepEqual(watch.status(600, Date.UTC(2026, 9, 10, 12)), { dst: false, change: null });
+});
+test("changeWall reads the change on the old clock", () => {
+  const w = changeWall({ at: LONDON_BACK, before: 60 });
+  assert.equal(w.h, 2);
+  assert.equal(w.m, 0);
+  assert.equal(w.date.toISOString().slice(0, 10), "2026-10-25");
+});
+test("the watch scans each zone once per UTC day", () => {
+  const calls = { transition: 0, standard: 0 };
+  const watch = createDstWatch({
+    transition: () => { calls.transition++; return null; },
+    standard: () => { calls.standard++; return 0; }
+  });
+  const zones = ["Europe/London", "America/New_York", "Asia/Singapore"];
+  const day = Date.UTC(2026, 9, 20);
+  for (let i = 0; i < 1440; i++) for (const z of zones) watch.status(z, day + i * 60000);
+  assert.deepEqual(calls, { transition: 3, standard: 3 });
+  for (const z of zones) watch.status(z, day + DAY_MS);
+  assert.deepEqual(calls, { transition: 6, standard: 6 });
 });

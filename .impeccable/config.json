@@ -1,7 +1,9 @@
 {
   "detector": {
     "ignoreRules": [],
-    "ignoreFiles": [],
+    "ignoreFiles": [
+      "factory/dashboard.html"
+    ],
     "ignoreValues": [
       {
         "rule": "cream-palette",

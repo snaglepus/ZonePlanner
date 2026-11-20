@@ -58,3 +58,35 @@ test("rawParam returns the first match undecoded, or null", () => {
   assert.equal(rawParam("d=2026-12-01&z=a%2Cb&z=c", "z"), "a%2Cb");
   assert.equal(rawParam("d=2026-12-01", "z"), null);
 });
+
+test("validTz bounds offset-form IDs to ±14:00 and leaves named zones alone", () => {
+  for (const tz of ["+14:00", "-14:00", "+05:30", "UTC", "Etc/GMT-14", "Asia/Kolkata"]) assert.equal(validTz(tz), true, tz);
+  for (const tz of ["+15:00", "-14:01", "+1401"]) assert.equal(validTz(tz), false, tz);
+});
+
+test("userRows validates offset entries and ignores non-arrays", () => {
+  assert.deepEqual(userRows({}, "America/Los_Angeles"), { rows: [], dropped: 0 });
+  const { rows } = userRows([[], { offsetMin: 330, name: "x" }, { offsetMin: "330" }, { offsetMin: 841 }], "America/Los_Angeles");
+  assert.deepEqual(rows, [{ offsetMin: 330 }]);
+});
+
+test("linkToRows drops unknown zones", () => {
+  const { rows } = linkToRows("Asia/Tokyo~Tokyo,Not/AZone~X,Europe/Paris~Paris", "America/Los_Angeles");
+  assert.deepEqual(tzs(rows), ["Asia/Tokyo", "Europe/Paris"]);
+});
+
+test("linkToRows caps nine valid zones at seven", () => {
+  const { rows, dropped } = linkToRows(NINE.join(","), "America/Los_Angeles");
+  assert.deepEqual(tzs(rows), NINE.slice(0, 7));
+  assert.equal(dropped, 2);
+});
+
+test("linkToRows cuts a long encoded name to 60 characters", () => {
+  const { rows } = linkToRows(`Asia/Tokyo~${encodeURIComponent("é".repeat(200))}`, "America/Los_Angeles");
+  assert.equal(rows[0].name, "é".repeat(60));
+});
+
+test("linkToRows bounds offset-form zone IDs", () => {
+  const { rows } = linkToRows("%2B15%3A00~X,%2B14%3A00~Y", "America/Los_Angeles");
+  assert.deepEqual(rows, [{ tz: "+14:00", name: "Y" }]);
+});

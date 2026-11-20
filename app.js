@@ -22,6 +22,10 @@ const todayISO = () => {
 const state = { zones: [], date: todayISO(), len: 4, hour12: null, filter: "all", start: null, editing: false };
 
 const mkZone = (tz, name) => zoneInfo(tz, name);
+/** A fixed-offset row: its name always comes from the validated minutes, never from stored or linked text. */
+const mkOffset = (offsetMin) => ({ offsetMin, name: S.offsetName(offsetMin), country: "" });
+/** The zone the time engine takes for a row: an IANA ID, or minutes for an offset row. */
+const zoneOf = (z) => ("offsetMin" in z ? z.offsetMin : z.tz);
 
 let store = null;
 try { store = localStorage; } catch { /* storage blocked: saves become no-ops */ }
@@ -52,11 +56,10 @@ const load = () => {
     if (LENS.map(String).includes(hash.get("l"))) state.len = +hash.get("l");
     if (picked.dropped > 0) toast(S.linkDropped(picked.dropped));
   }
-  // Offset entries ({offsetMin}) have no row type yet, so they are left out here and not saved back.
-  state.zones = [mkZone(home), ...rows.filter((z) => "tz" in z).map((z) => mkZone(z.tz, z.name))];
+  state.zones = [mkZone(home), ...rows.map((z) => ("tz" in z ? mkZone(z.tz, z.name) : mkOffset(z.offsetMin)))];
 };
 const save = () => {
-  const zones = state.zones.slice(1).map(({ tz, name }) => ({ tz, name }));
+  const zones = state.zones.slice(1).map((z) => ("offsetMin" in z ? { offsetMin: z.offsetMin } : { tz: z.tz, name: z.name }));
   saver.save(serializeState({ zones, hour12: state.hour12, filter: state.filter, len: state.len }));
 };
 const shareURL = () => `${location.origin}${location.pathname}#z=${rowsToLink(state.zones)}&d=${state.date}&l=${state.len}`;
@@ -72,7 +75,7 @@ const buildModel = () => {
     const heat = new Array(n);
     const parts = new Array(n);
     for (let i = 0; i < n; i++) {
-      const p = localParts(z.tz, t0 + i * SLOT_MS);
+      const p = localParts(zoneOf(z), t0 + i * SLOT_MS);
       parts[i] = p;
       bands[i] = classify(p.mod);
       heat[i] = goodStep(p.mod);
@@ -160,7 +163,7 @@ const trackEl = (bands, z, heat) => {
   const cells = make("div", "cells");
   for (let c = 0; c < model.cols; c++) {
     const cell = make("div", "cell");
-    if (z) cell.append(make("span", null, cellLabel(z.tz, model.t0 + c * 3600000)));
+    if (z) cell.append(make("span", null, cellLabel(zoneOf(z), model.t0 + c * 3600000)));
     const w = Math.min(4, model.n - 4 * c);
     if (w < 4) cell.style.setProperty("--w", String(w));
     cells.append(cell);
@@ -183,7 +186,7 @@ const renderRows = () => {
   allRow.append(allHead, trackEl(model.all));
   const rows = [allRow];
   state.zones.forEach((z, idx) => {
-    const nowP = localParts(z.tz, Date.now());
+    const nowP = localParts(zoneOf(z), Date.now());
     const sub = [z.country, offLabel(nowP.off)].filter(Boolean).join(" · ");
     const row = make("div", "row");
     row.dataset.idx = String(idx);
@@ -293,7 +296,7 @@ const renderSelection = () => {
     const i = +row.dataset.idx;
     const g = model.grid[i];
     const p = g.parts[s];
-    const q = localParts(state.zones[i].tz, endT);
+    const q = localParts(zoneOf(state.zones[i]), endT);
     const band = w.worst[i];
     row.dataset.at = BAND_NAME[band];
     const dayBadge = p.dayKey !== homeKey ? `<span class="day">${weekday(p.date)}</span>` : "";
@@ -658,7 +661,7 @@ el.copyBtn.addEventListener("click", () => {
   const endT = model.t0 + (s + state.len) * SLOT_MS;
   const lines = state.zones.map((z, i) => {
     const p = model.grid[i].parts[s];
-    const q = localParts(z.tz, endT);
+    const q = localParts(zoneOf(z), endT);
     return `${z.name}: ${weekday(p.date)} ${hhmm(p)}–${hhmm(q)}`;
   });
   copyText(lines.join("\n"), S.TIMES_COPIED);
@@ -688,6 +691,15 @@ const renderResults = () => {
   if (!list.length) { el.results.innerHTML = `<li class="sheet-note">${esc(S.noMatch(el.search.value))}</li>`; return; }
   const now = Date.now();
   el.results.innerHTML = list.map((c) => {
+    if ("offsetMin" in c) {
+      const n = c.offsetMin;
+      const taken = state.zones.slice(1).some((z) => z.offsetMin === n);
+      const q = localParts(n, now);
+      return `<li><button type="button" class="result" role="option" data-offset="${n}" ${taken || full ? "disabled" : ""} aria-selected="false">
+      <span class="r-main"><b>${esc(S.offsetResult(n))}</b></span>
+      ${taken ? icon("check") : `<span class="r-time">${hhmm(q)}<span>${esc(S.BAND_LABEL[classify(q.mod)])}</span></span>`}
+    </button></li>`;
+    }
     const added = state.zones.some((z) => z.tz === c.tz && z.name === c.name);
     const isHome = c.tz === state.zones[0].tz;
     const p = localParts(c.tz, now);
@@ -710,8 +722,14 @@ el.search.addEventListener("keydown", (e) => {
 el.results.addEventListener("click", (e) => {
   const b = e.target.closest(".result");
   if (!b || b.disabled) return;
-  const z = zoneInfo(b.dataset.tz, b.dataset.name);
-  if (z.tz === state.zones[0].tz || state.zones.length - 1 >= MAX_USER_ZONES || state.zones.some((x) => x.tz === z.tz && x.name === z.name)) return;
+  let z;
+  if ("offset" in b.dataset) {
+    z = mkOffset(Number(b.dataset.offset));
+    if (state.zones.length - 1 >= MAX_USER_ZONES || state.zones.slice(1).some((x) => x.offsetMin === z.offsetMin)) return;
+  } else {
+    z = zoneInfo(b.dataset.tz, b.dataset.name);
+    if (z.tz === state.zones[0].tz || state.zones.length - 1 >= MAX_USER_ZONES || state.zones.some((x) => x.tz === z.tz && x.name === z.name)) return;
+  }
   state.zones.push(z);
   render({ keepStart: true });
   toast(S.added(z.name));

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { BAND, cellLabel, classify, goodStep, homeDay, hhmm, localParts, offLabel, offsetMin, zonedMidnight } from "../js/time.js";
+import { BAND, SLOT_MS, cellLabel, classify, goodStep, homeDay, hhmm, localParts, offLabel, offsetMin, slotAt, zonedMidnight } from "../js/time.js";
 
 const JAN_15 = Date.UTC(2026, 0, 15);
 const HOUR = 3600000;
@@ -101,4 +101,28 @@ test("fixed offsets keep their gap across DST while Los Angeles shifts", () => {
   assert.equal(hourGap(-420, 0, JUL_15), 17);
   assert.equal(gap("America/Los_Angeles", 0, JAN_15), -8);
   assert.equal(gap("America/Los_Angeles", 0, JUL_15), -7);
+});
+
+const DAY = homeDay("Australia/Sydney", 2027, 1, 15);
+test("slotAt is 0 at the start of the day", () => assert.equal(slotAt(DAY.t0, DAY.t0, DAY.slots), 0));
+test("slotAt moves 1/15 slot (1/60 of a column) per minute", () => {
+  assert.equal(slotAt(DAY.t0 + 60000, DAY.t0, DAY.slots) - slotAt(DAY.t0, DAY.t0, DAY.slots), 1 / 15);
+  assert.equal(slotAt(DAY.t0 + 60000, DAY.t0, DAY.slots) / 4, 1 / 60);
+  const t = DAY.t0 + 14 * HOUR + 30 * 60000;
+  assert.ok(Math.abs(slotAt(t + 60000, DAY.t0, DAY.slots) - slotAt(t, DAY.t0, DAY.slots) - 1 / 15) < 1e-9);
+});
+test("slotAt at 14:30 is halfway through column 14", () => assert.equal(slotAt(DAY.t0 + 14.5 * HOUR, DAY.t0, DAY.slots) / 4, 14.5));
+test("slotAt is null at the end of the day and before it", () => {
+  assert.equal(slotAt(DAY.t0 + DAY.slots * SLOT_MS, DAY.t0, DAY.slots), null);
+  assert.equal(slotAt(DAY.t0 - 1, DAY.t0, DAY.slots), null);
+});
+test("slotAt uses the DST day's own slot count", () => {
+  const short = homeDay("Australia/Sydney", 2027, 10, 3);
+  const long = homeDay("Australia/Sydney", 2027, 4, 4);
+  assert.equal(short.slots, 92);
+  assert.equal(long.slots, 100);
+  assert.equal(slotAt(short.t1 - 60000, short.t0, short.slots), 92 - 1 / 15);
+  assert.equal(slotAt(short.t1, short.t0, short.slots), null);
+  assert.equal(slotAt(long.t1 - SLOT_MS, long.t0, long.slots), 99);
+  assert.equal(slotAt(long.t1, long.t0, long.slots), null);
 });

@@ -308,6 +308,8 @@ Each cell is labelled, left-aligned in 10.5px/700 tabular figures, with that zon
 
 The overlap row ("Everyone") sits first with a serif name and the shared-hours summary; its cells have no labels, since the home row's labels already mark the time. Swiping scrolls the cells of every row together while the header column stays put; tapping a cell starts the meeting at the quarter-hour under the finger. A single transparent bar with a 2px gold border, a gold tab on top and Gold Glow spans every row at the chosen time, passing under the header column; it moves on `transform` only, on the shared ease (0.45s), and its width changes without animation. When the selection changes from a chip, the length control, the keyboard or a new day, the grid scrolls just enough to show the whole bar.
 
+On desktop, a vertical mouse wheel over the grid scrolls it sideways until either end, then lets the page scroll. A mouse drag on the hour cells pans the grid without selecting (grab cursor at rest, grabbing while dragging, no text selection); a click without moving still selects. The grid itself takes focus: it shows the gold focus ring, inset so it stays inside the card, and Left/Right move it one hour column at a time.
+
 ### Bottom sheet
 Zone search opens as a bottom sheet: Cream Card, 26px top corners, a 40px grip, a serif title, the search well, then 56px result rows that hover to Warm Paper. It enters by rising 40px over 0.42s.
 

@@ -58,7 +58,7 @@ typography:
     fontFeature: "tnum"
 rounded:
   badge: "6px"
-  strip: "9px"
+  track: "9px"
   field: "14px"
   card: "22px"
   sheet: "26px"
@@ -164,10 +164,11 @@ components:
     textColor: "{colors.on-sage}"
     rounded: "{rounded.pill}"
     padding: "12px 18px"
-  day-strip:
+  hour-track:
     backgroundColor: "{colors.night}"
-    rounded: "{rounded.strip}"
-    height: "30px"
+    rounded: "{rounded.track}"
+    height: "32px"
+    width: "44px per hour"
 ---
 
 # Design System: ZonePlanner
@@ -176,7 +177,7 @@ components:
 
 **Creative North Star: "The Paper Valley at Dawn"**
 
-ZonePlanner is a working instrument dressed in warm, layered paper. A cut-paper sunrise valley in peach, clay and sage crowns the page; the sage band closes in a waved paper contour, and the instrument's first cream card rests on that contour. Everything below the masthead is calm and legible: one meeting answer, a row of day strips, one gold bar dragged across all of them. The world comes from the user's inspiration image and keeps its materials (paper grain, soft sage-tinted lift, pill controls, a serif voice for answers) while dropping its decoration (rays, birds, trees, waterfalls).
+ZonePlanner is a working instrument dressed in warm, layered paper. A cut-paper sunrise valley in peach, clay and sage crowns the page; the sage band closes in a waved paper contour, and the instrument's first cream card rests on that contour. Everything below the masthead is calm and legible: one meeting answer, then an hour grid that scrolls sideways under a fixed column of zone names, with one gold bar standing across every row. The world comes from the user's inspiration image and keeps its materials (paper grain, soft sage-tinted lift, pill controls, a serif voice for answers) while dropping its decoration (rays, birds, trees, waterfalls).
 
 Density is mobile-first and moderate: a single 720px column, 44px touch targets, 14px between stacked cards. The serif is reserved for what the page is saying (the wordmark, the meeting time, section titles); the grotesk carries every control and every number a person scans. Colour carries meaning first and mood second: sage is business and action, peach is the edge of the day, pale clay is the hours to avoid, gold is the thing you are holding, terracotta is the cost someone pays.
 
@@ -201,15 +202,15 @@ A warm-paper palette with one deep sage voice, a peach-and-clay band pair, and t
 - **Dawn Peach** (`edge`): edge hours (06–09, 17–20), always laid as a 135° hatch with **Baked Peach** (`edge-hatch`). On the sage band at the top of the page it becomes the fill of the primary action, because sage-on-sage would vanish there.
 
 ### Tertiary
-- **Lantern Gold** (`gold`): the selection bar, its drag tab, and every focus ring. Nothing else.
+- **Lantern Gold** (`gold`): the selection bar, its tab, and every focus ring. Nothing else.
 - **Terracotta** (`terra`): cost and warning. The inconvenient verdict, the "no shared hours" overlap answer, the next/previous-day badge, and the inconvenient label at a row's selected time. Its panel and badge ground is **Clay Blush** (`terra-tint`).
 
 ### Neutral
 - **Warm Paper** (`paper`): page ground, soft icon buttons, the search field.
 - **Pressed Paper** (`paper-deep`): segmented-control track, soft icon-button hover.
 - **Cream Card** (`card`): every card, the sheet, the date pill and floating icon buttons.
-- **Pale Clay** (`night`): inconvenient-hour segments (20–06) and empty overlap strips. Outlined by **Clay Rule** (`night-line`), the 1px inset that keeps pale strips from dissolving into the card.
-- **Ink** (`ink`): primary text. **Soft Ink** (`ink-soft`): legend and small headings. **Field Grey-Brown** (`muted`): secondary text, axis numerals, unselected segments.
+- **Pale Clay** (`night`): inconvenient-hour segments (20–06) and empty overlap tracks. Outlined by **Clay Rule** (`night-line`), the 1px inset that keeps pale tracks from dissolving into the card.
+- **Ink** (`ink`): primary text. **Soft Ink** (`ink-soft`): legend and small headings. **Field Grey-Brown** (`muted`): secondary text, hour-cell labels on Pale Clay, unselected segments.
 - **Paper Rule** (`line`): row dividers, chip borders, the sheet grip.
 
 ### Named Rules
@@ -234,24 +235,24 @@ Both are self-hosted variable WOFF2 files (Latin and Latin Extended subsets), pr
 - **Title** (400, 20px, 1.2; 22px in the sheet): card and sheet titles ("Zones", "Add a zone"), and the serif "Everyone" row name that sets the overlap row apart.
 - **Body** (400, 15px, 1.45): running text and footnotes (footnote at 12.5px, max 60ch).
 - **Label** (650, 14px, 0.005em): buttons, chips, segments, date pill, toast. Zone names step up to 16px/650 and row times to 16px/700.
-- **Caption** (500, 12.5–13px, Field Grey-Brown): offsets, country lines, meeting sub-line, chip notes; axis numerals at 11px/600.
+- **Caption** (500, 12.5–13px, Field Grey-Brown): offsets, country lines, meeting sub-line, chip notes; hour-cell labels at 10.5px/700.
 
 ### Named Rules
 **The Serif Speaks the Answer Rule.** Libre Baskerville is used only at 400 weight and only for the wordmark, the meeting time and section titles. Controls, zone names, data and labels are always Hanken Grotesk.
 
-**The Tabular Time Rule.** Every time, offset and hour tick uses tabular figures (`font-variant-numeric: tabular-nums`) so columns of times align and the headline does not jitter while dragging.
+**The Tabular Time Rule.** Every time, offset and hour-cell label uses tabular figures (`font-variant-numeric: tabular-nums`) so columns of times align and the headline does not jitter as the selection moves.
 
 ## Layout
 
-A single centred column, max 720px, with a 16px side gutter that widens to 24px at 560px. The masthead is 268px tall (284px at 560px+); the app column pulls up 94px into it so the toolbar sits on the darkest sage ridge and the meeting card rests on the paper contour that closes the band. Cards stack with a 14px gap; card interiors pad 20px top and 18px sides; the zone board runs its strips edge to edge inside an 18px timeline pad so the selection bar and axis share exact coordinates.
+A single centred column, max 720px, with a 16px side gutter that widens to 24px at 560px. The masthead is 268px tall (284px at 560px+); the app column pulls up 94px into it so the toolbar sits on the darkest sage ridge and the meeting card rests on the paper contour that closes the band. Cards stack with a 14px gap; card interiors pad 20px top and 18px sides; the zone board is one horizontal scroller that runs edge to edge across the card, with an 18px pad before the zone names and after the last hour, so the selection bar and every row's hour cells share exact coordinates.
 
 Above 560px the meeting card's time and actions move side by side and buttons stop stretching; otherwise the layout is the same at every width. Safe-area insets pad the masthead top, the column bottom, the sheet and the toast. Horizontal page scroll is clipped; the suggestion chip rail scrolls on its own and bleeds to the card edges.
 
-**The Answer-Above-the-Strips Rule.** The meeting card (time, verdict, length, suggestions) always comes before the zone rows; the rows explain the answer, they never precede it.
+**The Answer-Above-the-Grid Rule.** The meeting card (time, verdict, length, suggestions) always comes before the zone rows; the rows explain the answer, they never precede it.
 
 ## Elevation & Depth
 
-Depth is paper, not glass. Cards and floating controls lift on a single soft, sage-tinted shadow that reads as paper resting on paper; the masthead ridges, and the paper contour that closes them, cast a faint upward shadow onto each other like stacked cut paper. Pale strips get a 1px inset Clay Rule rather than a shadow. The sheet throws a larger ink-tinted shadow upward over a 38% ink scrim.
+Depth is paper, not glass. Cards and floating controls lift on a single soft, sage-tinted shadow that reads as paper resting on paper; the masthead ridges, and the paper contour that closes them, cast a faint upward shadow onto each other like stacked cut paper. Pale tracks get a 1px inset Clay Rule rather than a shadow. The sheet throws a larger ink-tinted shadow upward over a 38% ink scrim.
 
 ### Shadow Vocabulary
 - **Paper Lift** (`box-shadow: 0 10px 28px -18px rgba(62,82,72,.45), 0 1px 2px rgba(62,82,72,.06)`): cards, floating icon buttons, the date pill, the toast.
@@ -264,7 +265,7 @@ Depth is paper, not glass. Cards and floating controls lift on a single soft, sa
 
 ## Shapes
 
-Soft, rounded paper. Every control is a full pill (999px); icon buttons are circles. Containers step up in radius with their size: day badge 6px, day strip 9px, selection bar 12px, verdict panel, search field and result rows 14px, cards 22px, the sheet's top corners 26px. Borders are rare and thin: 1.5px Paper Rule on unselected chips, 1px rules between rows, 2px gold on the selection bar. Marks are 10–12px circles: filled, hatched, or a 2px hollow ring. The masthead ridges are freehand cubic curves with no hard edges, and the last one is a Warm Paper contour that ends the sage band in a waved edge; the sun is a plain disc with a 10px pale halo and no rays.
+Soft, rounded paper. Every control is a full pill (999px); icon buttons are circles. Containers step up in radius with their size: day badge 6px, hour track 9px, selection bar 12px, verdict panel, search field and result rows 14px, cards 22px, the sheet's top corners 26px. Borders are rare and thin: 1.5px Paper Rule on unselected chips, 1px rules between rows, 2px gold on the selection bar. Marks are 10–12px circles: filled, hatched, or a 2px hollow ring. The masthead ridges are freehand cubic curves with no hard edges, and the last one is a Warm Paper contour that ends the sage band in a waved edge; the sun is a plain disc with a 10px pale halo and no rays.
 
 ## Components
 
@@ -295,13 +296,17 @@ A 14px-radius status panel led by a 10px mark that repeats the band's second cha
 
 ### Inputs / Fields
 - **Style:** the search field is a 48px Warm Paper well with 14px radius, a muted search icon and 16px text (prevents iOS zoom).
-- **Focus:** 2.5px Lantern Gold outline, 1–2px offset; the date pill and the scrubber show the same ring.
+- **Focus:** 2.5px Lantern Gold outline, 1–2px offset; the date pill shows the same ring, and the keyboard scrubber (visually hidden) draws it around the selection bar.
 
 ### Navigation
 There is no nav bar. The toolbar is the navigation: previous/next-day icon buttons around a cream date pill (calendar icon, native date input layered invisibly over it), and Add zone at the right.
 
-### Day strip and selection bar (signature)
-Each zone row ends in a 30px, 9px-radius strip of 24 hours: Business Sage solid, Dawn Peach hatched, Pale Clay plain, with small bold hour ticks recoloured for each fill. A single transparent bar with a 2px gold border, a gold tab on top and Gold Glow spans every row at the chosen hour; it glides on the shared ease (0.45s) and stops animating while dragged. The overlap row ("Everyone") sits first with a serif name.
+### Hour grid and selection bar (signature)
+The board is one native horizontal scroller. Each row is a sticky header cell (144px, Cream Card, opaque) holding the zone name (ellipsis when long), the country and UTC offset, and the meeting readout, followed by a track of hour cells. Columns are the home zone's hours of the selected day (23, 24 or 25 on daylight-saving days; a 30-minute change leaves a half-width last column), so each column is the same instant in every row. Full cells are 44px wide on a 32px, 9px-radius band inside a track at least 44px tall, separated by a faint 1px rule.
+
+Each cell is labelled, left-aligned in 10.5px/700 tabular figures, with that zone's local time at the column start: `9` on the hour, `3:30` or `3:45` for offset zones. Bands keep their 15-minute accuracy under the cells, so an offset zone changes band part-way through a column: Business Sage solid, Dawn Peach 135° hatched, Pale Clay plain with the Clay Rule inset. Labels recolour for the band under them and carry a soft halo of that band's colour so they stay legible where the band changes.
+
+The overlap row ("Everyone") sits first with a serif name and the shared-hours summary; its cells have no labels, since the home row's labels already mark the time. Swiping scrolls the cells of every row together while the header column stays put; tapping a cell starts the meeting at the quarter-hour under the finger. A single transparent bar with a 2px gold border, a gold tab on top and Gold Glow spans every row at the chosen time, passing under the header column; it moves on `transform` only, on the shared ease (0.45s), and its width changes without animation. When the selection changes from a chip, the length control, the keyboard or a new day, the grid scrolls just enough to show the whole bar.
 
 ### Bottom sheet
 Zone search opens as a bottom sheet: Cream Card, 26px top corners, a 40px grip, a serif title, the search well, then 56px result rows that hover to Warm Paper. It enters by rising 40px over 0.42s.

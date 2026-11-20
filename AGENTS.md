@@ -21,6 +21,8 @@ tests.
 - `js/zones.js`: the zone list rules: zone validation, user rows (home
   dropped, capped at 7), share-link `z` encoding and parsing, and following a
   new device zone.
+- `js/state.js`: the stored state shape, its load, validation and
+  version-driven migration, and the debounced (250 ms) saver.
 - `js/strings.js`: every user-facing string JavaScript builds (en-AU).
 - `js/cities.js`: generated city data (about 500 cities), the country-to-weekend
   map and the time zone abbreviation table. DOM-free. City data from GeoNames,
@@ -30,8 +32,8 @@ tests.
   `node scripts/build-city-data.js [path-to-cities15000.zip]` (no path
   downloads it from GeoNames). Don't hand-edit `js/cities.js`; change the
   generator (or the `CITIES` list in `app.js`, which it pins) and rerun it.
-- `test/`: unit tests (`node:test`) for the time engine, the zone rules and the
-  city data.
+- `test/`: unit tests (`node:test`) for the time engine, the zone rules, the
+  stored state and the city data.
 - `assets/fonts/`: self-hosted woff2 fonts. Don't add CDN or third-party requests.
 
 Rules that hold across the app:
@@ -42,15 +44,20 @@ Rules that hold across the app:
 - The home row is always the device zone, recomputed on load and followed
   live; it is never stored or read from a link. The rest are at most 7 user
   rows.
+- Stored state lives under `zoneplanner.state` as
+  `{version: 1, zones, hour12, filter, len}`. State that can't be read is
+  backed up to `zoneplanner.state.bak` and reset to the defaults; the old
+  `zoneplanner:v1` key is migrated once and never written. Stored zones and
+  link zones both go through `userRows` in `js/zones.js`.
 - Any string from the share-link hash or localStorage goes through `esc()` or
   `textContent` before it reaches the DOM.
 - User-facing strings live in `js/strings.js`, whose functions return plain
   text and never escape. Any strings-module result that goes into `innerHTML`
   is wrapped in `esc()` at the call site in `app.js`, so it is escaped exactly
   once; `textContent`, `setAttribute` and `window.prompt` take it as is.
-- `js/time.js`, `js/zones.js` and `js/cities.js` stay DOM-free: no `document`,
-  `window`, `location`, `localStorage`, `navigator` or `history`, so they
-  import in Node.
+- `js/time.js`, `js/zones.js`, `js/state.js` and `js/cities.js` stay
+  DOM-free: no `document`, `window`, `location`, `localStorage`, `navigator`
+  or `history`, so they import in Node.
 - Every `$("id")` / `getElementById` lookup stays in `app.js` with a literal id.
 - Touch targets are at least 44px; no horizontal scroll at 390px wide.
 

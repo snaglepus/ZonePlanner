@@ -19,20 +19,31 @@ tests and `npm run sw:stamp` stamps `sw.js`.
 - `js/time.js`: the time engine (`Intl.DateTimeFormat`): offsets, local parts,
   zoned midnight, the home day (which starts where the home zone's date
   really starts, even when local midnight doesn't exist), date changes (day
-  dividers, `dayStarts`), band classification, Good heat steps and UTC offset
-  labels. A zone is an IANA ID string or a fixed offset as a number of minutes from
-  UTC (no `Etc/GMT` IDs).
+  dividers, `dayStarts`), band classification, Good heat steps, UTC offset
+  labels, the slot position of an instant (`slotAt`), the locale's default
+  clock (`localeHour12`, from the `hourCycle`), the zone abbreviation
+  (`zoneAbbr`/`zoneTag`: `Intl` short names tried in `en-AU`, `en-GB`,
+  `en-US` order; GMT/UTC-style names fall back to the UTC offset alone) and
+  the day difference from home (`dayDiff`). A zone is an IANA ID string
+  or a fixed offset as a number of minutes from UTC (no `Etc/GMT` IDs).
+- `js/clock.js`: the shared minute clock: aligned to the wall-clock minute,
+  pause and resume, injectable time source.
 - `js/zones.js`: the zone list rules: zone validation, the typed-offset
   parser (`parseOffset`: `GMT+11`, `UTC-7`, `+5:30`, `-0330`), user rows (home
   dropped, capped at 7), share-link `z` encoding and parsing (`tz~name` per
-  city row, `@<minutes>` per offset row), and following a new device zone.
+  city row, `@<minutes>` per offset row), following a new device zone, and
+  swapping one row in place (`replaceRow`).
 - `js/state.js`: the stored state shape, its load, validation and
   version-driven migration, and the debounced (250 ms) saver.
-- `js/strings.js`: every user-facing string JavaScript builds (en-AU).
+- `js/strings.js`: every user-facing string JavaScript builds (en-AU),
+  including the single time formatter: `clock` (full or hour-cell form, 12-
+  or 24-hour) and `clockRange` built on it.
 - `js/scroll.js`: the wheel-to-horizontal scroll decision for the hour grid
   (`wheelScroll`).
 - `js/reorder.js`: the pure row reorder for drag-to-reorder (`moveRow`); the
   home row stays fixed at index 0.
+- `js/weekend.js`: weekend rules (`weekendSlots`, `scoredBands`,
+  `overlapBands`): which slots fall on each zone's weekend, scored Unsuitable.
 - `js/filter.js`: the All / Good / Best hour filter (`keptSlots`,
   `windowKept`): which slots of the overlap row are kept, and whether a
   meeting span lies entirely in kept slots.
@@ -59,9 +70,10 @@ tests and `npm run sw:stamp` stamps `sw.js`.
   `index.html`, the `url()`s in `styles.css` and the import graph from
   `app.js`) and its content hash; the stamp writes both into `sw.js`'s
   `VERSION` and `PRECACHE` lines.
-- `test/`: unit tests (`node:test`) for the time engine, the zone rules, the
-  stored state, the city data, the wheel scroll decision, the row reorder
-  and the hour filter, plus a static
+- `test/`: unit tests (`node:test`) for the time engine, the shared clock,
+  the zone rules, the stored state, the city data, the wheel scroll decision, the row reorder,
+  the hour filter, the time formatter (`test/strings.test.js`) and the weekend
+  rules (`test/weekend.test.js`), plus a static
   CSP check of `index.html` (`test/csp.test.js`) and a static `styles.css`
   token check (heat-step contrast and order, `test/tokens.test.js`) and the
   service worker's stamp and manifest rules (`test/sw.test.js`).
@@ -74,6 +86,12 @@ Rules that hold across the app:
 - Bands never rely on colour alone (solid, hatched, pale). Zone rows shade
   Good runs in three hatched heat steps by local hour (`goodStep`); the
   Everyone row's Good is flat.
+- Each row's weekend comes from its city's country (`cc` from `zoneInfo`)
+  via `weekendFor`, Sat-Sun when unknown (offset rows have no country, so
+  Sat-Sun), judged per slot by local weekday.
+  Weekend slots carry a 45° line overlay on zone rows and score as
+  Unsuitable in the Everyone row, the overlap summary, the verdict and the
+  suggestions.
 - The home row is always the device zone, recomputed on load and followed
   live; it is never stored or read from a link. The rest are at most 7 user
   rows.
@@ -82,6 +100,10 @@ Rules that hold across the app:
   backed up to `zoneplanner.state.bak` and reset to the defaults; the old
   `zoneplanner:v1` key is migrated once and never written. Stored zones and
   link zones both go through `userRows` in `js/zones.js`.
+- Every displayed time of day goes through `clock`/`clockRange` in
+  `js/strings.js` with the effective clock, `state.hour12 ?? localeHour12()`.
+  A stored `hour12: null` means follow the locale; the 12h/24h toggle stores
+  `true` or `false`.
 - Offset rows (`{offsetMin}`, a multiple of 15 within ±14:00) are named from
   their offset (`UTC+05:30`, via `offsetName`), never from stored or linked
   text, and have no country.
@@ -98,10 +120,13 @@ Rules that hold across the app:
   text and never escape. Any strings-module result that goes into `innerHTML`
   is wrapped in `esc()` at the call site in `app.js`, so it is escaped exactly
   once; `textContent`, `setAttribute` and `window.prompt` take it as is.
-- `js/time.js`, `js/zones.js`, `js/state.js`, `js/scroll.js`, `js/reorder.js`,
-  `js/filter.js` and `js/cities.js` stay DOM-free: no `document`, `window`, `location`, `localStorage`, `navigator`
+- `js/time.js`, `js/clock.js`, `js/zones.js`, `js/state.js`, `js/scroll.js`,
+  `js/reorder.js`, `js/filter.js`, `js/weekend.js` and `js/cities.js` stay DOM-free: no `document`, `window`, `location`, `localStorage`, `navigator`
   or `history`, so they import in Node.
 - Every `$("id")` / `getElementById` lookup stays in `app.js` with a literal id.
+- Live updates (the now line, the home-zone re-check, the row headers' live
+  time, abbreviation and day difference) subscribe to the one
+  shared clock in `app.js`; don't add your own `setInterval` or minute timers.
 - Touch targets are at least 44px; no horizontal scroll at 390px wide.
 - Any change that adds, removes, renames or edits a file the page loads
   (`index.html`, `styles.css`, any module, any font) must rerun

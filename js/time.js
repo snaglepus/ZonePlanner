@@ -47,7 +47,6 @@ export const localParts = (tz, t) => {
   return { h: l.getUTCHours(), m: l.getUTCMinutes(), mod: l.getUTCHours() * 60 + l.getUTCMinutes(), dayKey: l.getUTCFullYear() * 10000 + (l.getUTCMonth() + 1) * 100 + l.getUTCDate(), date: l, off };
 };
 export const pad = (n) => String(n).padStart(2, "0");
-export const hhmm = (p) => `${pad(p.h)}:${pad(p.m)}`;
 export const offLabel = (off) => {
   const s = off < 0 ? "−" : "+";
   const a = Math.abs(off);
@@ -83,10 +82,21 @@ export const homeDay = (tz, y, m, d) => {
   const slots = Math.round((t1 - t0) / 900000);
   return { t0, t1, slots, cols: Math.ceil(slots / 4) };
 };
-/** Local time at t in tz (IANA ID or fixed minutes) as a grid cell label: "9", "3:30", "3:45". */
-export const cellLabel = (tz, t) => {
-  const p = localParts(tz, t);
-  return p.m ? `${p.h}:${pad(p.m)}` : String(p.h);
+export const SLOT_MS = 900000;
+/** Fractional 15-minute slot of instant t in a day of n slots from t0, or null outside it. */
+export const slotAt = (t, t0, n) => (t >= t0 && t < t0 + n * SLOT_MS ? (t - t0) / SLOT_MS : null);
+/** Whether an Intl hourCycle is a 12-hour clock; unknown or missing means 24-hour. */
+export const hour12For = (hourCycle) => hourCycle === "h11" || hourCycle === "h12";
+/** The locale's default clock (undefined: the runtime's locale); hourCycle is only reported when an hour is requested. */
+export const localeHour12 = (locale) => hour12For(new Intl.DateTimeFormat(locale, { hour: "numeric" }).resolvedOptions().hourCycle);
+/** A short zone name kept as an abbreviation, or null when empty or GMT/UTC-style ("GMT", "UTC+11", "GMT−3", "GMT+5:45"). */
+export const abbrOf = (name) => (!name || /^(GMT|UTC)([+\-−]\d{1,2}(:?\d{2})?)?$/.test(name) ? null : name);
+const ABBR_LOCALES = ["en-AU", "en-GB", "en-US"];
+const abbrCache = new Map();
+const abbrFmt = (locale, tz) => {
+  const key = `${locale} ${tz}`;
+  if (!abbrCache.has(key)) abbrCache.set(key, new Intl.DateTimeFormat(locale, { timeZone: tz, timeZoneName: "short" }));
+  return abbrCache.get(key);
 };
 /** Every instant in [t0, t1) where tz's local date changes, to the minute, with that date's weekday and day in locale. */
 export const dayStarts = (tz, t0, t1, locale) => {
@@ -102,3 +112,22 @@ export const dayStarts = (tz, t0, t1, locale) => {
   }
   return out.map((t) => ({ t, label: label(t) }));
 };
+/** The zone's abbreviation at t ("AEDT", "PST") from Intl, trying en-AU, en-GB then en-US; null for fixed offsets and GMT-style names. */
+export const zoneAbbr = (tz, t) => {
+  if (typeof tz === "number") return null;
+  for (const locale of ABBR_LOCALES) {
+    const part = abbrFmt(locale, tz).formatToParts(new Date(t)).find((x) => x.type === "timeZoneName");
+    const abbr = abbrOf(part && part.value);
+    if (abbr) return abbr;
+  }
+  return null;
+};
+/** Header tag: "AEDT · UTC+11", or the offset alone ("UTC+5:45") when there's no abbreviation. */
+export const zoneTag = (tz, t) => {
+  const abbr = zoneAbbr(tz, t);
+  const off = offLabel(offsetMin(tz, t));
+  return abbr ? `${abbr} · ${off}` : off;
+};
+const dayNumber = (dayKey) => Date.UTC(Math.floor(dayKey / 10000), Math.floor(dayKey / 100) % 100 - 1, dayKey % 100) / 86400000;
+/** Calendar days the zone's local date is ahead of the home zone's at t (+1 tomorrow, −1 yesterday). */
+export const dayDiff = (tz, homeTz, t) => dayNumber(localParts(tz, t).dayKey) - dayNumber(localParts(homeTz, t).dayKey);

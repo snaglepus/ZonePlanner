@@ -53,6 +53,8 @@
   --good-3-hatch: #E7C2A2;
   --night: #EBE2D7;
   --night-line: #DDD1C3;
+  --weekend-wash: rgba(251, 247, 240, .3);
+  --weekend-line: rgba(42, 44, 40, .5);
   --gold: #C99247;
   --terra: #A65A3F;
   --terra-tint: #F6E3D9;
@@ -162,6 +164,8 @@ svg { flex: none; }
 }
 .seg button[aria-checked="true"] { background: var(--sage); color: var(--on-sage); }
 .seg button:not([aria-checked="true"]):hover { color: var(--ink); }
+/* time-format toggle in the board header: full 44px targets */
+.seg-clock button { min-height: 44px; min-width: 44px; padding: 0 8px; }
 
 .suggest h3 { font-size: 13px; font-weight: 650; color: var(--ink-soft); margin-bottom: 8px; }
 .chips { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; margin: 0 -18px; padding: 0 18px 2px; scroll-padding: 18px; }
@@ -188,6 +192,8 @@ svg { flex: none; }
 .board { padding: 16px 0 16px; }
 .board-head { display: flex; align-items: center; justify-content: space-between; padding: 0 12px 0 18px; }
 .board-head h2 { font: 400 20px/1.2 var(--serif); color: var(--ink); }
+.board-actions { display: flex; align-items: center; gap: 4px; }
+#nowBtn[hidden] { display: none; }
 .count { font: 600 13px var(--sans); color: var(--muted); margin-left: 4px; }
 .board > .sheet-note { margin: 6px 18px 0; }
 .seg-filter { margin: 12px 18px 0; }
@@ -219,9 +225,13 @@ svg { flex: none; }
 .row-name { min-width: 0; }
 .row-name b { display: flex; align-items: center; gap: 6px; font-size: 15px; font-weight: 650; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .row-name b svg { width: 15px; height: 15px; fill: none; stroke: var(--sage); stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
-.row-name span { display: block; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.row-name > span { display: block; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.row-name > .row-live { overflow: visible; text-overflow: clip; margin-top: 3px; line-height: 1.2; }
+.row-live small { font-size: 11px; font-weight: 600; color: var(--muted); }
+.row-live .row-time { font-size: 13px; font-weight: 700; color: var(--ink); }
+.row-day[hidden] { display: none; }
 .row-at { font-variant-numeric: tabular-nums; }
-.row-at b { display: block; font-size: 14px; font-weight: 700; line-height: 1.2; white-space: nowrap; }
+.row-at b { display: block; font-size: 14px; font-weight: 700; line-height: 1.2; }
 .row-at span { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 600; color: var(--muted); margin-top: 2px; }
 .row-at .day { font-size: 11px; font-weight: 700; color: var(--terra); background: var(--terra-tint); border-radius: 6px; padding: 1px 5px; margin-right: 4px; vertical-align: 1px; }
 .row[data-at="night"] .row-at span { color: var(--terra); }
@@ -245,7 +255,7 @@ svg { flex: none; }
 .track { flex: none; display: grid; width: calc(var(--n) * var(--slot)); min-height: 44px; padding: 7px 0; margin-right: 18px; }
 .track { cursor: grab; -webkit-user-select: none; user-select: none; }
 .rows.dragging, .rows.dragging * { cursor: grabbing; }
-.bands, .cells { grid-area: 1 / 1; display: flex; align-self: center; height: 32px; }
+.bands, .weekend, .cells { grid-area: 1 / 1; display: flex; align-self: center; height: 32px; }
 .cells { position: relative; }
 .bands { border-radius: 9px; overflow: hidden; box-shadow: inset 0 0 0 1px var(--night-line); }
 .seg-biz, .seg-edge, .seg-night { flex: none; width: calc(var(--w) * var(--slot)); height: 100%; position: relative; }
@@ -256,6 +266,10 @@ svg { flex: none; }
 .seg-edge.heat-2 { background: repeating-linear-gradient(135deg, var(--good-2) 0 5px, var(--good-2-hatch) 5px 7px); }
 .seg-edge.heat-3 { background: repeating-linear-gradient(135deg, var(--good-3) 0 5px, var(--good-3-hatch) 5px 7px); }
 .seg-night { background: var(--night); }
+/* weekend overlay: a 45° fine ink line over a light wash, between the bands and the hour labels; taps go through */
+.weekend { position: relative; border-radius: 9px; overflow: hidden; pointer-events: none; }
+.wk-on, .wk-off { flex: none; width: calc(var(--w) * var(--slot)); height: 100%; }
+.wk-on { background: repeating-linear-gradient(45deg, var(--weekend-line) 0 1.5px, transparent 1.5px 6px), var(--weekend-wash); }
 /* slots the hour filter drops fade toward the card: a luminance change, so it holds in greyscale */
 .dim { opacity: .3; }
 .cell {
@@ -265,6 +279,8 @@ svg { flex: none; }
 .cell + .cell { box-shadow: inset 1px 0 0 rgba(42, 44, 40, .12); }
 /* labels sit on their own card backing, so a :30/:45 zone changing band under one never costs contrast */
 .cell span { padding: 1px 3px; border-radius: 3px; background: var(--card); color: var(--ink); line-height: 1.2; }
+/* 12-hour am/pm cue, stacked under the number on the same backing */
+.cell span small { display: block; font-size: 9px; font-weight: 700; line-height: 1.1; font-variant-numeric: tabular-nums; }
 /* day dividers: a line at each local date change at its exact position, its date in a lane above the band */
 .row:not(.row-all) > .track { padding: 18px 0; }
 .daymark { position: absolute; top: 0; bottom: 0; left: calc(var(--x) * var(--slot)); width: 2px; background: var(--ink); pointer-events: none; }
@@ -295,6 +311,17 @@ svg { flex: none; }
 }
 .timeline.editing .selbar { opacity: 0; }
 
+/* now line: ink, round dot cap in the Everyone row's top padding, jumps a minute at a time */
+.nowline {
+  position: absolute; top: 12px; bottom: 2px; left: 0; width: 2px; margin-left: -1px;
+  background: var(--ink); pointer-events: none; z-index: 2;
+}
+.nowline::before {
+  content: ""; position: absolute; left: 50%; top: -4px; width: 8px; height: 8px; margin-left: -4px;
+  background: var(--ink); border-radius: 50%;
+}
+.nowline[hidden] { display: none; }
+
 .legend { list-style: none; margin: 16px 0 0; padding: 14px 18px 0; border-top: 1px solid var(--line); display: flex; flex-wrap: wrap; gap: 8px 18px; font-size: 13px; font-weight: 600; color: var(--ink-soft); }
 .legend li { display: flex; align-items: center; gap: 8px; }
 .legend small { font-weight: 500; color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
@@ -309,6 +336,13 @@ svg { flex: none; }
     repeating-linear-gradient(135deg, var(--good-3) 0 4px, var(--good-3-hatch) 4px 6px) right / 34% 100% no-repeat;
 }
 .sw-night { background: var(--night); }
+/* the grid's weekend overlay over Best and Unsuitable */
+.sw-weekend {
+  background:
+    repeating-linear-gradient(45deg, var(--weekend-line) 0 1.5px, transparent 1.5px 5px),
+    linear-gradient(var(--weekend-wash), var(--weekend-wash)),
+    linear-gradient(90deg, var(--best) 50%, var(--night) 50%);
+}
 
 .footnote { font-size: 12.5px; color: var(--muted); padding: 2px 4px; max-width: 60ch; }
 
@@ -324,12 +358,13 @@ svg { flex: none; }
 .sheet-inner { display: flex; flex-direction: column; max-height: 86dvh; padding: 8px 16px calc(16px + env(safe-area-inset-bottom)); }
 .sheet-grip { width: 40px; height: 4px; border-radius: 4px; background: var(--line); margin: 2px auto 10px; }
 .sheet-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
-.sheet-head h2 { font: 400 22px/1.2 var(--serif); color: var(--sage); }
+.sheet-head h2 { font: 400 22px/1.2 var(--serif); color: var(--sage); min-width: 0; overflow-wrap: anywhere; }
+.sheet-head .icon-btn { flex: none; }
 .search { display: flex; align-items: center; gap: 10px; min-height: 48px; padding: 0 14px; border-radius: 14px; background: var(--paper); color: var(--muted); }
 .search:focus-within { outline: 2.5px solid var(--gold); outline-offset: 1px; }
 .search input { flex: 1; min-width: 0; border: 0; background: transparent; font: 500 16px var(--sans); color: var(--ink); outline: none; }
 .search input::placeholder { color: #67625A; }
-.sheet-note { font-size: 13px; color: var(--muted); margin: 10px 2px 4px; min-height: 1em; }
+.sheet-note { flex: none; font-size: 13px; color: var(--muted); margin: 10px 2px 4px; min-height: 1em; overflow-wrap: anywhere; }
 .results { list-style: none; margin: 0 -4px; padding: 0 0 8px; overflow-y: auto; overscroll-behavior: contain; }
 .result {
   display: flex; align-items: center; gap: 12px; width: 100%; min-height: 56px; padding: 8px 10px; border: 0; border-radius: 14px;
@@ -359,7 +394,7 @@ svg { flex: none; }
   .masthead { height: 284px; }
   .brand h1 { font-size: 40px; }
   .meeting-time { font-size: 42px; }
-  .meeting-head { flex-direction: row; justify-content: space-between; align-items: flex-start; }
+  .meeting-head { flex-direction: row; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; }
   .meeting-actions .btn { flex: none; }
 }
 

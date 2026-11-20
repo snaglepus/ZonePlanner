@@ -3,49 +3,10 @@ import * as S from "./js/strings.js";
 import { MAX_USER_ZONES, validTz, rowsToLink, rawParam, linkToRows, followHome } from "./js/zones.js";
 import { STATE_KEY, BACKUP_KEY, LEGACY_KEY, LENS, loadState, serializeState, createSaver } from "./js/state.js";
 import { wheelScroll } from "./js/scroll.js";
+import { zoneInfo, abbreviationZones, searchCities } from "./js/search.js";
 
 const SLOT_MIN = 15;
 const SLOT_MS = SLOT_MIN * 60000;
-
-const CITIES = [
-  ["Honolulu", "United States", "Pacific/Honolulu"], ["Anchorage", "United States", "America/Anchorage"],
-  ["Los Angeles", "United States", "America/Los_Angeles"], ["San Francisco", "United States", "America/Los_Angeles"],
-  ["Seattle", "United States", "America/Los_Angeles"], ["Vancouver", "Canada", "America/Vancouver"],
-  ["Denver", "United States", "America/Denver"], ["Phoenix", "United States", "America/Phoenix"],
-  ["Chicago", "United States", "America/Chicago"], ["Mexico City", "Mexico", "America/Mexico_City"],
-  ["Austin", "United States", "America/Chicago"], ["New York", "United States", "America/New_York"],
-  ["Toronto", "Canada", "America/Toronto"], ["Boston", "United States", "America/New_York"],
-  ["Bogotá", "Colombia", "America/Bogota"], ["Lima", "Peru", "America/Lima"],
-  ["Santiago", "Chile", "America/Santiago"], ["Halifax", "Canada", "America/Halifax"],
-  ["São Paulo", "Brazil", "America/Sao_Paulo"], ["Buenos Aires", "Argentina", "America/Argentina/Buenos_Aires"],
-  ["St. John's", "Canada", "America/St_Johns"], ["Reykjavík", "Iceland", "Atlantic/Reykjavik"],
-  ["London", "United Kingdom", "Europe/London"], ["Dublin", "Ireland", "Europe/Dublin"],
-  ["Lisbon", "Portugal", "Europe/Lisbon"], ["Paris", "France", "Europe/Paris"],
-  ["Berlin", "Germany", "Europe/Berlin"], ["Amsterdam", "Netherlands", "Europe/Amsterdam"],
-  ["Madrid", "Spain", "Europe/Madrid"], ["Rome", "Italy", "Europe/Rome"],
-  ["Stockholm", "Sweden", "Europe/Stockholm"], ["Zürich", "Switzerland", "Europe/Zurich"],
-  ["Warsaw", "Poland", "Europe/Warsaw"], ["Athens", "Greece", "Europe/Athens"],
-  ["Helsinki", "Finland", "Europe/Helsinki"], ["Kyiv", "Ukraine", "Europe/Kyiv"],
-  ["Istanbul", "Türkiye", "Europe/Istanbul"], ["Cairo", "Egypt", "Africa/Cairo"],
-  ["Lagos", "Nigeria", "Africa/Lagos"], ["Johannesburg", "South Africa", "Africa/Johannesburg"],
-  ["Nairobi", "Kenya", "Africa/Nairobi"], ["Moscow", "Russia", "Europe/Moscow"],
-  ["Riyadh", "Saudi Arabia", "Asia/Riyadh"], ["Tehran", "Iran", "Asia/Tehran"],
-  ["Dubai", "United Arab Emirates", "Asia/Dubai"], ["Karachi", "Pakistan", "Asia/Karachi"],
-  ["Mumbai", "India", "Asia/Kolkata"], ["Bengaluru", "India", "Asia/Kolkata"],
-  ["Delhi", "India", "Asia/Kolkata"], ["Kathmandu", "Nepal", "Asia/Kathmandu"],
-  ["Dhaka", "Bangladesh", "Asia/Dhaka"], ["Bangkok", "Thailand", "Asia/Bangkok"],
-  ["Jakarta", "Indonesia", "Asia/Jakarta"], ["Ho Chi Minh City", "Vietnam", "Asia/Ho_Chi_Minh"],
-  ["Singapore", "Singapore", "Asia/Singapore"], ["Kuala Lumpur", "Malaysia", "Asia/Kuala_Lumpur"],
-  ["Hong Kong", "China", "Asia/Hong_Kong"], ["Shanghai", "China", "Asia/Shanghai"],
-  ["Taipei", "Taiwan", "Asia/Taipei"], ["Manila", "Philippines", "Asia/Manila"],
-  ["Perth", "Australia", "Australia/Perth"], ["Seoul", "South Korea", "Asia/Seoul"],
-  ["Tokyo", "Japan", "Asia/Tokyo"], ["Adelaide", "Australia", "Australia/Adelaide"],
-  ["Brisbane", "Australia", "Australia/Brisbane"], ["Sydney", "Australia", "Australia/Sydney"],
-  ["Melbourne", "Australia", "Australia/Melbourne"], ["Auckland", "New Zealand", "Pacific/Auckland"]
-].map(([city, country, tz]) => ({ city, country, tz }));
-
-const cityFor = (tz) => CITIES.find((c) => c.tz === tz);
-const prettyTz = (tz) => tz.split("/").pop().replace(/_/g, " ");
 
 // ---------- State ----------
 const deviceTz = () => {
@@ -59,10 +20,7 @@ const todayISO = () => {
 
 const state = { zones: [], date: todayISO(), len: 4, hour12: null, filter: "all", start: null, editing: false };
 
-const mkZone = (tz, name) => {
-  const c = (name && CITIES.find((x) => x.tz === tz && x.city === name)) || (!name && cityFor(tz));
-  return { tz, name: name || (c ? c.city : prettyTz(tz)), country: c ? c.country : "" };
-};
+const mkZone = (tz, name) => zoneInfo(tz, name);
 
 let store = null;
 try { store = localStorage; } catch { /* storage blocked: saves become no-ops */ }
@@ -551,28 +509,19 @@ const toast = (msg) => {
 // ---------- Zone sheet ----------
 let allTz = [];
 try { allTz = Intl.supportedValuesOf("timeZone"); } catch { allTz = []; }
-const searchPool = () => {
-  const seen = new Set(CITIES.map((c) => c.city + c.tz));
-  const extra = allTz.filter((tz) => !CITIES.some((c) => c.tz === tz)).map((tz) => ({ city: prettyTz(tz), country: tz.split("/")[0].replace(/_/g, " "), tz }));
-  return CITIES.concat(extra.filter((x) => !seen.has(x.city + x.tz)));
-};
-let pool = null;
-const norm = (s) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 const renderResults = () => {
-  pool = pool || searchPool();
-  const q = norm(el.search.value.trim());
-  const list = (q ? pool.filter((c) => norm(`${c.city} ${c.country} ${c.tz}`).includes(q)) : CITIES).slice(0, 40);
+  const list = searchCities(el.search.value, { zones: allTz });
   const users = state.zones.length - 1;
   const full = users >= MAX_USER_ZONES;
   el.sheetNote.textContent = full ? S.ZONES_FULL : S.zonesAdded(users, MAX_USER_ZONES);
   if (!list.length) { el.results.innerHTML = `<li class="sheet-note">${esc(S.noMatch(el.search.value))}</li>`; return; }
   const now = Date.now();
   el.results.innerHTML = list.map((c) => {
-    const added = state.zones.some((z) => z.tz === c.tz && z.name === c.city);
+    const added = state.zones.some((z) => z.tz === c.tz && z.name === c.name);
     const isHome = c.tz === state.zones[0].tz;
     const p = localParts(c.tz, now);
-    return `<li><button type="button" class="result" role="option" data-tz="${esc(c.tz)}" data-name="${esc(c.city)}" ${added || isHome || full ? "disabled" : ""} aria-selected="false">
-      <span class="r-main"><b>${esc(c.city)}</b><span>${esc(c.country)} · ${offLabel(p.off)}</span></span>
+    return `<li><button type="button" class="result" role="option" data-tz="${esc(c.tz)}" data-name="${esc(c.name)}" ${added || isHome || full ? "disabled" : ""} aria-selected="false">
+      <span class="r-main"><b>${esc(c.name)}</b><span>${esc(c.country)} · ${offLabel(p.off)}</span></span>
       ${added ? icon("check") : `<span class="r-time">${hhmm(p)}<span>${esc(S.BAND_LABEL[classify(p.mod)])}</span></span>`}
     </button></li>`;
   }).join("");
@@ -585,15 +534,13 @@ el.addZone.addEventListener("click", () => {
 });
 el.search.addEventListener("input", renderResults);
 el.search.addEventListener("keydown", (e) => {
-  if (e.key === "Enter") { e.preventDefault(); const first = el.results.querySelector(".result:not(:disabled)"); if (first) first.click(); }
+  if (e.key === "Enter") { e.preventDefault(); if (abbreviationZones(el.search.value).length > 1) return; const first = el.results.querySelector(".result:not(:disabled)"); if (first) first.click(); }
 });
 el.results.addEventListener("click", (e) => {
   const b = e.target.closest(".result");
   if (!b || b.disabled) return;
-  const z = mkZone(b.dataset.tz, b.dataset.name);
+  const z = zoneInfo(b.dataset.tz, b.dataset.name);
   if (z.tz === state.zones[0].tz || state.zones.length - 1 >= MAX_USER_ZONES || state.zones.some((x) => x.tz === z.tz && x.name === z.name)) return;
-  const c = CITIES.find((x) => x.tz === z.tz && x.city === z.name);
-  z.country = c ? c.country : "";
   state.zones.push(z);
   render({ keepStart: true });
   toast(S.added(z.name));

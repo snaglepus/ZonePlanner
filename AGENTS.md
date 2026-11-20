@@ -36,7 +36,8 @@ tests.
   downloads it from GeoNames). Don't hand-edit `js/cities.js`; change the
   generator (or `scripts/pinned-cities.js`, the 68 cities it pins) and rerun it.
 - `test/`: unit tests (`node:test`) for the time engine, the zone rules, the
-  stored state, the city data and the wheel scroll decision.
+  stored state, the city data and the wheel scroll decision, plus a static
+  CSP check of `index.html` (`test/csp.test.js`).
 - `assets/fonts/`: self-hosted woff2 fonts. Don't add CDN or third-party requests.
 
 Rules that hold across the app:
@@ -53,7 +54,14 @@ Rules that hold across the app:
   `zoneplanner:v1` key is migrated once and never written. Stored zones and
   link zones both go through `userRows` in `js/zones.js`.
 - Any string from the share-link hash or localStorage goes through `esc()` or
-  `textContent` before it reaches the DOM.
+  `textContent` before it reaches the DOM. The page also enforces the PRD's
+  Content-Security-Policy (§10.3) with a `<meta>` tag at the top of
+  `index.html`'s `<head>`, so: no inline styles (`style` attributes or
+  `<style>`), no inline scripts or inline event handlers (`on*`), and no URL
+  that isn't same-origin. JavaScript sets styles only through the CSSOM
+  (`el.style.*`, `style.setProperty`). The CSP doesn't replace escaping;
+  `esc()`/`textContent` is still required. `test/csp.test.js` guards
+  `index.html`.
 - User-facing strings live in `js/strings.js`, whose functions return plain
   text and never escape. Any strings-module result that goes into `innerHTML`
   is wrapped in `esc()` at the call site in `app.js`, so it is escaped exactly

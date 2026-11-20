@@ -91,7 +91,10 @@
     <section class="board card" aria-labelledby="boardTitle">
       <div class="board-head">
         <h2 id="boardTitle">Zones <span class="count" id="zoneCount"></span></h2>
-        <button class="btn btn-ghost" type="button" id="editBtn" aria-pressed="false">Edit</button>
+        <div class="board-actions">
+          <button class="btn btn-ghost" type="button" id="nowBtn" hidden>Now</button>
+          <button class="btn btn-ghost" type="button" id="editBtn" aria-pressed="false">Edit</button>
+        </div>
       </div>
       <p id="zoneLimit" class="sheet-note" hidden></p>
       <div class="seg seg-filter" role="radiogroup" aria-label="Show hours" id="filterSeg">
@@ -103,7 +106,7 @@
 
       <div class="timeline" id="timeline">
         <input type="range" id="scrub" class="scrub" min="0" max="92" step="1" value="0" aria-label="Meeting start time">
-        <div class="rows" id="rows" tabindex="0" role="region"><div class="selbar" id="selbar" aria-hidden="true"></div></div>
+        <div class="rows" id="rows" tabindex="0" role="region"><div class="selbar" id="selbar" aria-hidden="true"></div><div class="nowline" id="nowLine" aria-hidden="true" hidden></div></div>
       </div>
 
       <ul class="legend" aria-label="Legend">

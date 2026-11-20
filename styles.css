@@ -188,6 +188,8 @@ svg { flex: none; }
 .board { padding: 16px 0 16px; }
 .board-head { display: flex; align-items: center; justify-content: space-between; padding: 0 12px 0 18px; }
 .board-head h2 { font: 400 20px/1.2 var(--serif); color: var(--ink); }
+.board-actions { display: flex; align-items: center; gap: 4px; }
+#nowBtn[hidden] { display: none; }
 .count { font: 600 13px var(--sans); color: var(--muted); margin-left: 4px; }
 .board > .sheet-note { margin: 6px 18px 0; }
 .seg-filter { margin: 12px 18px 0; }
@@ -284,6 +286,17 @@ svg { flex: none; }
   background: var(--gold); border-radius: 9px 9px 0 0;
 }
 .timeline.editing .selbar { opacity: 0; }
+
+/* now line: ink, round dot cap in the Everyone row's top padding, jumps a minute at a time */
+.nowline {
+  position: absolute; top: 12px; bottom: 2px; left: 0; width: 2px; margin-left: -1px;
+  background: var(--ink); pointer-events: none; z-index: 2;
+}
+.nowline::before {
+  content: ""; position: absolute; left: 50%; top: -4px; width: 8px; height: 8px; margin-left: -4px;
+  background: var(--ink); border-radius: 50%;
+}
+.nowline[hidden] { display: none; }
 
 .legend { list-style: none; margin: 16px 0 0; padding: 14px 18px 0; border-top: 1px solid var(--line); display: flex; flex-wrap: wrap; gap: 8px 18px; font-size: 13px; font-weight: 600; color: var(--ink-soft); }
 .legend li { display: flex; align-items: center; gap: 8px; }

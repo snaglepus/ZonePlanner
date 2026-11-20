@@ -1,4 +1,5 @@
-import { BAND_NAME, classify, goodStep, homeDay, cellLabel, localParts, pad, hhmm, offLabel, weekday } from "./js/time.js";
+import { BAND_NAME, classify, goodStep, homeDay, cellLabel, localParts, pad, hhmm, offLabel, weekday, slotAt } from "./js/time.js";
+import { createClock } from "./js/clock.js";
 import * as S from "./js/strings.js";
 import { MAX_USER_ZONES, validTz, rowsToLink, rawParam, linkToRows, followHome } from "./js/zones.js";
 import { STATE_KEY, BACKUP_KEY, LEGACY_KEY, LENS, FILTERS, loadState, serializeState, createSaver } from "./js/state.js";
@@ -115,7 +116,7 @@ const suggestions = () => {
 // ---------- DOM ----------
 const $ = (id) => document.getElementById(id);
 const el = {
-  rows: $("rows"), scrub: $("scrub"), selbar: $("selbar"), timeline: $("timeline"),
+  rows: $("rows"), scrub: $("scrub"), selbar: $("selbar"), nowLine: $("nowLine"), nowBtn: $("nowBtn"), timeline: $("timeline"),
   meetingTime: $("meetingTime"), meetingSub: $("meetingSub"), verdict: $("verdict"), suggestions: $("suggestions"),
   lengthSeg: $("lengthSeg"), filterSeg: $("filterSeg"), filterEmpty: $("filterEmpty"), dateInput: $("dateInput"), dateLabel: $("dateLabel"), zoneCount: $("zoneCount"),
   addZone: $("addZone"), zoneLimit: $("zoneLimit"), editBtn: $("editBtn"), copyBtn: $("copyBtn"), shareBtn: $("shareBtn"),
@@ -216,7 +217,7 @@ const renderRows = () => {
     rows.push(row);
   });
   el.rows.style.setProperty("--n", String(model.n));
-  el.rows.replaceChildren(...rows, el.selbar);
+  el.rows.replaceChildren(...rows, el.selbar, el.nowLine);
   const users = state.zones.length - 1;
   el.zoneCount.textContent = S.zoneCount(users, MAX_USER_ZONES);
   el.addZone.disabled = users >= MAX_USER_ZONES;
@@ -330,6 +331,38 @@ const revealSelection = () => {
   else if (b > x + view) el.rows.scrollLeft = b - view + slot;
 };
 
+// Line position in track coordinates and the track's offset, kept by placeNow() for the scroll check.
+let nowX = null, nowLeft = 0;
+/** Show the Now button unless the line is on screen on today's grid. */
+const nowOffscreen = () => {
+  if (state.date !== todayISO() || el.nowLine.hidden || nowX == null) return true;
+  const x = el.rows.scrollLeft;
+  return nowX < x || nowX > x + el.rows.clientWidth - nowLeft;
+};
+const updateNowBtn = () => { el.nowBtn.hidden = !nowOffscreen(); };
+/** Move the now line to the current minute; writes only its transform and hidden, and the button's hidden. */
+const placeNow = () => {
+  const s = slotAt(Date.now(), model.t0, model.n);
+  if (s == null) {
+    el.nowLine.hidden = true;
+    nowX = null;
+  } else {
+    const { left, slot } = trackGeom();
+    nowX = s * slot;
+    nowLeft = left;
+    el.nowLine.hidden = false;
+    el.nowLine.style.transform = `translateX(${left + nowX}px)`;
+  }
+  updateNowBtn();
+};
+/** Scroll the grid so the now line sits one hour column right of the header column. */
+const revealNow = () => {
+  const s = slotAt(Date.now(), model.t0, model.n);
+  if (s == null) return;
+  const { slot } = trackGeom();
+  el.rows.scrollLeft = Math.max(0, s * slot - 4 * slot);
+};
+
 const renderDate = () => {
   el.dateInput.value = state.date;
   const [y, m, d] = state.date.split("-").map(Number);
@@ -368,6 +401,7 @@ const render = ({ keepStart = false } = {}) => {
   el.timeline.classList.toggle("editing", state.editing);
   save();
   if (location.hash) history.replaceState(null, "", shareURL());
+  placeNow();
 };
 
 // ---------- Interaction ----------
@@ -669,6 +703,19 @@ $("prevDay").addEventListener("click", () => shiftDay(-1));
 $("nextDay").addEventListener("click", () => shiftDay(1));
 el.dateInput.addEventListener("change", () => { if (el.dateInput.value) { state.date = el.dateInput.value; render(); } });
 
+el.nowBtn.textContent = S.NOW;
+el.nowBtn.addEventListener("click", () => {
+  const hadFocus = document.activeElement === el.nowBtn;
+  if (state.date !== todayISO()) {
+    state.date = todayISO();
+    render();
+  }
+  revealNow();
+  updateNowBtn();
+  if (hadFocus) el.editBtn.focus();
+});
+el.rows.addEventListener("scroll", updateNowBtn, { passive: true });
+
 el.editBtn.addEventListener("click", () => {
   cancelReorder();
   state.editing = !state.editing;
@@ -768,7 +815,7 @@ el.results.addEventListener("click", (e) => {
 });
 el.sheet.addEventListener("click", (e) => { if (e.target === el.sheet) el.sheet.close(); });
 
-addEventListener("resize", () => { cancelReorder(); renderSelection(); });
+addEventListener("resize", () => { cancelReorder(); renderSelection(); placeNow(); });
 addEventListener("hashchange", () => { load(); render(); if (el.sheet.open) renderResults(); });
 addEventListener("pagehide", () => saver.flush());
 
@@ -781,12 +828,18 @@ const checkHome = () => {
   if (el.sheet.open) renderResults();
   toast(S.nowIn(state.zones[0].name));
 };
-document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") checkHome(); });
-addEventListener("focus", checkHome);
-setInterval(checkHome, 60000);
+
+// One shared minute clock drives every live update.
+const clock = createClock();
+clock.subscribe(placeNow);
+clock.subscribe(checkHome);
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") clock.resume(); else clock.pause(); });
+addEventListener("focus", () => { checkHome(); placeNow(); });
 
 load();
 render();
+if (state.date === todayISO()) revealNow();
+if (document.visibilityState === "hidden") clock.pause(); else clock.start();
 
 // Offline support. Where service workers are unavailable or fail, the app runs as before.
 if ("serviceWorker" in navigator) {

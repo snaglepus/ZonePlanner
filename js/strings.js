@@ -43,6 +43,7 @@ export const scrubText = (from, to, homeName, verdict) => `${from} to ${to} ${ho
 export const today = (date) => `Today, ${date}`;
 export const DONE = "Done";
 export const EDIT = "Edit";
+export const NOW = "Now";
 export const COPY_PROMPT = "Copy this text:";
 
 // Toasts

@@ -291,6 +291,8 @@ Tactile, confident pills that compress slightly when pressed.
 ### Segmented control
 A Pressed Paper pill track with 4px inset; options are 38px pills in muted Label type. The selected option fills Valley Sage with Paper on Sage text.
 
+The hour filter (All / Good / Best, named "Show hours") is the same control in the Zones board, just above the grid, with 44px options. It is a radio group: Tab lands on the checked option, and the arrow keys move and select without wrapping.
+
 ### Cards / Containers
 - **Corner Style:** 22px.
 - **Background:** Cream Card on Warm Paper.
@@ -314,6 +316,8 @@ The board is one native horizontal scroller. Each row is a sticky header cell (1
 Each cell is labelled, left-aligned in 10.5px/700 tabular figures, with that zone's local time at the column start: `9` on the hour, `3:30` or `3:45` for offset zones. Bands keep their 15-minute accuracy under the cells, so an offset zone changes band or heat step part-way through a column: Best Sage solid, the Good heat steps 135° hatched, Pale Clay plain with the Clay Rule inset. Each label sits on its own small Cream Card backing (3px radius) in Ink, so it stays legible whatever band runs under it, including where the band changes inside the column. Checked contrast: Ink on Cream Card is 13.2:1, and Ink is at least 4.5:1 on every heat-step colour (4.9:1 at the darkest, `good-1-hatch`); `test/tokens.test.js` holds both. A 1px Paper Rule edges the header column.
 
 The overlap row ("Everyone") sits first with a serif name and the shared-hours summary; its cells have no labels, since the home row's labels already mark the time. Swiping scrolls the cells of every row together while the header column stays put; tapping a cell starts the meeting at the quarter-hour under the finger. A single transparent bar with a 2px gold border, a gold tab on top and Gold Glow spans every row at the chosen time, passing under the header column; it moves on `transform` only, on the shared ease (0.45s), and its width changes without animation. When the selection changes from a chip, the length control, the keyboard or a new day, the grid scrolls just enough to show the whole bar.
+
+The hour filter dims, in every row, each 15-minute slot where the Everyone row falls below the chosen band: Good keeps slots where the Everyone row is Good or Best, Best keeps only Best, All keeps everything. Dimming follows the slots, not the columns, so with a :30 or :45 zone it can start part-way through a column. Dimmed band segments drop to 30% opacity against the card, a luminance change rather than a hue change, so dimmed and kept slots stay apart in greyscale; kept segments and the hour labels are unchanged. Suggestions only come from spans that are entirely kept. When nothing is kept, the grid stays, fully dimmed, and a muted status line above it says "No hours are Best for everyone on this day" (or Good). Selection can still land on dimmed slots.
 
 On desktop, a vertical mouse wheel over the grid scrolls it sideways until either end, then lets the page scroll. A mouse drag on the hour cells pans the grid without selecting (grab cursor at rest, grabbing while dragging, no text selection); a click without moving still selects. The grid itself takes focus: it shows the gold focus ring, inset so it stays inside the card, and Left/Right move it one hour column at a time.
 

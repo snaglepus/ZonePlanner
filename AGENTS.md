@@ -1,7 +1,7 @@
 # ZonePlanner
 
-A mobile-first time zone meeting planner: compare 3 to 8 zones and find the
-hour that works for everyone. Product context is in `PRODUCT.md`; the design
+A mobile-first time zone meeting planner: compare up to 8 zones (home plus up to
+7) and find the hour that works for everyone. Product context is in `PRODUCT.md`; the design
 system (tokens, type, components) is in `DESIGN.md`. The visual direction comes
 from `docs/inspiraton.jpg` and is binding.
 
@@ -18,8 +18,11 @@ tests.
   rendering and interactions.
 - `js/time.js`: the time engine (`Intl.DateTimeFormat`): offsets, local parts,
   zoned midnight, band classification and UTC offset labels.
+- `js/zones.js`: the zone list rules: zone validation, user rows (home
+  dropped, capped at 7), share-link `z` encoding and parsing, and following a
+  new device zone.
 - `js/strings.js`: every user-facing string JavaScript builds (en-AU).
-- `test/`: unit tests (`node:test`) for the time engine.
+- `test/`: unit tests (`node:test`) for the time engine and the zone rules.
 - `assets/fonts/`: self-hosted woff2 fonts. Don't add CDN or third-party requests.
 
 Rules that hold across the app:
@@ -27,13 +30,16 @@ Rules that hold across the app:
 - Business 09:00–17:00, edge 06:00–09:00 and 17:00–20:00, inconvenient
   otherwise, local to each zone. 15-minute slots across the home zone's day.
 - Bands never rely on colour alone (solid, hatched, pale).
+- The home row is always the device zone, recomputed on load and followed
+  live; it is never stored or read from a link. The rest are at most 7 user
+  rows.
 - Any string from the share-link hash or localStorage goes through `esc()` or
   `textContent` before it reaches the DOM.
 - User-facing strings live in `js/strings.js`, whose functions return plain
   text and never escape. Any strings-module result that goes into `innerHTML`
   is wrapped in `esc()` at the call site in `app.js`, so it is escaped exactly
   once; `textContent`, `setAttribute` and `window.prompt` take it as is.
-- `js/time.js` stays DOM-free: no `document`, `window`, `location`,
+- `js/time.js` and `js/zones.js` stay DOM-free: no `document`, `window`, `location`,
   `localStorage`, `navigator` or `history`, so it imports in Node.
 - Every `$("id")` / `getElementById` lookup stays in `app.js` with a literal id.
 - Touch targets are at least 44px; no horizontal scroll at 390px wide.

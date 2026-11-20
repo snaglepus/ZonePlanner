@@ -22,7 +22,16 @@ tests.
   dropped, capped at 7), share-link `z` encoding and parsing, and following a
   new device zone.
 - `js/strings.js`: every user-facing string JavaScript builds (en-AU).
-- `test/`: unit tests (`node:test`) for the time engine and the zone rules.
+- `js/cities.js`: generated city data (about 500 cities), the country-to-weekend
+  map and the time zone abbreviation table. DOM-free. City data from GeoNames,
+  licensed CC BY 4.0; the credit is in its header and the page footnote.
+- `scripts/build-city-data.js`: dev-only generator for `js/cities.js`, never
+  loaded by the page. Regenerate with
+  `node scripts/build-city-data.js [path-to-cities15000.zip]` (no path
+  downloads it from GeoNames). Don't hand-edit `js/cities.js`; change the
+  generator (or the `CITIES` list in `app.js`, which it pins) and rerun it.
+- `test/`: unit tests (`node:test`) for the time engine, the zone rules and the
+  city data.
 - `assets/fonts/`: self-hosted woff2 fonts. Don't add CDN or third-party requests.
 
 Rules that hold across the app:
@@ -39,8 +48,9 @@ Rules that hold across the app:
   text and never escape. Any strings-module result that goes into `innerHTML`
   is wrapped in `esc()` at the call site in `app.js`, so it is escaped exactly
   once; `textContent`, `setAttribute` and `window.prompt` take it as is.
-- `js/time.js` and `js/zones.js` stay DOM-free: no `document`, `window`, `location`,
-  `localStorage`, `navigator` or `history`, so it imports in Node.
+- `js/time.js`, `js/zones.js` and `js/cities.js` stay DOM-free: no `document`,
+  `window`, `location`, `localStorage`, `navigator` or `history`, so they
+  import in Node.
 - Every `$("id")` / `getElementById` lookup stays in `app.js` with a literal id.
 - Touch targets are at least 44px; no horizontal scroll at 390px wide.
 

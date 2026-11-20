@@ -1,7 +1,7 @@
 import { BAND_NAME, classify, dayDiff, goodStep, homeDay, localParts, localeHour12, pad, offLabel, weekday, slotAt, zoneTag } from "./js/time.js";
 import { createClock } from "./js/clock.js";
 import * as S from "./js/strings.js";
-import { MAX_USER_ZONES, validTz, rowsToLink, rawParam, linkToRows, followHome } from "./js/zones.js";
+import { MAX_USER_ZONES, validTz, rowsToLink, rawParam, linkToRows, followHome, replaceRow } from "./js/zones.js";
 import { STATE_KEY, BACKUP_KEY, LEGACY_KEY, LENS, FILTERS, loadState, serializeState, createSaver } from "./js/state.js";
 import { wheelScroll } from "./js/scroll.js";
 import { moveRow } from "./js/reorder.js";
@@ -123,7 +123,7 @@ const el = {
   meetingTime: $("meetingTime"), meetingSub: $("meetingSub"), verdict: $("verdict"), suggestions: $("suggestions"),
   lengthSeg: $("lengthSeg"), filterSeg: $("filterSeg"), filterEmpty: $("filterEmpty"), clockSeg: $("clockSeg"), legendBest: $("legendBest"), legendGood: $("legendGood"), dateInput: $("dateInput"), dateLabel: $("dateLabel"), zoneCount: $("zoneCount"),
   addZone: $("addZone"), zoneLimit: $("zoneLimit"), editBtn: $("editBtn"), copyBtn: $("copyBtn"), shareBtn: $("shareBtn"),
-  sheet: $("zoneSheet"), search: $("zoneSearch"), results: $("results"), sheetNote: $("sheetNote"), toast: $("toast")
+  sheet: $("zoneSheet"), sheetTitle: $("sheetTitle"), search: $("zoneSearch"), results: $("results"), sheetNote: $("sheetNote"), toast: $("toast")
 };
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const icon = (id) => `<svg class="ico" aria-hidden="true"><use href="#i-${id}"/></svg>`;
@@ -219,7 +219,7 @@ const renderRows = () => {
     const at = make("div", "row-at");
     at.dataset.at = "";
     const actions = make("div", "row-actions");
-    if (idx !== 0) actions.append(actBtn("remove", idx, S.removeZone(z.name), "x"));
+    if (idx !== 0) actions.append(actBtn("change", idx, S.changeZone(z.name), "edit"), actBtn("remove", idx, S.removeZone(z.name), "x"));
     head.append(name, at, actions);
     if (idx !== 0) {
       const grip = make("div", "row-grip");
@@ -474,6 +474,11 @@ el.rows.addEventListener("click", (e) => {
   }
   const i = +btn.dataset.idx;
   const z = state.zones[i];
+  if (btn.dataset.act === "change" && i > 0 && z) {
+    replacing = { idx: i, zone: zoneOf(z), name: z.name };
+    openSheet(S.changeTitle(z.name));
+    return;
+  }
   if (btn.dataset.act === "remove" && i > 0 && z) {
     state.zones.splice(i, 1);
     toast(S.removed(z.name));
@@ -828,11 +833,13 @@ const toast = (msg) => {
 // ---------- Zone sheet ----------
 let allTz = [];
 try { allTz = Intl.supportedValuesOf("timeZone"); } catch { allTz = []; }
+// While a Change is open: the row being replaced, as it was when the sheet opened.
+let replacing = null;
 const renderResults = () => {
   const list = searchCities(el.search.value, { zones: allTz });
   const users = state.zones.length - 1;
-  const full = users >= MAX_USER_ZONES;
-  el.sheetNote.textContent = full ? S.ZONES_FULL : S.zonesAdded(users, MAX_USER_ZONES);
+  const full = !replacing && users >= MAX_USER_ZONES;
+  el.sheetNote.textContent = replacing ? S.changeNote(replacing.name) : full ? S.ZONES_FULL : S.zonesAdded(users, MAX_USER_ZONES);
   if (!list.length) { el.results.innerHTML = `<li class="sheet-note">${esc(S.noMatch(el.search.value))}</li>`; return; }
   const now = Date.now();
   el.results.innerHTML = list.map((c) => {
@@ -854,36 +861,59 @@ const renderResults = () => {
     </button></li>`;
   }).join("");
 };
-el.addZone.addEventListener("click", () => {
+const openSheet = (title) => {
+  el.sheetTitle.textContent = title;
   el.search.value = "";
   renderResults();
   el.sheet.showModal();
   if (matchMedia("(pointer: fine)").matches) el.search.focus();
+};
+el.addZone.addEventListener("click", () => {
+  replacing = null;
+  openSheet(S.ADD_TITLE);
 });
 el.search.addEventListener("input", renderResults);
 el.search.addEventListener("keydown", (e) => {
   if (e.key === "Enter") { e.preventDefault(); if (abbreviationZones(el.search.value).length > 1) return; const first = el.results.querySelector(".result:not(:disabled)"); if (first) first.click(); }
 });
+// Whether `z` is the home zone or already a user row other than `skip`.
+const clashes = (z, skip) => "offsetMin" in z
+  ? state.zones.some((x, i) => i > 0 && i !== skip && x.offsetMin === z.offsetMin)
+  : z.tz === state.zones[0].tz || state.zones.some((x, i) => i !== skip && x.tz === z.tz && x.name === z.name);
 el.results.addEventListener("click", (e) => {
   const b = e.target.closest(".result");
   if (!b || b.disabled) return;
-  let z;
-  if ("offset" in b.dataset) {
-    z = mkOffset(Number(b.dataset.offset));
-    if (state.zones.length - 1 >= MAX_USER_ZONES || state.zones.slice(1).some((x) => x.offsetMin === z.offsetMin)) return;
-  } else {
-    z = zoneInfo(b.dataset.tz, b.dataset.name);
-    if (z.tz === state.zones[0].tz || state.zones.length - 1 >= MAX_USER_ZONES || state.zones.some((x) => x.tz === z.tz && x.name === z.name)) return;
-  }
+  const z = "offset" in b.dataset ? mkOffset(Number(b.dataset.offset)) : zoneInfo(b.dataset.tz, b.dataset.name);
+  if (replacing) { replaceZone(z); return; }
+  if (state.zones.length - 1 >= MAX_USER_ZONES || clashes(z, -1)) return;
   state.zones.push(z);
   render({ keepStart: true });
   toast(S.added(z.name));
   if (state.zones.length - 1 >= MAX_USER_ZONES) el.sheet.close(); else renderResults();
 });
+const replaceZone = (z) => {
+  const { idx, zone, name } = replacing;
+  const cur = state.zones[idx];
+  if (!cur || zoneOf(cur) !== zone || cur.name !== name) { el.sheet.close(); return; }
+  if (clashes(z, idx) || (zoneOf(z) === zone && z.name === name)) return;
+  state.zones = replaceRow(state.zones, idx, z);
+  render({ keepStart: true });
+  toast(S.changed(name, z.name));
+  el.sheet.close();
+  const btn = el.rows.querySelector(`button[data-act="change"][data-idx="${idx}"]`);
+  if (btn) btn.focus();
+};
 el.sheet.addEventListener("click", (e) => { if (e.target === el.sheet) el.sheet.close(); });
+el.sheet.addEventListener("close", () => {
+  replacing = null;
+  el.sheetTitle.textContent = S.ADD_TITLE;
+});
+
+// After the rows change underneath it: a Change closes, since its row may have moved; Add refreshes.
+const refreshSheet = () => { if (replacing) el.sheet.close(); else renderResults(); };
 
 addEventListener("resize", () => { cancelReorder(); renderSelection(); placeNow(); });
-addEventListener("hashchange", () => { load(); render(); if (el.sheet.open) renderResults(); });
+addEventListener("hashchange", () => { load(); render(); if (el.sheet.open) refreshSheet(); });
 addEventListener("pagehide", () => saver.flush());
 
 // The home row follows the device zone, e.g. after travel.
@@ -892,7 +922,7 @@ const checkHome = () => {
   if (tz === state.zones[0].tz) return;
   state.zones = [mkZone(tz), ...followHome(state.zones.slice(1), tz)];
   render();
-  if (el.sheet.open) renderResults();
+  if (el.sheet.open) refreshSheet();
   toast(S.nowIn(state.zones[0].name));
 };
 

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { MAX_USER_ZONES, followHome, linkToRows, parseOffset, rawParam, rowsToLink, userRows, validTz } from "../js/zones.js";
+import { MAX_USER_ZONES, followHome, linkToRows, parseOffset, rawParam, replaceRow, rowsToLink, userRows, validTz } from "../js/zones.js";
 
 const tzs = (rows) => rows.map((r) => r.tz);
 
@@ -120,4 +120,23 @@ test("linkToRows drops malformed and invalid offset segments, keeping the rest",
 test("followHome keeps offset rows", () => {
   const rows = [{ offsetMin: 0 }, { tz: "Europe/London", name: "London" }, { offsetMin: 330 }];
   assert.deepEqual(followHome(rows, "Europe/London"), [rows[0], rows[2]]);
+});
+
+const THREE = [{ tz: "Europe/London", name: "London" }, { tz: "Asia/Tokyo", name: "Tokyo" }, { tz: "Australia/Sydney", name: "Sydney" }];
+const PARIS = { tz: "Europe/Paris", name: "Paris" };
+
+test("replaceRow swaps the middle row and keeps the others in place", () => {
+  assert.deepEqual(replaceRow(THREE, 1, PARIS), [THREE[0], PARIS, THREE[2]]);
+});
+
+test("replaceRow does not mutate its input", () => {
+  const rows = THREE.slice();
+  const out = replaceRow(rows, 0, PARIS);
+  assert.notEqual(out, rows);
+  assert.deepEqual(rows, THREE);
+});
+
+test("replaceRow returns the input unchanged for an out-of-range index", () => {
+  assert.equal(replaceRow(THREE, 3, PARIS), THREE);
+  assert.equal(replaceRow(THREE, -1, PARIS), THREE);
 });

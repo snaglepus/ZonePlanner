@@ -84,3 +84,6 @@ export const linkToRows = (z, homeTz, max = MAX_USER_ZONES) => {
 
 /** User rows after the device moves to `newHomeTz`: any row in that zone goes, the rest keep their order. */
 export const followHome = (rows, newHomeTz) => rows.filter((r) => r.tz !== newHomeTz);
+
+/** `rows` with `rows[idx]` swapped for `zone`, the rest in order; `rows` itself when `idx` is out of range. */
+export const replaceRow = (rows, idx, zone) => (Number.isInteger(idx) && idx >= 0 && idx < rows.length ? rows.map((r, i) => (i === idx ? zone : r)) : rows);

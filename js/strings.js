@@ -46,6 +46,7 @@ export const linkDropped = (n) => `Left out ${n} ${n === 1 ? "zone" : "zones"} f
 export const TIMES_COPIED = "Meeting times copied";
 export const LINK_COPIED = "Link to this plan copied";
 export const added = (name) => `Added ${name}`;
+export const STATE_RESET = "Your saved zones couldn't be read, so the defaults are back.";
 
 // Zone sheet
 export const ZONES_FULL = "Maximum of 7 time zones. Remove one to add another.";

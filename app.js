@@ -1,10 +1,10 @@
 import { BAND_NAME, classify, homeDay, cellLabel, localParts, pad, hhmm, offLabel, weekday } from "./js/time.js";
 import * as S from "./js/strings.js";
-import { MAX_USER_ZONES, validTz, userRows, rowsToLink, rawParam, linkToRows, followHome } from "./js/zones.js";
+import { MAX_USER_ZONES, validTz, rowsToLink, rawParam, linkToRows, followHome } from "./js/zones.js";
+import { STATE_KEY, BACKUP_KEY, LEGACY_KEY, LENS, loadState, serializeState, createSaver } from "./js/state.js";
 
 const SLOT_MIN = 15;
 const SLOT_MS = SLOT_MIN * 60000;
-const STORE_KEY = "zoneplanner:v1";
 
 const CITIES = [
   ["Honolulu", "United States", "Pacific/Honolulu"], ["Anchorage", "United States", "America/Anchorage"],
@@ -56,35 +56,48 @@ const todayISO = () => {
   return `${p.date.getUTCFullYear()}-${pad(p.date.getUTCMonth() + 1)}-${pad(p.date.getUTCDate())}`;
 };
 
-const state = { zones: [], date: todayISO(), len: 4, start: null, editing: false };
+const state = { zones: [], date: todayISO(), len: 4, hour12: null, filter: "all", start: null, editing: false };
 
 const mkZone = (tz, name) => {
   const c = (name && CITIES.find((x) => x.tz === tz && x.city === name)) || (!name && cityFor(tz));
   return { tz, name: name || (c ? c.city : prettyTz(tz)), country: c ? c.country : "" };
 };
 
+let store = null;
+try { store = localStorage; } catch { /* storage blocked: saves become no-ops */ }
+const saver = createSaver({ storage: store, key: STATE_KEY });
+
 // The home row is always the device zone; storage and links only supply the user rows.
 const load = () => {
+  saver.flush();
   const home = deviceTz();
   const hash = new URLSearchParams(location.hash.slice(1));
-  let saved = null;
-  try { saved = JSON.parse(localStorage.getItem(STORE_KEY) || "null"); } catch { /* storage unavailable */ }
-  let picked;
-  if (hash.get("z")) {
-    picked = linkToRows(rawParam(location.hash.slice(1), "z"), home);
-    if (/^\d{4}-\d{2}-\d{2}$/.test(hash.get("d") || "")) state.date = hash.get("d");
-    if (["2", "4", "6", "8"].includes(hash.get("l"))) state.len = +hash.get("l");
-  } else if (saved && Array.isArray(saved.zones)) {
-    picked = userRows(saved.zones, home);
-    if ([2, 4, 6, 8].includes(saved.len)) state.len = saved.len;
-  } else {
-    picked = userRows(["America/New_York", "Europe/London", "Asia/Singapore", "Australia/Sydney"].map((tz) => ({ tz })), home);
+  let text = null;
+  let legacyText = null;
+  try { text = localStorage.getItem(STATE_KEY); } catch { /* storage unavailable */ }
+  try { legacyText = localStorage.getItem(LEGACY_KEY); } catch { /* storage unavailable */ }
+  const stored = loadState(text, legacyText, home);
+  if (stored.status === "reset") {
+    try { localStorage.setItem(BACKUP_KEY, text); } catch { /* ignore */ }
+    toast(S.STATE_RESET);
   }
-  state.zones = [mkZone(home), ...picked.rows.map((z) => mkZone(z.tz, z.name))];
-  if (picked.dropped > 0) toast(S.linkDropped(picked.dropped));
+  state.len = stored.state.len;
+  state.hour12 = stored.state.hour12;
+  state.filter = stored.state.filter;
+  let rows = stored.state.zones;
+  if (hash.get("z")) {
+    const picked = linkToRows(rawParam(location.hash.slice(1), "z"), home);
+    rows = picked.rows;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(hash.get("d") || "")) state.date = hash.get("d");
+    if (LENS.map(String).includes(hash.get("l"))) state.len = +hash.get("l");
+    if (picked.dropped > 0) toast(S.linkDropped(picked.dropped));
+  }
+  // Offset entries ({offsetMin}) have no row type yet, so they are left out here and not saved back.
+  state.zones = [mkZone(home), ...rows.filter((z) => "tz" in z).map((z) => mkZone(z.tz, z.name))];
 };
 const save = () => {
-  try { localStorage.setItem(STORE_KEY, JSON.stringify({ zones: state.zones.slice(1).map(({ tz, name }) => ({ tz, name })), len: state.len })); } catch { /* ignore */ }
+  const zones = state.zones.slice(1).map(({ tz, name }) => ({ tz, name }));
+  saver.save(serializeState({ zones, hour12: state.hour12, filter: state.filter, len: state.len }));
 };
 const shareURL = () => `${location.origin}${location.pathname}#z=${rowsToLink(state.zones)}&d=${state.date}&l=${state.len}`;
 
@@ -416,7 +429,7 @@ el.lengthSeg.addEventListener("click", (e) => {
 });
 el.lengthSeg.addEventListener("keydown", (e) => {
   if (!["ArrowLeft", "ArrowRight"].includes(e.key)) return;
-  const opts = [2, 4, 6, 8];
+  const opts = LENS;
   const i = opts.indexOf(state.len) + (e.key === "ArrowRight" ? 1 : -1);
   if (i < 0 || i >= opts.length) return;
   state.len = opts[i];
@@ -530,6 +543,7 @@ el.sheet.addEventListener("click", (e) => { if (e.target === el.sheet) el.sheet.
 
 addEventListener("resize", () => renderSelection());
 addEventListener("hashchange", () => { load(); render(); if (el.sheet.open) renderResults(); });
+addEventListener("pagehide", () => saver.flush());
 
 // The home row follows the device zone, e.g. after travel.
 const checkHome = () => {

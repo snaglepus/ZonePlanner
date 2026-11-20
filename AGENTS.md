@@ -26,6 +26,8 @@ tests.
 - `js/strings.js`: every user-facing string JavaScript builds (en-AU).
 - `js/scroll.js`: the wheel-to-horizontal scroll decision for the hour grid
   (`wheelScroll`).
+- `js/reorder.js`: the pure row reorder for drag-to-reorder (`moveRow`); the
+  home row stays fixed at index 0.
 - `js/search.js`: city search and zone naming (pure, reads `js/cities.js`).
 - `js/cities.js`: generated city data (about 500 cities), the country-to-weekend
   map and the time zone abbreviation table. DOM-free. City data from GeoNames,
@@ -36,7 +38,8 @@ tests.
   downloads it from GeoNames). Don't hand-edit `js/cities.js`; change the
   generator (or `scripts/pinned-cities.js`, the 68 cities it pins) and rerun it.
 - `test/`: unit tests (`node:test`) for the time engine, the zone rules, the
-  stored state, the city data and the wheel scroll decision, plus a static
+  stored state, the city data, the wheel scroll decision and the row reorder,
+  plus a static
   CSP check of `index.html` (`test/csp.test.js`).
 - `assets/fonts/`: self-hosted woff2 fonts. Don't add CDN or third-party requests.
 
@@ -66,8 +69,8 @@ Rules that hold across the app:
   text and never escape. Any strings-module result that goes into `innerHTML`
   is wrapped in `esc()` at the call site in `app.js`, so it is escaped exactly
   once; `textContent`, `setAttribute` and `window.prompt` take it as is.
-- `js/time.js`, `js/zones.js`, `js/state.js`, `js/scroll.js` and
-  `js/cities.js` stay DOM-free: no `document`, `window`, `location`, `localStorage`, `navigator`
+- `js/time.js`, `js/zones.js`, `js/state.js`, `js/scroll.js`, `js/reorder.js`
+  and `js/cities.js` stay DOM-free: no `document`, `window`, `location`, `localStorage`, `navigator`
   or `history`, so they import in Node.
 - Every `$("id")` / `getElementById` lookup stays in `app.js` with a literal id.
 - Touch targets are at least 44px; no horizontal scroll at 390px wide.

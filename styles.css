@@ -193,7 +193,7 @@ svg { flex: none; }
 .scrub:focus-visible ~ .rows .selbar { outline: 2.5px solid var(--gold); outline-offset: 3px; }
 
 /* one native scroller: sticky header column, hour cells aligned on absolute time */
-.rows { --slot: 11px; --head: 144px; position: relative; overflow-x: auto; overflow-y: hidden; touch-action: pan-x pan-y; }
+.rows { --slot: 11px; --head: 176px; position: relative; overflow-x: auto; overflow-y: hidden; touch-action: pan-x pan-y; }
 /* the focused grid's ring is drawn on a layer above the sticky header column, inset so the card never hides it */
 .rows:focus-visible { outline: none; }
 .timeline:has(> .rows:focus-visible)::after {
@@ -203,9 +203,9 @@ svg { flex: none; }
 .row { display: flex; width: max-content; min-width: 100%; }
 .row + .row { border-top: 1px solid var(--line); }
 .row-head {
-  position: sticky; left: 0; z-index: 3; flex: none; width: var(--head); padding: 8px 10px 8px 18px;
+  position: sticky; left: 0; z-index: 3; flex: none; width: var(--head); padding: 8px 44px 8px 18px;
   display: flex; flex-direction: column; justify-content: center; gap: 4px; background: var(--card);
-  box-shadow: 1px 0 0 var(--line);
+  box-shadow: 1px 0 0 var(--line); -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
 }
 .row-name { min-width: 0; }
 .row-name b { display: flex; align-items: center; gap: 6px; font-size: 15px; font-weight: 650; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -219,6 +219,19 @@ svg { flex: none; }
 .row-actions { display: none; gap: 6px; }
 .timeline.editing .row-actions { display: flex; }
 .timeline.editing .row-at { display: none; }
+/* grab handle at the right of each user row's header; reorder lifts the row and slides the others aside */
+.row-grip {
+  position: absolute; top: 0; right: 0; bottom: 0; width: 44px; display: flex; align-items: center; justify-content: center;
+  color: var(--muted); cursor: grab; touch-action: none;
+}
+.row-grip svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
+.rows.reordering .row:not(.lifted) { transition: transform .22s var(--ease); }
+.rows.reordering .selbar { opacity: 0; }
+.rows.reordering, .rows.reordering * { cursor: grabbing; }
+.row.lifted {
+  position: relative; z-index: 4; background: var(--card); transform: translateY(var(--dy, 0)) scale(1.02);
+  box-shadow: 0 14px 30px -12px rgba(62, 82, 72, .5), 0 1px 3px rgba(62, 82, 72, .12);
+}
 
 .track { flex: none; display: grid; width: calc(var(--n) * var(--slot)); min-height: 44px; padding: 7px 0; margin-right: 18px; }
 .track { cursor: grab; -webkit-user-select: none; user-select: none; }
@@ -320,6 +333,7 @@ svg { flex: none; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition-duration: .01ms !important; animation-duration: .01ms !important; }
+  .row.lifted { transform: translateY(var(--dy, 0)); }
 }
 
 /* grid children must be allowed to shrink below their content (chip rail scrolls instead) */

@@ -1,4 +1,4 @@
-import { BAND_NAME, classify, goodStep, homeDay, localParts, localeHour12, pad, offLabel, weekday, slotAt } from "./js/time.js";
+import { BAND_NAME, classify, dayDiff, goodStep, homeDay, localParts, localeHour12, pad, offLabel, weekday, slotAt, zoneTag } from "./js/time.js";
 import { createClock } from "./js/clock.js";
 import * as S from "./js/strings.js";
 import { MAX_USER_ZONES, validTz, rowsToLink, rawParam, linkToRows, followHome, replaceRow } from "./js/zones.js";
@@ -200,8 +200,6 @@ const renderRows = () => {
   allRow.append(allHead, trackEl(model.all));
   const rows = [allRow];
   state.zones.forEach((z, idx) => {
-    const nowP = localParts(zoneOf(z), Date.now());
-    const sub = [z.country, offLabel(nowP.off)].filter(Boolean).join(" · ");
     const row = make("div", "row");
     row.dataset.idx = String(idx);
     const head = make("div", "row-head");
@@ -213,7 +211,11 @@ const renderRows = () => {
       homeIco.setAttribute("aria-label", S.HOME_ZONE);
       b.prepend(homeIco);
     }
-    name.append(b, make("span", null, sub));
+    const live = make("span", "row-live");
+    live.append(make("small", null, S.NOW), " ", make("span", "row-time"));
+    const day = make("span", "row-day");
+    day.hidden = true;
+    name.append(b, live, make("span", "row-tag"), day);
     const at = make("div", "row-at");
     at.dataset.at = "";
     const actions = make("div", "row-actions");
@@ -236,6 +238,26 @@ const renderRows = () => {
   el.zoneLimit.textContent = S.ZONES_FULL;
   el.zoneLimit.hidden = users < MAX_USER_ZONES;
   el.rows.setAttribute("aria-label", S.rowsLabel(homeName));
+  renderLive();
+};
+
+const setText = (node, text) => { if (node.textContent !== text) node.textContent = text; };
+/** Each row header's live time, abbreviation and offset, and day difference; writes only what changed, never rebuilds rows. */
+const renderLive = () => {
+  if (lift) return;
+  const now = Date.now();
+  const home = zoneOf(state.zones[0]);
+  const h12 = hour12();
+  el.rows.querySelectorAll(".row[data-idx]").forEach((row) => {
+    const idx = +row.dataset.idx;
+    const tz = zoneOf(state.zones[idx]);
+    setText(row.querySelector(".row-time"), S.clock(localParts(tz, now), h12));
+    setText(row.querySelector(".row-tag"), zoneTag(tz, now));
+    const label = idx === 0 ? "" : S.dayDiffLabel(dayDiff(tz, home, now));
+    const day = row.querySelector(".row-day");
+    setText(day, label);
+    if (day.hidden !== !label) day.hidden = !label;
+  });
 };
 
 /** Longest run where every zone is at least `min`. */
@@ -407,7 +429,8 @@ const renderClock = () => {
 };
 
 const render = ({ keepStart = false } = {}) => {
-  cancelReorder();
+  // state.zones may already be shorter than the old rows, so the rebuilt rows get the live refresh instead
+  cancelReorder({ live: false });
   buildModel();
   renderDate();
   renderLength();
@@ -626,8 +649,8 @@ const startLift = (id, row, y, touch) => {
   if (touch && typeof navigator.vibrate === "function") navigator.vibrate(10);
   placeLift();
 };
-/** End a lift without saving: every transform and listener goes, state.zones is untouched. */
-const endLift = () => {
+/** End a lift without saving: every transform and listener goes, state.zones is untouched; `live` shows any live update held off during the lift. */
+const endLift = ({ live = true } = {}) => {
   if (!lift) return;
   const { row, slots, raf } = lift;
   lift = null;
@@ -644,8 +667,9 @@ const endLift = () => {
   el.rows.classList.remove("reordering");
   // the click that follows this pointerup is swallowed; a later keyboard click is not
   setTimeout(() => { reordered = false; });
+  if (live) renderLive();
 };
-const cancelReorder = () => { endPending(); endLift(); };
+const cancelReorder = ({ live } = {}) => { endPending(); endLift({ live }); };
 
 el.rows.addEventListener("pointerdown", (e) => {
   endPending();
@@ -906,8 +930,9 @@ const checkHome = () => {
 const clock = createClock();
 clock.subscribe(placeNow);
 clock.subscribe(checkHome);
+clock.subscribe(renderLive);
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") clock.resume(); else clock.pause(); });
-addEventListener("focus", () => { checkHome(); placeNow(); });
+addEventListener("focus", () => { checkHome(); placeNow(); renderLive(); });
 
 load();
 render();

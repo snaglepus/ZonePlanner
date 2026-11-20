@@ -43,6 +43,8 @@ export const ADD_CITY = "Add City";
 export const offsetName = (min) => `UTC${min < 0 ? "−" : "+"}${String(Math.floor(Math.abs(min) / 60)).padStart(2, "0")}:${String(Math.abs(min) % 60).padStart(2, "0")}`;
 export const offsetResult = (min) => `${offsetName(min)} (fixed, no daylight saving)`;
 export const rowsLabel = (homeName) => `Hours for each zone. Day runs on ${homeName} time.`;
+/** A zone's date against home: "" (same day), "Tomorrow", "Yesterday", "+2 days", "−2 days". */
+export const dayDiffLabel = (n) => n === 0 ? "" : n === 1 ? "Tomorrow" : n === -1 ? "Yesterday" : `${n < 0 ? "−" : "+"}${Math.abs(n)} days`;
 
 // Overlap summary
 export const overlapBiz = (range) => `Best ${range}`;

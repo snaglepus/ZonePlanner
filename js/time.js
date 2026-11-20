@@ -68,3 +68,31 @@ export const slotAt = (t, t0, n) => (t >= t0 && t < t0 + n * SLOT_MS ? (t - t0) 
 export const hour12For = (hourCycle) => hourCycle === "h11" || hourCycle === "h12";
 /** The locale's default clock (undefined: the runtime's locale); hourCycle is only reported when an hour is requested. */
 export const localeHour12 = (locale) => hour12For(new Intl.DateTimeFormat(locale, { hour: "numeric" }).resolvedOptions().hourCycle);
+/** A short zone name kept as an abbreviation, or null when empty or GMT/UTC-style ("GMT", "UTC+11", "GMT−3", "GMT+5:45"). */
+export const abbrOf = (name) => (!name || /^(GMT|UTC)([+\-−]\d{1,2}(:?\d{2})?)?$/.test(name) ? null : name);
+const ABBR_LOCALES = ["en-AU", "en-GB", "en-US"];
+const abbrCache = new Map();
+const abbrFmt = (locale, tz) => {
+  const key = `${locale} ${tz}`;
+  if (!abbrCache.has(key)) abbrCache.set(key, new Intl.DateTimeFormat(locale, { timeZone: tz, timeZoneName: "short" }));
+  return abbrCache.get(key);
+};
+/** The zone's abbreviation at t ("AEDT", "PST") from Intl, trying en-AU, en-GB then en-US; null for fixed offsets and GMT-style names. */
+export const zoneAbbr = (tz, t) => {
+  if (typeof tz === "number") return null;
+  for (const locale of ABBR_LOCALES) {
+    const part = abbrFmt(locale, tz).formatToParts(new Date(t)).find((x) => x.type === "timeZoneName");
+    const abbr = abbrOf(part && part.value);
+    if (abbr) return abbr;
+  }
+  return null;
+};
+/** Header tag: "AEDT · UTC+11", or the offset alone ("UTC+5:45") when there's no abbreviation. */
+export const zoneTag = (tz, t) => {
+  const abbr = zoneAbbr(tz, t);
+  const off = offLabel(offsetMin(tz, t));
+  return abbr ? `${abbr} · ${off}` : off;
+};
+const dayNumber = (dayKey) => Date.UTC(Math.floor(dayKey / 10000), Math.floor(dayKey / 100) % 100 - 1, dayKey % 100) / 86400000;
+/** Calendar days the zone's local date is ahead of the home zone's at t (+1 tomorrow, −1 yesterday). */
+export const dayDiff = (tz, homeTz, t) => dayNumber(localParts(tz, t).dayKey) - dayNumber(localParts(homeTz, t).dayKey);

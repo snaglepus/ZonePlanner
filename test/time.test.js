@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { BAND, SLOT_MS, classify, goodStep, homeDay, hour12For, localeHour12, localParts, offLabel, offsetMin, slotAt, zonedMidnight } from "../js/time.js";
+import { BAND, SLOT_MS, abbrOf, classify, dayDiff, goodStep, homeDay, hour12For, localeHour12, localParts, offLabel, offsetMin, slotAt, zoneAbbr, zoneTag, zonedMidnight } from "../js/time.js";
 
 const JAN_15 = Date.UTC(2026, 0, 15);
 const HOUR = 3600000;
@@ -128,4 +128,42 @@ test("hour12For maps hour cycles to a 12-hour clock", () => {
 test("localeHour12 follows the locale's hour cycle", () => {
   assert.equal(localeHour12("en-US"), true);
   assert.equal(localeHour12("en-GB"), false);
+});
+
+const NOV_20 = Date.UTC(2026, 10, 20, 2);
+const JUN_20 = Date.UTC(2026, 5, 20, 2);
+test("abbrOf keeps real abbreviations", () => {
+  assert.equal(abbrOf("AEDT"), "AEDT");
+  assert.equal(abbrOf("PST"), "PST");
+  assert.equal(abbrOf("BST"), "BST");
+});
+test("abbrOf drops GMT/UTC-style names and empty input", () => {
+  for (const s of ["GMT+5:45", "GMT-8", "GMT", "UTC", "UTC+11", "GMT−3", "GMT+1", "GMT+0530", "", undefined]) assert.equal(abbrOf(s), null, String(s));
+});
+test("zoneAbbr and zoneTag for a fixed offset give the offset alone", () => {
+  assert.equal(zoneAbbr(345, NOV_20), null);
+  assert.equal(zoneTag(345, NOV_20), "UTC+5:45");
+});
+test("zoneTag pairs the abbreviation with the offset across daylight saving", () => {
+  assert.equal(zoneTag("Australia/Sydney", NOV_20), "AEDT · UTC+11");
+  assert.equal(zoneTag("Australia/Sydney", JUN_20), "AEST · UTC+10");
+});
+test("zoneTag falls back to the offset when Intl has only a GMT-style name", () => {
+  assert.equal(zoneTag("Asia/Kathmandu", NOV_20), "UTC+5:45");
+});
+test("dayDiff: Sydney 09:00 on 20 Nov is the 19th in Los Angeles", () => {
+  assert.equal(dayDiff("America/Los_Angeles", "Australia/Sydney", Date.UTC(2026, 10, 19, 22)), -1);
+});
+test("dayDiff: Los Angeles 18:00 on 19 Nov is the 20th in Sydney", () => {
+  assert.equal(dayDiff("Australia/Sydney", "America/Los_Angeles", Date.UTC(2026, 10, 20, 2)), 1);
+});
+test("dayDiff is 0 on the same date", () => {
+  assert.equal(dayDiff("Europe/Paris", "Europe/London", Date.UTC(2026, 10, 20, 12)), 0);
+});
+test("dayDiff crosses a year boundary", () => {
+  assert.equal(dayDiff("Pacific/Auckland", "America/Los_Angeles", Date.UTC(2026, 11, 31, 12)), 1);
+});
+test("dayDiff can be two days", () => {
+  assert.equal(dayDiff(840, -720, Date.UTC(2026, 0, 15, 11)), 2);
+  assert.equal(dayDiff(-720, 840, Date.UTC(2026, 0, 15, 11)), -2);
 });

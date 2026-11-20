@@ -8,6 +8,22 @@ const MAX_NAME_LEN = 60;
 let supported = new Set();
 try { supported = new Set(Intl.supportedValuesOf("timeZone")); } catch { /* constructor check alone */ }
 const OFFSET_ID = /^[+-](\d{2})(?::?(\d{2}))?$/;
+const OFFSET_TEXT = /^(?:(?:gmt|utc)\s*)?(?:([+\-\u2212])(\d{1,2})(?::(\d{2}))?|([+\-\u2212])(\d{2})(\d{2}))$/i;
+
+/** Minutes from UTC typed as `GMT+11`, `UTC-7`, `+5:30` or `-0330` (bare `GMT`/`UTC` is 0); null otherwise. */
+export const parseOffset = (text) => {
+  const t = String(text).trim();
+  if (/^(?:gmt|utc)$/i.test(t)) return 0;
+  const m = OFFSET_TEXT.exec(t);
+  if (!m) return null;
+  const sign = m[1] ?? m[4];
+  const h = +(m[2] ?? m[5]);
+  const min = +(m[3] ?? m[6] ?? 0);
+  if (min % 15 !== 0 || min >= 60) return null;
+  const total = h * 60 + min;
+  if (total > MAX_OFFSET_MIN) return null;
+  return sign === "+" || !total ? total : -total;
+};
 
 /** A zone ID the engine knows (listed or accepted by the constructor); offset-form IDs only within ±14:00. */
 export const validTz = (tz) => {
@@ -25,7 +41,7 @@ const cleanName = (name) => Array.from(name).filter((c) => !loneSurrogate(c)).sl
 
 /**
  * The one validator for stored and link entries: zone entries `{tz, name}` (valid, not home) and offset
- * entries `{offsetMin}` (integer within ±14:00), in order, cut to `max`. `dropped` counts what the cap removed.
+ * entries `{offsetMin}` (a multiple of 15 within ±14:00), in order, cut to `max`. `dropped` counts what the cap removed.
  */
 export const userRows = (entries, homeTz, max = MAX_USER_ZONES) => {
   if (!Array.isArray(entries)) return { rows: [], dropped: 0 };
@@ -35,14 +51,14 @@ export const userRows = (entries, homeTz, max = MAX_USER_ZONES) => {
     if ("tz" in e) {
       if (validTz(e.tz) && e.tz !== homeTz) ok.push({ tz: e.tz, name: typeof e.name === "string" ? cleanName(e.name) : undefined });
     } else if ("offsetMin" in e) {
-      if (Number.isInteger(e.offsetMin) && Math.abs(e.offsetMin) <= MAX_OFFSET_MIN) ok.push({ offsetMin: e.offsetMin });
+      if (Number.isInteger(e.offsetMin) && e.offsetMin % 15 === 0 && Math.abs(e.offsetMin) <= MAX_OFFSET_MIN) ok.push({ offsetMin: e.offsetMin });
     }
   }
   return { rows: ok.slice(0, max), dropped: Math.max(0, ok.length - max) };
 };
 
-/** The share link's `z` value: `<tz>~<name>` per row, each part encoded once, joined with ",". */
-export const rowsToLink = (rows) => rows.map((x) => `${encodeURIComponent(x.tz)}~${encodeURIComponent(x.name)}`).join(",");
+/** The share link's `z` value: `<tz>~<name>` per row (each part encoded once) or `@<minutes>` per offset row, joined with ",". */
+export const rowsToLink = (rows) => rows.map((x) => ("offsetMin" in x ? `@${x.offsetMin}` : `${encodeURIComponent(x.tz)}~${encodeURIComponent(x.name)}`)).join(",");
 
 /** The raw, still-encoded value of `key` in a hash without its leading "#", or null. */
 export const rawParam = (hash, key) => {
@@ -54,6 +70,8 @@ export const rawParam = (hash, key) => {
 export const linkToRows = (z, homeTz, max = MAX_USER_ZONES) => {
   const parsed = [];
   for (const s of z.split(",")) {
+    const off = /^@(-?\d{1,3})$/.exec(s);
+    if (off) { parsed.push({ offsetMin: Number(off[1]) }); continue; }
     const cut = s.indexOf("~");
     try {
       const tz = decodeURIComponent(cut < 0 ? s : s.slice(0, cut));
@@ -66,3 +84,6 @@ export const linkToRows = (z, homeTz, max = MAX_USER_ZONES) => {
 
 /** User rows after the device moves to `newHomeTz`: any row in that zone goes, the rest keep their order. */
 export const followHome = (rows, newHomeTz) => rows.filter((r) => r.tz !== newHomeTz);
+
+/** `rows` with `rows[idx]` swapped for `zone`, the rest in order; `rows` itself when `idx` is out of range. */
+export const replaceRow = (rows, idx, zone) => (Number.isInteger(idx) && idx >= 0 && idx < rows.length ? rows.map((r, i) => (i === idx ? zone : r)) : rows);

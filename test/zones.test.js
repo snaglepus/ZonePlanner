@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { MAX_USER_ZONES, followHome, linkToRows, rawParam, rowsToLink, userRows, validTz } from "../js/zones.js";
+import { MAX_USER_ZONES, followHome, linkToRows, parseOffset, rawParam, replaceRow, rowsToLink, userRows, validTz } from "../js/zones.js";
 
 const tzs = (rows) => rows.map((r) => r.tz);
 
@@ -89,4 +89,54 @@ test("linkToRows cuts a long encoded name to 60 characters", () => {
 test("linkToRows bounds offset-form zone IDs", () => {
   const { rows } = linkToRows("%2B15%3A00~X,%2B14%3A00~Y", "America/Los_Angeles");
   assert.deepEqual(rows, [{ tz: "+14:00", name: "Y" }]);
+});
+
+test("parseOffset reads GMT/UTC prefixes, signs and H, HH, H:MM, HH:MM or HHMM", () => {
+  const want = { "GMT+11": 660, "UTC-7": -420, "+5:30": 330, "GMT+05:45": 345, "-0330": -210, utc: 0, GMT: 0, "UTC\u22127": -420, "+14:00": 840, " gmt +5 ": 300 };
+  for (const [text, min] of Object.entries(want)) assert.equal(parseOffset(text), min, text);
+});
+
+test("parseOffset returns null for off-grid minutes, beyond ±14:00 and other shapes", () => {
+  for (const text of ["+15", "GMT+5:99", "+", "+14:15", "+5:20", "+530", "", "+5:30x", "UTC 5", "5:30", "+5:60", "-14:45"]) assert.equal(parseOffset(text), null, text);
+});
+
+test("userRows keeps offset entries only in multiples of 15 within ±14:00", () => {
+  const { rows } = userRows([{ offsetMin: 7 }, { offsetMin: 900 }, { offsetMin: -210 }], "America/Los_Angeles");
+  assert.deepEqual(rows, [{ offsetMin: -210 }]);
+});
+
+test("offset rows round-trip through the share link as @<minutes>, in order", () => {
+  const rows = [{ tz: "Asia/Tokyo", name: "Tokyo" }, { offsetMin: 330 }, { tz: "Europe/London", name: "London" }, { offsetMin: -420 }];
+  const z = rowsToLink(rows);
+  assert.equal(z, "Asia%2FTokyo~Tokyo,@330,Europe%2FLondon~London,@-420");
+  assert.deepEqual(linkToRows(rawParam(`z=${z}&d=2026-12-01&l=4`, "z"), "America/Los_Angeles").rows, rows);
+});
+
+test("linkToRows drops malformed and invalid offset segments, keeping the rest", () => {
+  const { rows } = linkToRows("@900,@7,Asia/Tokyo~Tokyo,@+330,@abc,%40330,@-210", "America/Los_Angeles");
+  assert.deepEqual(rows, [{ tz: "Asia/Tokyo", name: "Tokyo" }, { offsetMin: -210 }]);
+});
+
+test("followHome keeps offset rows", () => {
+  const rows = [{ offsetMin: 0 }, { tz: "Europe/London", name: "London" }, { offsetMin: 330 }];
+  assert.deepEqual(followHome(rows, "Europe/London"), [rows[0], rows[2]]);
+});
+
+const THREE = [{ tz: "Europe/London", name: "London" }, { tz: "Asia/Tokyo", name: "Tokyo" }, { tz: "Australia/Sydney", name: "Sydney" }];
+const PARIS = { tz: "Europe/Paris", name: "Paris" };
+
+test("replaceRow swaps the middle row and keeps the others in place", () => {
+  assert.deepEqual(replaceRow(THREE, 1, PARIS), [THREE[0], PARIS, THREE[2]]);
+});
+
+test("replaceRow does not mutate its input", () => {
+  const rows = THREE.slice();
+  const out = replaceRow(rows, 0, PARIS);
+  assert.notEqual(out, rows);
+  assert.deepEqual(rows, THREE);
+});
+
+test("replaceRow returns the input unchanged for an out-of-range index", () => {
+  assert.equal(replaceRow(THREE, 3, PARIS), THREE);
+  assert.equal(replaceRow(THREE, -1, PARIS), THREE);
 });

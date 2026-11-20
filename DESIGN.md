@@ -177,6 +177,10 @@ components:
     rounded: "{rounded.track}"
     height: "32px"
     width: "44px per hour"
+  now-line:
+    backgroundColor: "{colors.ink}"
+    width: "2px"
+    cap: "8px round dot"
 ---
 
 # Design System: ZonePlanner
@@ -220,7 +224,7 @@ A warm-paper palette with one deep sage voice, a peach-and-clay band pair, and t
 - **Cream Card** (`card`): every card, the sheet, the date pill and floating icon buttons.
 - **Pale Clay** (`night`): Unsuitable-hour segments (20–06) and empty overlap tracks. Outlined by **Clay Rule** (`night-line`), the 1px inset that keeps pale tracks from dissolving into the card.
 - **Weekend overlay**: zone rows lay a translucent layer over the slots that fall on that zone's weekend: a 45° fine line of **Weekend Line** (`weekend-line`, Ink at 50%) every 6px over a light **Weekend Wash** (`weekend-wash`, Cream Card at 30%). It sits between the bands and the hour labels, keeps the track's 9px rounding and takes no pointer events, so the Best, Good heat step or Unsuitable band under it stays readable. The Everyone row has none; its weekend slots already show as Unsuitable. The legend's Weekend swatch shows the same overlay over half Best Sage, half Pale Clay.
-- **Ink** (`ink`): primary text. **Soft Ink** (`ink-soft`): legend and small headings. **Field Grey-Brown** (`muted`): secondary text, unselected segments.
+- **Ink** (`ink`): primary text and the now line with its dot cap. **Soft Ink** (`ink-soft`): legend and small headings. **Field Grey-Brown** (`muted`): secondary text, unselected segments.
 - **Paper Rule** (`line`): row dividers, chip borders, the sheet grip.
 
 ### Named Rules
@@ -256,7 +260,7 @@ Both are self-hosted variable WOFF2 files (Latin and Latin Extended subsets), pr
 
 A single centred column, max 720px, with a 16px side gutter that widens to 24px at 560px. The masthead is 268px tall (284px at 560px+); the app column pulls up 94px into it so the toolbar sits on the darkest sage ridge and the meeting card rests on the paper contour that closes the band. Cards stack with a 14px gap; card interiors pad 20px top and 18px sides; the zone board is one horizontal scroller that runs edge to edge across the card, with an 18px pad before the zone names and after the last hour, so the selection bar and every row's hour cells share exact coordinates.
 
-Above 560px the meeting card's time and actions move side by side and buttons stop stretching; otherwise the layout is the same at every width. Safe-area insets pad the masthead top, the column bottom, the sheet and the toast. Horizontal page scroll is clipped; the suggestion chip rail scrolls on its own and bleeds to the card edges.
+Above 560px the meeting card's time and actions move side by side and buttons stop stretching; when a long time (a 12-hour `11:30 am – 12:30 pm`) leaves no room, the actions wrap below it; otherwise the layout is the same at every width. Safe-area insets pad the masthead top, the column bottom, the sheet and the toast. Horizontal page scroll is clipped; the suggestion chip rail scrolls on its own and bleeds to the card edges.
 
 **The Answer-Above-the-Grid Rule.** The meeting card (time, verdict, length, suggestions) always comes before the zone rows; the rows explain the answer, they never precede it.
 
@@ -294,6 +298,10 @@ Tactile, confident pills that compress slightly when pressed.
 ### Segmented control
 A Pressed Paper pill track with 4px inset; options are 38px pills in muted Label type. The selected option fills Valley Sage with Paper on Sage text.
 
+The hour filter (All / Good / Best, named "Show hours") is the same control in the Zones board, just above the grid, with 44px options. It is a radio group: Tab lands on the checked option, and the arrow keys move and select without wrapping.
+
+The time-format variant (`.seg-clock`, "12h / 24h") sits in the zone board header beside Edit; its two options are at least 44×44px.
+
 ### Cards / Containers
 - **Corner Style:** 22px.
 - **Background:** Cream Card on Warm Paper.
@@ -312,18 +320,24 @@ A 14px-radius status panel led by a 10px mark that repeats the band's second cha
 There is no nav bar. The toolbar is the navigation: previous/next-day icon buttons around a cream date pill (calendar icon, native date input layered invisibly over it), and Add City at the right.
 
 ### Hour grid and selection bar (signature)
-The board is one native horizontal scroller. Each row is a sticky header cell (176px, Cream Card, opaque) holding the zone name (ellipsis when long), the country and UTC offset, and the meeting readout, followed by a track of hour cells. Each user row's header ends in a 44px grab handle (≡, Field Grey-Brown) spanning its full height at the right edge; the home and Everyone rows have none. Columns are the home zone's hours of the selected day (23, 24 or 25 on daylight-saving days; a 30-minute change leaves a half-width last column), so each column is the same instant in every row. Full cells are 44px wide on a 32px, 9px-radius band inside a track at least 44px tall, separated by a faint 1px rule.
+The board is one native horizontal scroller. Each row is a sticky header cell (176px, Cream Card, opaque) holding the zone name (ellipsis when long), the live "Now" time (a muted 11px `Now` label, then the zone's current time in 13px/700 Ink tabular figures, never clipped), the abbreviation and UTC offset (`AEDT · UTC+11`, or the offset alone where there's no common abbreviation), the day difference when the zone's date differs from home (`Tomorrow`, `Yesterday`, `+2 days`; 12px muted text, not the terra weekday badge), and the meeting readout, followed by a track of hour cells. Each user row's header ends in a 44px grab handle (≡, Field Grey-Brown) spanning its full height at the right edge; the home and Everyone rows have none. Columns are the home zone's hours of the selected day (23, 24 or 25 on daylight-saving days; a 30-minute change leaves a half-width last column), so each column is the same instant in every row. Full cells are 44px wide on a 32px, 9px-radius band inside a track at least 44px tall, separated by a faint 1px rule.
 
-Each cell is labelled, left-aligned in 10.5px/700 tabular figures, with that zone's local time at the column start: `9` on the hour, `3:30` or `3:45` for offset zones. Bands keep their 15-minute accuracy under the cells, so an offset zone changes band or heat step part-way through a column: Best Sage solid, the Good heat steps 135° hatched, Pale Clay plain with the Clay Rule inset. Slots on the zone's weekend carry the weekend overlay (45° fine ink line on a light wash) above the band and below the labels. Each label sits on its own small Cream Card backing (3px radius) in Ink, so it stays legible whatever band runs under it, including where the band changes inside the column. Checked contrast: Ink on Cream Card is 13.2:1, and Ink is at least 4.5:1 on every heat-step colour (4.9:1 at the darkest, `good-1-hatch`); `test/tokens.test.js` holds both. A 1px Paper Rule edges the header column.
+Each cell is labelled, left-aligned in 10.5px/700 tabular figures, with that zone's local time at the column start: `9` on the hour, `3:30` or `3:45` for offset zones. On a 12-hour clock the label is the bare 12-hour number (`3`, `12:30`), and an `am`/`pm` cue in 9px/700 sits under it on the same backing, only on the row's first cell and wherever am/pm changes (noon and midnight); full cells stay 44px. Bands keep their 15-minute accuracy under the cells, so an offset zone changes band or heat step part-way through a column: Best Sage solid, the Good heat steps 135° hatched, Pale Clay plain with the Clay Rule inset. Slots on the zone's weekend carry the weekend overlay (45° fine ink line on a light wash) above the band and below the labels. Each label sits on its own small Cream Card backing (3px radius) in Ink, so it stays legible whatever band runs under it, including where the band changes inside the column. Checked contrast: Ink on Cream Card is 13.2:1, and Ink is at least 4.5:1 on every heat-step colour (4.9:1 at the darkest, `good-1-hatch`); `test/tokens.test.js` holds both. A 1px Paper Rule edges the header column.
+
+Edit shows a Change (pencil) and a Remove (×) button, 44px each, on every user row in place of the meeting readout, and nothing on the home row.
 
 The overlap row ("Everyone") sits first with a serif name and the shared-hours summary; its cells have no labels, since the home row's labels already mark the time. Swiping scrolls the cells of every row together while the header column stays put; tapping a cell starts the meeting at the quarter-hour under the finger. A single transparent bar with a 2px gold border, a gold tab on top and Gold Glow spans every row at the chosen time, passing under the header column; it moves on `transform` only, on the shared ease (0.45s), and its width changes without animation. When the selection changes from a chip, the length control, the keyboard or a new day, the grid scrolls just enough to show the whole bar.
+
+The hour filter dims, in every row, each 15-minute slot where the Everyone row falls below the chosen band: Good keeps slots where the Everyone row is Good or Best, Best keeps only Best, All keeps everything. Dimming follows the slots, not the columns, so with a :30 or :45 zone it can start part-way through a column. Dimmed band segments drop to 30% opacity against the card, a luminance change rather than a hue change, so dimmed and kept slots stay apart in greyscale; kept segments and the hour labels are unchanged. Suggestions only come from spans that are entirely kept. When nothing is kept, the grid stays, fully dimmed, and a muted status line above it says "No hours are Best for everyone on this day" (or Good). Selection can still land on dimmed slots.
 
 On desktop, a vertical mouse wheel over the grid scrolls it sideways until either end, then lets the page scroll. A mouse drag on the hour cells pans the grid without selecting (grab cursor at rest, grabbing while dragging, no text selection); a click without moving still selects. The grid itself takes focus: it shows the gold focus ring, inset so it stays inside the card, and Left/Right move it one hour column at a time.
 
 User rows reorder from the header column only, never from the hour cells. Dragging the handle (any pointer), or a 400ms touch long press anywhere on a user row's header (with a light haptic where the device has one), lifts the row: it rides the pointer with a stronger sage-tinted Paper Lift shadow and a 1.02 scale, above the sticky column, and the gold bar steps aside while it is held. The rows it passes slide out of the way on `transform` (0.22s, shared ease). Holding near the top or bottom of the viewport scrolls the page, faster nearer the edge. Dropping inside the board saves the new order; Esc, a drop outside the board, a resize or toggling Edit cancels and the rows return. Nothing lands above the home row. Under reduced motion the lift has no scale and the rows jump into place.
 
+On today's grid a 2px Ink now line crosses the Everyone row and every zone row at the current minute, capped by an 8px round Ink dot in the Everyone row's top padding; the round cap tells it apart from the bar's flat gold tab without relying on colour. It paints above the selection bar and under the header column, takes no pointer events, stays in edit mode, and moves on `transform` only, jumping one minute at a time with no animation. It is hidden on other days. On first load on today the grid opens with the line one hour column right of the header column. A ghost "Now" pill sits in the board header just before Edit, shown only when the line is scrolled off screen or the selected day is not today; it brings the grid back to today and the line, then hides.
+
 ### Bottom sheet
-Zone search opens as a bottom sheet: Cream Card, 26px top corners, a 40px grip, a serif title, the search well, then 56px result rows that hover to Warm Paper. It enters by rising 40px over 0.42s.
+Zone search opens as a bottom sheet: Cream Card, 26px top corners, a 40px grip, a serif title, the search well, then 56px result rows that hover to Warm Paper. It enters by rising 40px over 0.42s. Changing a row opens the same sheet in replace mode: the title reads "Change <zone>", the note names the zone being replaced, results are not capped at seven, and picking one swaps that row in place. Closing without picking leaves the row as it was.
 
 ### Motion
 One easing curve, `cubic-bezier(.16, 1, .3, 1)`, on 0.2–0.45s transitions. Reduced-motion collapses every transition and animation.

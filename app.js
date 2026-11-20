@@ -1,9 +1,11 @@
-import { BAND_NAME, classify, goodStep, homeDay, cellLabel, localParts, pad, hhmm, offLabel, weekday } from "./js/time.js";
+import { BAND_NAME, classify, dayDiff, goodStep, homeDay, localParts, localeHour12, pad, offLabel, weekday, slotAt, zoneTag } from "./js/time.js";
+import { createClock } from "./js/clock.js";
 import * as S from "./js/strings.js";
-import { MAX_USER_ZONES, validTz, rowsToLink, rawParam, linkToRows, followHome } from "./js/zones.js";
-import { STATE_KEY, BACKUP_KEY, LEGACY_KEY, LENS, loadState, serializeState, createSaver } from "./js/state.js";
+import { MAX_USER_ZONES, validTz, rowsToLink, rawParam, linkToRows, followHome, replaceRow } from "./js/zones.js";
+import { STATE_KEY, BACKUP_KEY, LEGACY_KEY, LENS, FILTERS, loadState, serializeState, createSaver } from "./js/state.js";
 import { wheelScroll } from "./js/scroll.js";
 import { moveRow } from "./js/reorder.js";
+import { keptSlots, windowKept } from "./js/filter.js";
 import { zoneInfo, abbreviationZones, searchCities } from "./js/search.js";
 import { weekendSlots, scoredBands, overlapBands } from "./js/weekend.js";
 
@@ -23,6 +25,10 @@ const todayISO = () => {
 const state = { zones: [], date: todayISO(), len: 4, hour12: null, filter: "all", start: null, editing: false };
 
 const mkZone = (tz, name) => zoneInfo(tz, name);
+/** A fixed-offset row: its name always comes from the validated minutes, never from stored or linked text. */
+const mkOffset = (offsetMin) => ({ offsetMin, name: S.offsetName(offsetMin), country: "" });
+/** The zone the time engine takes for a row: an IANA ID, or minutes for an offset row. */
+const zoneOf = (z) => ("offsetMin" in z ? z.offsetMin : z.tz);
 
 let store = null;
 try { store = localStorage; } catch { /* storage blocked: saves become no-ops */ }
@@ -53,13 +59,15 @@ const load = () => {
     if (LENS.map(String).includes(hash.get("l"))) state.len = +hash.get("l");
     if (picked.dropped > 0) toast(S.linkDropped(picked.dropped));
   }
-  // Offset entries ({offsetMin}) have no row type yet, so they are left out here and not saved back.
-  state.zones = [mkZone(home), ...rows.filter((z) => "tz" in z).map((z) => mkZone(z.tz, z.name))];
+  state.zones = [mkZone(home), ...rows.map((z) => ("tz" in z ? mkZone(z.tz, z.name) : mkOffset(z.offsetMin)))];
 };
 const save = () => {
-  const zones = state.zones.slice(1).map(({ tz, name }) => ({ tz, name }));
+  const zones = state.zones.slice(1).map((z) => ("offsetMin" in z ? { offsetMin: z.offsetMin } : { tz: z.tz, name: z.name }));
   saver.save(serializeState({ zones, hour12: state.hour12, filter: state.filter, len: state.len }));
 };
+/** The clock in use: the user's choice, or the locale's while hour12 is null. */
+const hour12 = () => state.hour12 ?? localeHour12();
+const timeText = (p) => S.clock(p, hour12());
 const shareURL = () => `${location.origin}${location.pathname}#z=${rowsToLink(state.zones)}&d=${state.date}&l=${state.len}`;
 
 // ---------- Model ----------
@@ -73,16 +81,16 @@ const buildModel = () => {
     const heat = new Array(n);
     const parts = new Array(n);
     for (let i = 0; i < n; i++) {
-      const p = localParts(z.tz, t0 + i * SLOT_MS);
+      const p = localParts(zoneOf(z), t0 + i * SLOT_MS);
       parts[i] = p;
       bands[i] = classify(p.mod);
       heat[i] = goodStep(p.mod);
     }
-    const weekend = weekendSlots(z.tz, z.cc, t0, n);
+    const weekend = weekendSlots(zoneOf(z), z.cc, t0, n);
     return { bands, heat, parts, weekend, score: scoredBands(bands, weekend) };
   });
   const all = overlapBands(grid);
-  model = { t0, n, cols, grid, all };
+  model = { t0, n, cols, grid, all, kept: keptSlots(all, state.filter) };
 };
 
 /** Lower cost is better. Each zone costs its worst scored slot in the window (weekend slots are Unsuitable). */
@@ -98,7 +106,7 @@ const suggestions = () => {
   const out = [];
   const L = state.len;
   const mid = model.n / 2 + 4; // nudge toward home afternoon
-  for (let s = 0; s + L <= model.n; s += 2) out.push(windowStats(s));
+  for (let s = 0; s + L <= model.n; s += 2) if (windowKept(model.kept, s, L)) out.push(windowStats(s));
   out.sort((a, b) => a.cost - b.cost || a.soft - b.soft || Math.abs(a.s - mid) - Math.abs(b.s - mid));
   const picked = [];
   for (const w of out) {
@@ -113,11 +121,11 @@ const suggestions = () => {
 // ---------- DOM ----------
 const $ = (id) => document.getElementById(id);
 const el = {
-  rows: $("rows"), scrub: $("scrub"), selbar: $("selbar"), timeline: $("timeline"),
+  rows: $("rows"), scrub: $("scrub"), selbar: $("selbar"), nowLine: $("nowLine"), nowBtn: $("nowBtn"), timeline: $("timeline"),
   meetingTime: $("meetingTime"), meetingSub: $("meetingSub"), verdict: $("verdict"), suggestions: $("suggestions"),
-  lengthSeg: $("lengthSeg"), dateInput: $("dateInput"), dateLabel: $("dateLabel"), zoneCount: $("zoneCount"),
+  lengthSeg: $("lengthSeg"), filterSeg: $("filterSeg"), filterEmpty: $("filterEmpty"), clockSeg: $("clockSeg"), legendBest: $("legendBest"), legendGood: $("legendGood"), dateInput: $("dateInput"), dateLabel: $("dateLabel"), zoneCount: $("zoneCount"),
   addZone: $("addZone"), zoneLimit: $("zoneLimit"), editBtn: $("editBtn"), copyBtn: $("copyBtn"), shareBtn: $("shareBtn"),
-  sheet: $("zoneSheet"), search: $("zoneSearch"), results: $("results"), sheetNote: $("sheetNote"), toast: $("toast")
+  sheet: $("zoneSheet"), sheetTitle: $("sheetTitle"), search: $("zoneSearch"), results: $("results"), sheetNote: $("sheetNote"), toast: $("toast")
 };
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const icon = (id) => `<svg class="ico" aria-hidden="true"><use href="#i-${id}"/></svg>`;
@@ -146,23 +154,32 @@ const actBtn = (act, idx, label, id) => {
   return b;
 };
 
-/** One hour cell per column over the 15-minute band runs; labels only when a zone is given, Good heat steps only when heat is, a weekend overlay only when weekend is. */
+/** One hour cell per column over the 15-minute band runs; labels only when a zone is given, Good heat steps only when heat is, a weekend overlay only when weekend is. Slots the filter drops are dimmed.
+ * On a 12-hour clock the first cell and each cell where am/pm changes carry the meridiem cue. */
 const trackEl = (bands, z, heat, weekend) => {
   const track = make("div", "track");
   track.setAttribute("aria-hidden", "true");
   const runs = make("div", "bands");
   for (let i = 0; i < model.n;) {
     let j = i;
-    while (j < model.n && bands[j] === bands[i] && (!heat || heat[j] === heat[i])) j++;
-    const seg = make("div", `seg-${BAND_NAME[bands[i]]}${heat && heat[i] ? ` heat-${heat[i]}` : ""}`);
+    while (j < model.n && bands[j] === bands[i] && (!heat || heat[j] === heat[i]) && model.kept[j] === model.kept[i]) j++;
+    const seg = make("div", `seg-${BAND_NAME[bands[i]]}${heat && heat[i] ? ` heat-${heat[i]}` : ""}${model.kept[i] ? "" : " dim"}`);
     seg.style.setProperty("--w", String(j - i));
     runs.append(seg);
     i = j;
   }
   const cells = make("div", "cells");
+  const h12 = hour12();
+  let prev = null;
   for (let c = 0; c < model.cols; c++) {
     const cell = make("div", "cell");
-    if (z) cell.append(make("span", null, cellLabel(z.tz, model.t0 + c * 3600000)));
+    if (z) {
+      const p = localParts(zoneOf(z), model.t0 + c * 3600000);
+      const label = make("span", null, S.clock(p, h12, { cell: true }));
+      if (h12 && (!prev || S.meridiem(p.h) !== S.meridiem(prev.h))) label.append(make("small", null, S.meridiem(p.h)));
+      cell.append(label);
+      prev = p;
+    }
     const w = Math.min(4, model.n - 4 * c);
     if (w < 4) cell.style.setProperty("--w", String(w));
     cells.append(cell);
@@ -198,8 +215,6 @@ const renderRows = () => {
   allRow.append(allHead, trackEl(model.all));
   const rows = [allRow];
   state.zones.forEach((z, idx) => {
-    const nowP = localParts(z.tz, Date.now());
-    const sub = [z.country, offLabel(nowP.off)].filter(Boolean).join(" · ");
     const row = make("div", "row");
     row.dataset.idx = String(idx);
     const head = make("div", "row-head");
@@ -211,11 +226,15 @@ const renderRows = () => {
       homeIco.setAttribute("aria-label", S.HOME_ZONE);
       b.prepend(homeIco);
     }
-    name.append(b, make("span", null, sub));
+    const live = make("span", "row-live");
+    live.append(make("small", null, S.NOW), " ", make("span", "row-time"));
+    const day = make("span", "row-day");
+    day.hidden = true;
+    name.append(b, live, make("span", "row-tag"), day);
     const at = make("div", "row-at");
     at.dataset.at = "";
     const actions = make("div", "row-actions");
-    if (idx !== 0) actions.append(actBtn("remove", idx, S.removeZone(z.name), "x"));
+    if (idx !== 0) actions.append(actBtn("change", idx, S.changeZone(z.name), "edit"), actBtn("remove", idx, S.removeZone(z.name), "x"));
     head.append(name, at, actions);
     if (idx !== 0) {
       const grip = make("div", "row-grip");
@@ -227,13 +246,33 @@ const renderRows = () => {
     rows.push(row);
   });
   el.rows.style.setProperty("--n", String(model.n));
-  el.rows.replaceChildren(...rows, el.selbar);
+  el.rows.replaceChildren(...rows, el.selbar, el.nowLine);
   const users = state.zones.length - 1;
   el.zoneCount.textContent = S.zoneCount(users, MAX_USER_ZONES);
   el.addZone.disabled = users >= MAX_USER_ZONES;
   el.zoneLimit.textContent = S.ZONES_FULL;
   el.zoneLimit.hidden = users < MAX_USER_ZONES;
   el.rows.setAttribute("aria-label", S.rowsLabel(homeName));
+  renderLive();
+};
+
+const setText = (node, text) => { if (node.textContent !== text) node.textContent = text; };
+/** Each row header's live time, abbreviation and offset, and day difference; writes only what changed, never rebuilds rows. */
+const renderLive = () => {
+  if (lift) return;
+  const now = Date.now();
+  const home = zoneOf(state.zones[0]);
+  const h12 = hour12();
+  el.rows.querySelectorAll(".row[data-idx]").forEach((row) => {
+    const idx = +row.dataset.idx;
+    const tz = zoneOf(state.zones[idx]);
+    setText(row.querySelector(".row-time"), S.clock(localParts(tz, now), h12));
+    setText(row.querySelector(".row-tag"), zoneTag(tz, now));
+    const label = idx === 0 ? "" : S.dayDiffLabel(dayDiff(tz, home, now));
+    const day = row.querySelector(".row-day");
+    setText(day, label);
+    if (day.hidden !== !label) day.hidden = !label;
+  });
 };
 
 /** Longest run where every zone is at least `min`. */
@@ -250,7 +289,7 @@ const longestRun = (min) => {
 const runLabel = ([i, j]) => {
   const a = model.grid[0].parts[i];
   const b = localParts(state.zones[0].tz, model.t0 + j * SLOT_MS);
-  return `${hhmm(a)}–${hhmm(b)}`;
+  return S.clockRange(a, b, hour12());
 };
 const overlapSummary = () => {
   const biz = longestRun(2);
@@ -265,9 +304,9 @@ const renderSuggestions = (list) => {
   el.suggestions.innerHTML = list.map((w) => {
     const p = model.grid[0].parts[w.s];
     const tone = w.night ? "night" : w.edge ? "edge" : "biz";
-    const bad = state.zones.map((z, i) => (w.worst[i] === 0 ? `${z.name} ${hhmm(model.grid[i].parts[w.s])}` : null)).filter(Boolean);
+    const bad = state.zones.map((z, i) => (w.worst[i] === 0 ? `${z.name} ${timeText(model.grid[i].parts[w.s])}` : null)).filter(Boolean);
     const note = w.night ? (bad.length > 1 ? S.inconvenientCount(bad.length) : S.inconvenientOne(bad[0])) : w.edge ? S.bizEdgeCount(w.biz, w.edge) : S.ALL_BUSINESS;
-    return `<button type="button" class="chip" data-s="${w.s}" aria-pressed="${w.s === state.start}"><span class="mark mark-${tone}" aria-hidden="true"></span>${hhmm(p)} <small>${esc(note)}</small></button>`;
+    return `<button type="button" class="chip" data-s="${w.s}" aria-pressed="${w.s === state.start}"><span class="mark mark-${tone}" aria-hidden="true"></span>${esc(timeText(p))} <small>${esc(note)}</small></button>`;
   }).join("");
 };
 
@@ -279,7 +318,7 @@ const renderSelection = () => {
   const a = model.grid[0].parts[s];
   const endT = model.t0 + (s + L) * SLOT_MS;
   const b = localParts(home.tz, endT);
-  el.meetingTime.textContent = `${hhmm(a)} – ${hhmm(b)}`;
+  el.meetingTime.textContent = `${timeText(a)} – ${timeText(b)}`;
   const dateTxt = new Date(model.t0 + 12 * 3600000).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: home.tz });
   el.meetingSub.textContent = S.meetingSub(home.name, dateTxt, S.durLabel(L * SLOT_MIN));
 
@@ -298,24 +337,25 @@ const renderSelection = () => {
     el.verdict.dataset.tone = "bad";
     const bad = names(0).map((z) => {
       const idx = state.zones.indexOf(z);
-      const at = hhmm(model.grid[idx].parts[s]);
+      const at = timeText(model.grid[idx].parts[s]);
       return weekendIn(idx) ? S.verdictWeekendItem(z.name, at) : S.verdictItem(z.name, at);
     });
     el.verdict.textContent = S.verdictBad(bad);
   }
 
   // per-row readouts
+  const h12 = hour12();
   const homeKey = model.grid[0].parts[s].dayKey;
   el.rows.querySelectorAll(".row[data-idx]").forEach((row) => {
     const i = +row.dataset.idx;
     const g = model.grid[i];
     const p = g.parts[s];
-    const q = localParts(state.zones[i].tz, endT);
+    const q = localParts(zoneOf(state.zones[i]), endT);
     const band = w.worst[i];
     const label = weekendIn(i) ? S.WEEKEND : S.BAND_LABEL[band];
     row.dataset.at = BAND_NAME[band];
     const dayBadge = p.dayKey !== homeKey ? `<span class="day">${weekday(p.date)}</span>` : "";
-    row.querySelector("[data-at]").innerHTML = `<b>${dayBadge}${hhmm(p)}–${hhmm(q)}</b><span><i class="mark mark-${BAND_NAME[band]}" aria-hidden="true"></i>${esc(label)}</span>`;
+    row.querySelector("[data-at]").innerHTML = `<b>${dayBadge}${esc(S.clockRange(p, q, h12))}</b><span><i class="mark mark-${BAND_NAME[band]}" aria-hidden="true"></i>${esc(label)}</span>`;
   });
 
   // bar geometry, in slots from the start of the tracks
@@ -324,7 +364,7 @@ const renderSelection = () => {
   el.selbar.style.transform = `translateX(${left + s * slot}px)`;
   el.scrub.max = String(model.n - L);
   el.scrub.value = String(s);
-  el.scrub.setAttribute("aria-valuetext", S.scrubText(hhmm(a), hhmm(b), home.name, el.verdict.textContent));
+  el.scrub.setAttribute("aria-valuetext", S.scrubText(timeText(a), timeText(b), home.name, el.verdict.textContent));
   el.suggestions.querySelectorAll(".chip").forEach((c) => c.setAttribute("aria-pressed", String(+c.dataset.s === s)));
 };
 
@@ -344,6 +384,38 @@ const revealSelection = () => {
   else if (b > x + view) el.rows.scrollLeft = b - view + slot;
 };
 
+// Line position in track coordinates and the track's offset, kept by placeNow() for the scroll check.
+let nowX = null, nowLeft = 0;
+/** Show the Now button unless the line is on screen on today's grid. */
+const nowOffscreen = () => {
+  if (state.date !== todayISO() || el.nowLine.hidden || nowX == null) return true;
+  const x = el.rows.scrollLeft;
+  return nowX < x || nowX > x + el.rows.clientWidth - nowLeft;
+};
+const updateNowBtn = () => { el.nowBtn.hidden = !nowOffscreen(); };
+/** Move the now line to the current minute; writes only its transform and hidden, and the button's hidden. */
+const placeNow = () => {
+  const s = slotAt(Date.now(), model.t0, model.n);
+  if (s == null) {
+    el.nowLine.hidden = true;
+    nowX = null;
+  } else {
+    const { left, slot } = trackGeom();
+    nowX = s * slot;
+    nowLeft = left;
+    el.nowLine.hidden = false;
+    el.nowLine.style.transform = `translateX(${left + nowX}px)`;
+  }
+  updateNowBtn();
+};
+/** Scroll the grid so the now line sits one hour column right of the header column. */
+const revealNow = () => {
+  const s = slotAt(Date.now(), model.t0, model.n);
+  if (s == null) return;
+  const { slot } = trackGeom();
+  el.rows.scrollLeft = Math.max(0, s * slot - 4 * slot);
+};
+
 const renderDate = () => {
   el.dateInput.value = state.date;
   const [y, m, d] = state.date.split("-").map(Number);
@@ -356,11 +428,32 @@ const renderLength = () => {
   el.lengthSeg.querySelectorAll("button").forEach((b) => b.setAttribute("aria-checked", String(+b.dataset.len === state.len)));
 };
 
+const renderFilter = () => {
+  el.filterSeg.querySelectorAll("button").forEach((b) => {
+    const on = b.dataset.filter === state.filter;
+    b.setAttribute("aria-checked", String(on));
+    b.tabIndex = on ? 0 : -1;
+  });
+  const empty = state.filter !== "all" && !model.kept.includes(true);
+  el.filterEmpty.textContent = empty ? S.filterEmpty(S.BAND_LABEL[state.filter === "best" ? 2 : 1]) : "";
+  el.filterEmpty.hidden = !empty;
+};
+
+const renderClock = () => {
+  const h12 = hour12();
+  el.clockSeg.querySelectorAll("button").forEach((b) => b.setAttribute("aria-checked", String((b.dataset.h12 === "true") === h12)));
+  el.legendBest.textContent = S.legendBest(h12);
+  el.legendGood.textContent = S.legendGood(h12);
+};
+
 const render = ({ keepStart = false } = {}) => {
-  cancelReorder();
+  // state.zones may already be shorter than the old rows, so the rebuilt rows get the live refresh instead
+  cancelReorder({ live: false });
   buildModel();
   renderDate();
   renderLength();
+  renderFilter();
+  renderClock();
   renderRows();
   const list = suggestions();
   if (!keepStart || state.start == null || state.start > model.n - state.len) state.start = list.length ? list[0].s : 0;
@@ -370,6 +463,7 @@ const render = ({ keepStart = false } = {}) => {
   el.timeline.classList.toggle("editing", state.editing);
   save();
   if (location.hash) history.replaceState(null, "", shareURL());
+  placeNow();
 };
 
 // ---------- Interaction ----------
@@ -398,6 +492,11 @@ el.rows.addEventListener("click", (e) => {
   }
   const i = +btn.dataset.idx;
   const z = state.zones[i];
+  if (btn.dataset.act === "change" && i > 0 && z) {
+    replacing = { idx: i, zone: zoneOf(z), name: z.name };
+    openSheet(S.changeTitle(z.name));
+    return;
+  }
   if (btn.dataset.act === "remove" && i > 0 && z) {
     state.zones.splice(i, 1);
     toast(S.removed(z.name));
@@ -568,8 +667,8 @@ const startLift = (id, row, y, touch) => {
   if (touch && typeof navigator.vibrate === "function") navigator.vibrate(10);
   placeLift();
 };
-/** End a lift without saving: every transform and listener goes, state.zones is untouched. */
-const endLift = () => {
+/** End a lift without saving: every transform and listener goes, state.zones is untouched; `live` shows any live update held off during the lift. */
+const endLift = ({ live = true } = {}) => {
   if (!lift) return;
   const { row, slots, raf } = lift;
   lift = null;
@@ -586,8 +685,9 @@ const endLift = () => {
   el.rows.classList.remove("reordering");
   // the click that follows this pointerup is swallowed; a later keyboard click is not
   setTimeout(() => { reordered = false; });
+  if (live) renderLive();
 };
-const cancelReorder = () => { endPending(); endLift(); };
+const cancelReorder = ({ live } = {}) => { endPending(); endLift({ live }); };
 
 el.rows.addEventListener("pointerdown", (e) => {
   endPending();
@@ -643,6 +743,46 @@ el.lengthSeg.addEventListener("keydown", (e) => {
   el.lengthSeg.querySelector(`[data-len="${state.len}"]`).focus();
 });
 
+const setFilter = (f) => {
+  state.filter = f;
+  render({ keepStart: true });
+  el.filterSeg.querySelector(`[data-filter="${f}"]`).focus();
+};
+el.filterSeg.addEventListener("click", (e) => {
+  const b = e.target.closest("button[data-filter]");
+  if (b) setFilter(b.dataset.filter);
+});
+el.filterSeg.addEventListener("keydown", (e) => {
+  const step = { ArrowLeft: -1, ArrowUp: -1, ArrowRight: 1, ArrowDown: 1 }[e.key];
+  if (!step) return;
+  e.preventDefault();
+  const i = FILTERS.indexOf(state.filter) + step;
+  if (i < 0 || i >= FILTERS.length) return;
+  setFilter(FILTERS[i]);
+});
+
+el.clockSeg.setAttribute("aria-label", S.TIME_FORMAT);
+el.clockSeg.querySelectorAll("button").forEach((b) => {
+  const on = b.dataset.h12 === "true";
+  b.textContent = on ? S.CLOCK_12 : S.CLOCK_24;
+  b.setAttribute("aria-label", on ? S.CLOCK_12_LABEL : S.CLOCK_24_LABEL);
+});
+el.clockSeg.addEventListener("click", (e) => {
+  const b = e.target.closest("button[data-h12]");
+  if (!b) return;
+  state.hour12 = b.dataset.h12 === "true";
+  render({ keepStart: true });
+});
+el.clockSeg.addEventListener("keydown", (e) => {
+  if (!["ArrowLeft", "ArrowRight"].includes(e.key)) return;
+  const opts = [true, false];
+  const i = opts.indexOf(hour12()) + (e.key === "ArrowRight" ? 1 : -1);
+  if (i < 0 || i >= opts.length) return;
+  state.hour12 = opts[i];
+  render({ keepStart: true });
+  el.clockSeg.querySelector(`[data-h12="${state.hour12}"]`).focus();
+});
+
 const shiftDay = (delta) => {
   const [y, m, d] = state.date.split("-").map(Number);
   const dt = new Date(Date.UTC(y, m - 1, d + delta));
@@ -652,6 +792,19 @@ const shiftDay = (delta) => {
 $("prevDay").addEventListener("click", () => shiftDay(-1));
 $("nextDay").addEventListener("click", () => shiftDay(1));
 el.dateInput.addEventListener("change", () => { if (el.dateInput.value) { state.date = el.dateInput.value; render(); } });
+
+el.nowBtn.textContent = S.NOW;
+el.nowBtn.addEventListener("click", () => {
+  const hadFocus = document.activeElement === el.nowBtn;
+  if (state.date !== todayISO()) {
+    state.date = todayISO();
+    render();
+  }
+  revealNow();
+  updateNowBtn();
+  if (hadFocus) el.editBtn.focus();
+});
+el.rows.addEventListener("scroll", updateNowBtn, { passive: true });
 
 el.editBtn.addEventListener("click", () => {
   cancelReorder();
@@ -676,8 +829,8 @@ el.copyBtn.addEventListener("click", () => {
   const endT = model.t0 + (s + state.len) * SLOT_MS;
   const lines = state.zones.map((z, i) => {
     const p = model.grid[i].parts[s];
-    const q = localParts(z.tz, endT);
-    return `${z.name}: ${weekday(p.date)} ${hhmm(p)}–${hhmm(q)}`;
+    const q = localParts(zoneOf(z), endT);
+    return `${z.name}: ${weekday(p.date)} ${timeText(p)}–${timeText(q)}`;
   });
   copyText(lines.join("\n"), S.TIMES_COPIED);
 });
@@ -698,47 +851,87 @@ const toast = (msg) => {
 // ---------- Zone sheet ----------
 let allTz = [];
 try { allTz = Intl.supportedValuesOf("timeZone"); } catch { allTz = []; }
+// While a Change is open: the row being replaced, as it was when the sheet opened.
+let replacing = null;
 const renderResults = () => {
   const list = searchCities(el.search.value, { zones: allTz });
   const users = state.zones.length - 1;
-  const full = users >= MAX_USER_ZONES;
-  el.sheetNote.textContent = full ? S.ZONES_FULL : S.zonesAdded(users, MAX_USER_ZONES);
+  const full = !replacing && users >= MAX_USER_ZONES;
+  el.sheetNote.textContent = replacing ? S.changeNote(replacing.name) : full ? S.ZONES_FULL : S.zonesAdded(users, MAX_USER_ZONES);
   if (!list.length) { el.results.innerHTML = `<li class="sheet-note">${esc(S.noMatch(el.search.value))}</li>`; return; }
   const now = Date.now();
   el.results.innerHTML = list.map((c) => {
+    if ("offsetMin" in c) {
+      const n = c.offsetMin;
+      const taken = state.zones.slice(1).some((z) => z.offsetMin === n);
+      const q = localParts(n, now);
+      return `<li><button type="button" class="result" role="option" data-offset="${n}" ${taken || full ? "disabled" : ""} aria-selected="false">
+      <span class="r-main"><b>${esc(S.offsetResult(n))}</b></span>
+      ${taken ? icon("check") : `<span class="r-time">${esc(timeText(q))}<span>${esc(S.BAND_LABEL[classify(q.mod)])}</span></span>`}
+    </button></li>`;
+    }
     const added = state.zones.some((z) => z.tz === c.tz && z.name === c.name);
     const isHome = c.tz === state.zones[0].tz;
     const p = localParts(c.tz, now);
     return `<li><button type="button" class="result" role="option" data-tz="${esc(c.tz)}" data-name="${esc(c.name)}" ${added || isHome || full ? "disabled" : ""} aria-selected="false">
       <span class="r-main"><b>${esc(c.name)}</b><span>${esc(c.country)} · ${offLabel(p.off)}</span></span>
-      ${added ? icon("check") : `<span class="r-time">${hhmm(p)}<span>${esc(S.BAND_LABEL[classify(p.mod)])}</span></span>`}
+      ${added ? icon("check") : `<span class="r-time">${esc(timeText(p))}<span>${esc(S.BAND_LABEL[classify(p.mod)])}</span></span>`}
     </button></li>`;
   }).join("");
 };
-el.addZone.addEventListener("click", () => {
+const openSheet = (title) => {
+  el.sheetTitle.textContent = title;
   el.search.value = "";
   renderResults();
   el.sheet.showModal();
   if (matchMedia("(pointer: fine)").matches) el.search.focus();
+};
+el.addZone.addEventListener("click", () => {
+  replacing = null;
+  openSheet(S.ADD_TITLE);
 });
 el.search.addEventListener("input", renderResults);
 el.search.addEventListener("keydown", (e) => {
   if (e.key === "Enter") { e.preventDefault(); if (abbreviationZones(el.search.value).length > 1) return; const first = el.results.querySelector(".result:not(:disabled)"); if (first) first.click(); }
 });
+// Whether `z` is the home zone or already a user row other than `skip`.
+const clashes = (z, skip) => "offsetMin" in z
+  ? state.zones.some((x, i) => i > 0 && i !== skip && x.offsetMin === z.offsetMin)
+  : z.tz === state.zones[0].tz || state.zones.some((x, i) => i !== skip && x.tz === z.tz && x.name === z.name);
 el.results.addEventListener("click", (e) => {
   const b = e.target.closest(".result");
   if (!b || b.disabled) return;
-  const z = zoneInfo(b.dataset.tz, b.dataset.name);
-  if (z.tz === state.zones[0].tz || state.zones.length - 1 >= MAX_USER_ZONES || state.zones.some((x) => x.tz === z.tz && x.name === z.name)) return;
+  const z = "offset" in b.dataset ? mkOffset(Number(b.dataset.offset)) : zoneInfo(b.dataset.tz, b.dataset.name);
+  if (replacing) { replaceZone(z); return; }
+  if (state.zones.length - 1 >= MAX_USER_ZONES || clashes(z, -1)) return;
   state.zones.push(z);
   render({ keepStart: true });
   toast(S.added(z.name));
   if (state.zones.length - 1 >= MAX_USER_ZONES) el.sheet.close(); else renderResults();
 });
+const replaceZone = (z) => {
+  const { idx, zone, name } = replacing;
+  const cur = state.zones[idx];
+  if (!cur || zoneOf(cur) !== zone || cur.name !== name) { el.sheet.close(); return; }
+  if (clashes(z, idx) || (zoneOf(z) === zone && z.name === name)) return;
+  state.zones = replaceRow(state.zones, idx, z);
+  render({ keepStart: true });
+  toast(S.changed(name, z.name));
+  el.sheet.close();
+  const btn = el.rows.querySelector(`button[data-act="change"][data-idx="${idx}"]`);
+  if (btn) btn.focus();
+};
 el.sheet.addEventListener("click", (e) => { if (e.target === el.sheet) el.sheet.close(); });
+el.sheet.addEventListener("close", () => {
+  replacing = null;
+  el.sheetTitle.textContent = S.ADD_TITLE;
+});
 
-addEventListener("resize", () => { cancelReorder(); renderSelection(); });
-addEventListener("hashchange", () => { load(); render(); if (el.sheet.open) renderResults(); });
+// After the rows change underneath it: a Change closes, since its row may have moved; Add refreshes.
+const refreshSheet = () => { if (replacing) el.sheet.close(); else renderResults(); };
+
+addEventListener("resize", () => { cancelReorder(); renderSelection(); placeNow(); });
+addEventListener("hashchange", () => { load(); render(); if (el.sheet.open) refreshSheet(); });
 addEventListener("pagehide", () => saver.flush());
 
 // The home row follows the device zone, e.g. after travel.
@@ -747,12 +940,24 @@ const checkHome = () => {
   if (tz === state.zones[0].tz) return;
   state.zones = [mkZone(tz), ...followHome(state.zones.slice(1), tz)];
   render();
-  if (el.sheet.open) renderResults();
+  if (el.sheet.open) refreshSheet();
   toast(S.nowIn(state.zones[0].name));
 };
-document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") checkHome(); });
-addEventListener("focus", checkHome);
-setInterval(checkHome, 60000);
+
+// One shared minute clock drives every live update.
+const clock = createClock();
+clock.subscribe(placeNow);
+clock.subscribe(checkHome);
+clock.subscribe(renderLive);
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") clock.resume(); else clock.pause(); });
+addEventListener("focus", () => { checkHome(); placeNow(); renderLive(); });
 
 load();
 render();
+if (state.date === todayISO()) revealNow();
+if (document.visibilityState === "hidden") clock.pause(); else clock.start();
+
+// Offline support. Where service workers are unavailable or fail, the app runs as before.
+if ("serviceWorker" in navigator) {
+  try { navigator.serviceWorker.register("./sw.js").catch(() => {}); } catch { /* no service worker */ }
+}

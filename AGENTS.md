@@ -9,7 +9,7 @@ from `docs/inspiraton.jpg` and is binding.
 
 Plain static HTML, CSS and vanilla JavaScript ES modules. No build step and no
 runtime dependencies; `package.json` exists only so `npm test` runs the unit
-tests.
+tests and `npm run sw:stamp` stamps `sw.js`.
 
 - `index.html`: markup and the SVG icon sprite. Loads `app.js` with
   `<script type="module">`.
@@ -17,19 +17,34 @@ tests.
 - `app.js`: the entry point. DOM lookups, state, load/save/share, scoring,
   rendering and interactions.
 - `js/time.js`: the time engine (`Intl.DateTimeFormat`): offsets, local parts,
-  zoned midnight, band classification, Good heat steps and UTC offset labels.
-- `js/zones.js`: the zone list rules: zone validation, user rows (home
-  dropped, capped at 7), share-link `z` encoding and parsing, and following a
-  new device zone.
+  zoned midnight, band classification, Good heat steps, UTC offset labels,
+  the slot position of an instant (`slotAt`), the locale's default
+  clock (`localeHour12`, from the `hourCycle`), the zone abbreviation
+  (`zoneAbbr`/`zoneTag`: `Intl` short names tried in `en-AU`, `en-GB`,
+  `en-US` order; GMT/UTC-style names fall back to the UTC offset alone) and
+  the day difference from home (`dayDiff`). A zone is an IANA ID string
+  or a fixed offset as a number of minutes from UTC (no `Etc/GMT` IDs).
+- `js/clock.js`: the shared minute clock: aligned to the wall-clock minute,
+  pause and resume, injectable time source.
+- `js/zones.js`: the zone list rules: zone validation, the typed-offset
+  parser (`parseOffset`: `GMT+11`, `UTC-7`, `+5:30`, `-0330`), user rows (home
+  dropped, capped at 7), share-link `z` encoding and parsing (`tz~name` per
+  city row, `@<minutes>` per offset row), following a new device zone, and
+  swapping one row in place (`replaceRow`).
 - `js/state.js`: the stored state shape, its load, validation and
   version-driven migration, and the debounced (250 ms) saver.
-- `js/strings.js`: every user-facing string JavaScript builds (en-AU).
+- `js/strings.js`: every user-facing string JavaScript builds (en-AU),
+  including the single time formatter: `clock` (full or hour-cell form, 12-
+  or 24-hour) and `clockRange` built on it.
 - `js/scroll.js`: the wheel-to-horizontal scroll decision for the hour grid
   (`wheelScroll`).
 - `js/reorder.js`: the pure row reorder for drag-to-reorder (`moveRow`); the
   home row stays fixed at index 0.
 - `js/weekend.js`: weekend rules (`weekendSlots`, `scoredBands`,
   `overlapBands`): which slots fall on each zone's weekend, scored Unsuitable.
+- `js/filter.js`: the All / Good / Best hour filter (`keptSlots`,
+  `windowKept`): which slots of the overlap row are kept, and whether a
+  meeting span lies entirely in kept slots.
 - `js/search.js`: city search and zone naming (pure, reads `js/cities.js`).
 - `js/cities.js`: generated city data (about 500 cities), the country-to-weekend
   map and the time zone abbreviation table. DOM-free. City data from GeoNames,
@@ -39,12 +54,27 @@ tests.
   `node scripts/build-city-data.js [path-to-cities15000.zip]` (no path
   downloads it from GeoNames). Don't hand-edit `js/cities.js`; change the
   generator (or `scripts/pinned-cities.js`, the 68 cities it pins) and rerun it.
-- `test/`: unit tests (`node:test`) for the time engine, the zone rules, the
-  stored state, the city data, the wheel scroll decision, the row reorder and
-  the weekend rules (`test/weekend.test.js`),
-  plus a static
+- `sw.js`: the service worker, registered from `app.js` (default scope, the
+  directory it is in). It precaches every file the page loads (`index.html`,
+  `styles.css`, the modules and the fonts) and serves them cache-first, with
+  no runtime caching. Only navigations to the app's own page (the scope
+  directory or its `index.html`, share links included) get the cached
+  `index.html`; other navigations, such as `factory/dashboard.html`, go to the
+  network. Caches are named `zoneplanner:<scope>:<VERSION>`. A new version
+  installs in the background and takes control only once every page using
+  the old one has closed; it then deletes its own scope's older caches.
+- `scripts/stamp-sw.js` (`npm run sw:stamp`) and `scripts/sw-manifest.js`:
+  dev-only, never precached. The manifest works out the precache list (from
+  `index.html`, the `url()`s in `styles.css` and the import graph from
+  `app.js`) and its content hash; the stamp writes both into `sw.js`'s
+  `VERSION` and `PRECACHE` lines.
+- `test/`: unit tests (`node:test`) for the time engine, the shared clock,
+  the zone rules, the stored state, the city data, the wheel scroll decision, the row reorder,
+  the hour filter, the time formatter (`test/strings.test.js`) and the weekend
+  rules (`test/weekend.test.js`), plus a static
   CSP check of `index.html` (`test/csp.test.js`) and a static `styles.css`
-  token check (heat-step contrast and order, `test/tokens.test.js`).
+  token check (heat-step contrast and order, `test/tokens.test.js`) and the
+  service worker's stamp and manifest rules (`test/sw.test.js`).
 - `assets/fonts/`: self-hosted woff2 fonts. Don't add CDN or third-party requests.
 
 Rules that hold across the app:
@@ -55,7 +85,8 @@ Rules that hold across the app:
   Good runs in three hatched heat steps by local hour (`goodStep`); the
   Everyone row's Good is flat.
 - Each row's weekend comes from its city's country (`cc` from `zoneInfo`)
-  via `weekendFor`, Sat-Sun when unknown, judged per slot by local weekday.
+  via `weekendFor`, Sat-Sun when unknown (offset rows have no country, so
+  Sat-Sun), judged per slot by local weekday.
   Weekend slots carry a 45° line overlay on zone rows and score as
   Unsuitable in the Everyone row, the overlap summary, the verdict and the
   suggestions.
@@ -67,6 +98,13 @@ Rules that hold across the app:
   backed up to `zoneplanner.state.bak` and reset to the defaults; the old
   `zoneplanner:v1` key is migrated once and never written. Stored zones and
   link zones both go through `userRows` in `js/zones.js`.
+- Every displayed time of day goes through `clock`/`clockRange` in
+  `js/strings.js` with the effective clock, `state.hour12 ?? localeHour12()`.
+  A stored `hour12: null` means follow the locale; the 12h/24h toggle stores
+  `true` or `false`.
+- Offset rows (`{offsetMin}`, a multiple of 15 within ±14:00) are named from
+  their offset (`UTC+05:30`, via `offsetName`), never from stored or linked
+  text, and have no country.
 - Any string from the share-link hash or localStorage goes through `esc()` or
   `textContent` before it reaches the DOM. The page also enforces the PRD's
   Content-Security-Policy (§10.3) with a `<meta>` tag at the top of
@@ -80,11 +118,20 @@ Rules that hold across the app:
   text and never escape. Any strings-module result that goes into `innerHTML`
   is wrapped in `esc()` at the call site in `app.js`, so it is escaped exactly
   once; `textContent`, `setAttribute` and `window.prompt` take it as is.
-- `js/time.js`, `js/zones.js`, `js/state.js`, `js/scroll.js`, `js/reorder.js`,
-  `js/weekend.js` and `js/cities.js` stay DOM-free: no `document`, `window`, `location`, `localStorage`, `navigator`
+- `js/time.js`, `js/clock.js`, `js/zones.js`, `js/state.js`, `js/scroll.js`,
+  `js/reorder.js`, `js/filter.js`, `js/weekend.js` and `js/cities.js` stay DOM-free: no `document`, `window`, `location`, `localStorage`, `navigator`
   or `history`, so they import in Node.
 - Every `$("id")` / `getElementById` lookup stays in `app.js` with a literal id.
+- Live updates (the now line, the home-zone re-check, the row headers' live
+  time, abbreviation and day difference) subscribe to the one
+  shared clock in `app.js`; don't add your own `setInterval` or minute timers.
 - Touch targets are at least 44px; no horizontal scroll at 390px wide.
+- Any change that adds, removes, renames or edits a file the page loads
+  (`index.html`, `styles.css`, any module, any font) must rerun
+  `npm run sw:stamp` and commit the updated `sw.js`; `npm test` fails
+  otherwise. Local asset references carry no query strings (the stamp
+  rejects them; the content hash versions the cache). `sw.js` is DOM-free and
+  never touches `localStorage`.
 
 ## Setup
 
@@ -100,6 +147,26 @@ python3 -m http.server <port>
 
 Then open `http://localhost:<port>/index.html`. The page loads ES modules, so
 it needs a static server and no longer works opened from `file://`.
+
+### Bypassing the service worker
+
+Service workers need HTTPS or localhost, so the page registers `sw.js` on the
+dev server too. Because the worker is cache-first, a normal reload on a
+localhost port you visited before shows the old files until you bypass it:
+
+- Shift-reload (force reload) bypasses the worker for that load in Chromium,
+  Firefox and Safari.
+- Chrome DevTools, Application, Service workers: tick "Bypass for network" (or
+  "Update on reload").
+- Use a fresh or private browser profile.
+- Run this in the page's console. It is an origin-wide dev reset: it
+  unregisters every registration and deletes every `zoneplanner:` cache, so it
+  clears every copy of the app served from that origin.
+
+  ```js
+  (await navigator.serviceWorker.getRegistrations()).forEach((r) => r.unregister());
+  for (const k of await caches.keys()) if (k.startsWith("zoneplanner:")) await caches.delete(k);
+  ```
 
 ## Validation
 

@@ -5,7 +5,7 @@
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; connect-src 'self'">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>ZonePlanner</title>
-  <meta name="description" content="Compare 3 to 8 time zones and find the meeting hour that works for everyone.">
+  <meta name="description" content="Compare up to 8 time zones and find the meeting hour that works for everyone.">
   <meta name="theme-color" content="#F4EDE2">
   <link rel="preload" href="assets/fonts/hanken-grotesk-latin.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="assets/fonts/libre-baskerville-latin.woff2" as="font" type="font/woff2" crossorigin>
@@ -23,6 +23,7 @@
     <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
     <symbol id="i-home" viewBox="0 0 24 24"><path d="M4 11l8-6.5 8 6.5"/><path d="M6.5 9.5V19h11V9.5"/></symbol>
     <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4 4"/></symbol>
+    <symbol id="i-edit" viewBox="0 0 24 24"><path d="M15.5 5.5l3 3L9 18H6v-3z"/><path d="M13.5 7.5l3 3"/></symbol>
     <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></symbol>
     <symbol id="i-grip" viewBox="0 0 24 24"><path d="M5 8h14M5 12h14M5 16h14"/></symbol>
   </svg>
@@ -91,18 +92,31 @@
     <section class="board card" aria-labelledby="boardTitle">
       <div class="board-head">
         <h2 id="boardTitle">Zones <span class="count" id="zoneCount"></span></h2>
-        <button class="btn btn-ghost" type="button" id="editBtn" aria-pressed="false">Edit</button>
+        <div class="board-actions">
+          <button class="btn btn-ghost" type="button" id="nowBtn" hidden>Now</button>
+          <div class="seg seg-clock" role="radiogroup" id="clockSeg">
+            <button type="button" role="radio" data-h12="true"></button>
+            <button type="button" role="radio" data-h12="false"></button>
+          </div>
+          <button class="btn btn-ghost" type="button" id="editBtn" aria-pressed="false">Edit</button>
+        </div>
       </div>
       <p id="zoneLimit" class="sheet-note" hidden></p>
+      <div class="seg seg-filter" role="radiogroup" aria-label="Show hours" id="filterSeg">
+        <button type="button" role="radio" data-filter="all">All</button>
+        <button type="button" role="radio" data-filter="good">Good</button>
+        <button type="button" role="radio" data-filter="best">Best</button>
+      </div>
+      <p id="filterEmpty" class="filter-empty" role="status" hidden></p>
 
       <div class="timeline" id="timeline">
         <input type="range" id="scrub" class="scrub" min="0" max="92" step="1" value="0" aria-label="Meeting start time">
-        <div class="rows" id="rows" tabindex="0" role="region"><div class="selbar" id="selbar" aria-hidden="true"></div></div>
+        <div class="rows" id="rows" tabindex="0" role="region"><div class="selbar" id="selbar" aria-hidden="true"></div><div class="nowline" id="nowLine" aria-hidden="true" hidden></div></div>
       </div>
 
       <ul class="legend" aria-label="Legend">
-        <li><span class="sw sw-biz"></span>Best <small>9–17</small></li>
-        <li><span class="sw sw-edge"></span>Good <small>6–9, 17–20</small></li>
+        <li><span class="sw sw-biz"></span>Best <small id="legendBest">9–17</small></li>
+        <li><span class="sw sw-edge"></span>Good <small id="legendGood">6–9, 17–20</small></li>
         <li><span class="sw sw-night"></span>Unsuitable</li>
         <li><span class="sw sw-weekend"></span>Weekend</li>
       </ul>

@@ -4,6 +4,7 @@ import { CITIES } from "../js/cities.js";
 import { abbreviationZones, prettyTz, searchCities, zoneInfo } from "../js/search.js";
 import { linkToRows, rowsToLink } from "../js/zones.js";
 import { loadState, serializeState } from "../js/state.js";
+import { offsetName, offsetResult } from "../js/strings.js";
 
 const names = (list) => list.map((c) => c.name);
 const at = (list, name) => list.findIndex((c) => c.name === name);
@@ -117,4 +118,19 @@ test("zone aliases find the same city", () => {
   assert.equal(zoneInfo("Asia/Calcutta").name, "Mumbai");
   assert.equal(zoneInfo("Europe/Kiev").name, "Kyiv");
   assert.ok(!searchCities("calcutta", { zones: ["Asia/Calcutta"] }).some((c) => c.tz === "Asia/Calcutta"));
+});
+
+test("a typed offset is the first result", () => {
+  assert.deepEqual(searchCities("+5:30")[0], { offsetMin: 330 });
+  assert.deepEqual(searchCities("UTC")[0], { offsetMin: 0 });
+  const gmt = searchCities("GMT");
+  assert.deepEqual(gmt[0], { offsetMin: 0 });
+  assert.ok(at(gmt, "London") > 0);
+  assert.ok(searchCities("+15").every((r) => !("offsetMin" in r)));
+});
+
+test("offset names and the offset result text", () => {
+  assert.equal(offsetResult(330), "UTC+05:30 (fixed, no daylight saving)");
+  assert.equal(offsetName(-420), "UTC\u221207:00");
+  assert.equal(offsetName(0), "UTC+00:00");
 });

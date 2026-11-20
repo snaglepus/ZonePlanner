@@ -99,3 +99,11 @@ test("scoredBands sets weekend slots Unsuitable and leaves the rest", () => {
   const london = row("Europe/London", "GB", t0, slots);
   assert.deepEqual(scoredBands(london.bands, london.weekend), london.bands);
 });
+
+test("offset rows use Sat-Sun by their own local weekday", () => {
+  // London's Friday 16 Jan: a +05:30 row reaches Saturday at London 18:30, slot 74
+  const { t0, slots } = homeDay("Europe/London", 2026, 1, 16);
+  const wk = weekendSlots(330, undefined, t0, slots);
+  assert.ok(none(wk.slice(0, 74)));
+  assert.ok(all(wk.slice(74)));
+});

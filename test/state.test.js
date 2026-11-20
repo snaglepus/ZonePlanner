@@ -178,3 +178,8 @@ test("a throwing setItem is swallowed by the timer and by flush", () => {
   saver.save("b");
   assert.doesNotThrow(() => saver.flush());
 });
+
+test("a stored offset in a multiple of 15 loads, one off the grid is dropped", () => {
+  const { state } = loadState(v1([{ offsetMin: 15 }, { offsetMin: 20 }]), null, LA);
+  assert.deepEqual(state.zones, [{ offsetMin: 15 }]);
+});

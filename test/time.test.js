@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { BAND, cellLabel, classify, goodStep, homeDay, hhmm, localParts, offLabel, offsetMin, zonedMidnight } from "../js/time.js";
+import { BAND, cellLabel, classify, dayStarts, goodStep, homeDay, hhmm, localParts, offLabel, offsetMin, zonedMidnight } from "../js/time.js";
 
 const JAN_15 = Date.UTC(2026, 0, 15);
 const HOUR = 3600000;
@@ -101,4 +101,61 @@ test("fixed offsets keep their gap across DST while Los Angeles shifts", () => {
   assert.equal(hourGap(-420, 0, JUL_15), 17);
   assert.equal(gap("America/Los_Angeles", 0, JAN_15), -8);
   assert.equal(gap("America/Los_Angeles", 0, JUL_15), -7);
+});
+
+const iso = (s) => Date.parse(s);
+const SYD = homeDay("Australia/Sydney", 2026, 11, 18);
+const starts = (tz, day, locale = "en-AU") => dayStarts(tz, day.t0, day.t1, locale);
+test("dayStarts: London changes date at Sydney 11:00", () => {
+  assert.deepEqual(starts("Europe/London", SYD), [{ t: SYD.t0 + 11 * HOUR, label: "Wed 18" }]);
+});
+test("dayStarts: Kathmandu changes date a quarter into a column", () => {
+  assert.deepEqual(starts("Asia/Kathmandu", SYD), [{ t: iso("2026-11-17T18:15Z"), label: "Wed 18" }]);
+  assert.equal(SYD.t0 + 5.25 * HOUR, iso("2026-11-17T18:15Z"));
+});
+test("dayStarts: the home zone changes date at t0", () => {
+  assert.deepEqual(starts("Australia/Sydney", SYD).map((e) => e.t), [SYD.t0]);
+});
+test("dayStarts: London midnight under BST on a 23-hour Sydney day", () => {
+  assert.deepEqual(starts("Europe/London", homeDay("Australia/Sydney", 2026, 10, 4)), [{ t: iso("2026-10-03T23:00Z"), label: "Sun 4" }]);
+});
+test("dayStarts: New York with its own DST change inside the home day", () => {
+  assert.deepEqual(starts("America/New_York", homeDay("Australia/Sydney", 2026, 11, 1)).map((e) => e.t), [iso("2026-11-01T04:00Z")]);
+});
+test("dayStarts: Santiago's missing midnight as a row", () => {
+  assert.deepEqual(starts("America/Santiago", homeDay("Australia/Sydney", 2026, 9, 6)), [{ t: iso("2026-09-06T04:00Z"), label: "Sun 6" }]);
+});
+test("dayStarts: Santiago's missing midnight as home", () => {
+  const day = homeDay("America/Santiago", 2026, 9, 6);
+  assert.deepEqual(starts("America/Santiago", day), [{ t: day.t0, label: "Sun 6" }]);
+  assert.equal(day.t0, iso("2026-09-06T04:00Z"));
+});
+test("dayStarts: an offset ID changing date inside the last slot", (t) => {
+  try { new Intl.DateTimeFormat("en", { timeZone: "+00:01" }); } catch { t.skip("Intl rejects +00:01"); return; }
+  assert.deepEqual(starts("+00:01", homeDay("UTC", 2026, 11, 18)), [{ t: iso("2026-11-18T23:59Z"), label: "Thu 19" }]);
+});
+test("dayStarts: the label follows the locale", () => {
+  const [e] = starts("Europe/London", SYD, "en-US");
+  assert.equal(e.label, new Intl.DateTimeFormat("en-US", { weekday: "short", day: "numeric", timeZone: "Europe/London" }).format(e.t));
+  assert.equal(starts("Europe/London", SYD)[0].label, "Wed 18");
+});
+test("dayStarts: never returns t1", () => {
+  const list = starts("Australia/Melbourne", SYD);
+  assert.equal(list.length, 1);
+  assert.ok(list.every((e) => e.t !== SYD.t1));
+});
+
+test("homeDay starts at Santiago's 01:00 when midnight is missing", () => {
+  const day = homeDay("America/Santiago", 2026, 9, 6);
+  assert.equal(day.t0, iso("2026-09-06T04:00Z"));
+  assert.equal(day.t1, iso("2026-09-07T03:00Z"));
+  assert.equal(day.slots, 92);
+  assert.equal(day.cols, 23);
+  assert.equal(localParts("America/Santiago", day.t0).dayKey, 20260906);
+});
+test("homeDay before Santiago's missing midnight ends where the next date starts", () => {
+  const day = homeDay("America/Santiago", 2026, 9, 5);
+  assert.equal(day.t0, iso("2026-09-05T04:00Z"));
+  assert.equal(day.t1, iso("2026-09-06T04:00Z"));
+  assert.equal(day.slots, 96);
 });

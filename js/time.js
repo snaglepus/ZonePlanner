@@ -54,11 +54,32 @@ export const offLabel = (off) => {
   return `UTC${s}${Math.floor(a / 60)}${a % 60 ? ":" + pad(a % 60) : ""}`;
 };
 export const weekday = (d) => d.toLocaleDateString("en-GB", { weekday: "short", timeZone: "UTC" });
-/** Home-zone day on y-m-d: midnights, 15-minute slots and hour columns (23–25 on DST days). */
+const MINUTE = 60000;
+const SLOT = 15 * MINUTE;
+/** First whole minute in (a, b] whose local date differs from a's, where a and b are whole minutes on different dates. */
+const dateChange = (tz, a, b) => {
+  const k = localParts(tz, a).dayKey;
+  while (b - a > MINUTE) {
+    const mid = a + Math.floor((b - a) / MINUTE / 2) * MINUTE;
+    if (localParts(tz, mid).dayKey === k) a = mid;
+    else b = mid;
+  }
+  return b;
+};
+/** First instant of y-m-d in tz, even where local midnight doesn't exist. */
+const dateStart = (tz, y, m, d) => {
+  const key = y * 10000 + m * 100 + d;
+  const t = zonedMidnight(tz, y, m, d);
+  if (localParts(tz, t).dayKey >= key) return t;
+  let b = t + SLOT;
+  while (localParts(tz, b).dayKey < key) b += SLOT;
+  return dateChange(tz, b - SLOT, b);
+};
+/** Home-zone day on y-m-d: where its date starts and ends, 15-minute slots and hour columns (23–25 on DST days). */
 export const homeDay = (tz, y, m, d) => {
-  const t0 = zonedMidnight(tz, y, m, d);
+  const t0 = dateStart(tz, y, m, d);
   const next = new Date(Date.UTC(y, m - 1, d + 1));
-  const t1 = zonedMidnight(tz, next.getUTCFullYear(), next.getUTCMonth() + 1, next.getUTCDate());
+  const t1 = dateStart(tz, next.getUTCFullYear(), next.getUTCMonth() + 1, next.getUTCDate());
   const slots = Math.round((t1 - t0) / 900000);
   return { t0, t1, slots, cols: Math.ceil(slots / 4) };
 };
@@ -66,4 +87,18 @@ export const homeDay = (tz, y, m, d) => {
 export const cellLabel = (tz, t) => {
   const p = localParts(tz, t);
   return p.m ? `${p.h}:${pad(p.m)}` : String(p.h);
+};
+/** Every instant in [t0, t1) where tz's local date changes, to the minute, with that date's weekday and day in locale. */
+export const dayStarts = (tz, t0, t1, locale) => {
+  const fmt = new Intl.DateTimeFormat(locale, { weekday: "short", day: "numeric", timeZone: typeof tz === "number" ? "UTC" : tz });
+  const label = (t) => fmt.format(typeof tz === "number" ? t + tz * MINUTE : t);
+  const out = [];
+  if (localParts(tz, t0 - MINUTE).dayKey !== localParts(tz, t0).dayKey) out.push(t0);
+  const samples = [];
+  for (let t = t0; t < t1; t += SLOT) samples.push(t);
+  if (t1 - MINUTE > samples[samples.length - 1]) samples.push(t1 - MINUTE);
+  for (let i = 1; i < samples.length; i++) {
+    if (localParts(tz, samples[i - 1]).dayKey !== localParts(tz, samples[i]).dayKey) out.push(dateChange(tz, samples[i - 1], samples[i]));
+  }
+  return out.map((t) => ({ t, label: label(t) }));
 };

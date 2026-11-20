@@ -1,8 +1,7 @@
 import { BAND_NAME, classify, zonedMidnight, localParts, pad, hhmm, offLabel, weekday } from "./js/time.js";
 import * as S from "./js/strings.js";
+import { MAX_USER_ZONES, validTz, userRows, rowsToLink, rawParam, linkToRows, followHome } from "./js/zones.js";
 
-const MIN_ZONES = 3;
-const MAX_ZONES = 8;
 const SLOT_MIN = 15;
 const SLOT_MS = SLOT_MIN * 60000;
 const STORE_KEY = "zoneplanner:v1";
@@ -44,14 +43,16 @@ const CITIES = [
   ["Melbourne", "Australia", "Australia/Melbourne"], ["Auckland", "New Zealand", "Pacific/Auckland"]
 ].map(([city, country, tz]) => ({ city, country, tz }));
 
-const validTz = (tz) => { try { new Intl.DateTimeFormat("en", { timeZone: tz }); return true; } catch { return false; } };
 const cityFor = (tz) => CITIES.find((c) => c.tz === tz);
 const prettyTz = (tz) => tz.split("/").pop().replace(/_/g, " ");
 
 // ---------- State ----------
-const localTz = Intl.DateTimeFormat().resolvedOptions().timeZone || "Europe/London";
+const deviceTz = () => {
+  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  return validTz(tz) ? tz : "Europe/London";
+};
 const todayISO = () => {
-  const p = localParts(localTz, Date.now());
+  const p = localParts(deviceTz(), Date.now());
   return `${p.date.getUTCFullYear()}-${pad(p.date.getUTCMonth() + 1)}-${pad(p.date.getUTCDate())}`;
 };
 
@@ -62,36 +63,30 @@ const mkZone = (tz, name) => {
   return { tz, name: name || (c ? c.city : prettyTz(tz)), country: c ? c.country : "" };
 };
 
+// The home row is always the device zone; storage and links only supply the user rows.
 const load = () => {
+  const home = deviceTz();
   const hash = new URLSearchParams(location.hash.slice(1));
   let saved = null;
   try { saved = JSON.parse(localStorage.getItem(STORE_KEY) || "null"); } catch { /* storage unavailable */ }
-  let zones = [];
+  let picked;
   if (hash.get("z")) {
-    zones = hash.get("z").split(",").map((s) => { const [tz, name] = s.split("~"); return mkZone(decodeURIComponent(tz), name ? decodeURIComponent(name).slice(0, 60) : undefined); });
+    picked = linkToRows(rawParam(location.hash.slice(1), "z"), home);
     if (/^\d{4}-\d{2}-\d{2}$/.test(hash.get("d") || "")) state.date = hash.get("d");
     if (["2", "4", "6", "8"].includes(hash.get("l"))) state.len = +hash.get("l");
   } else if (saved && Array.isArray(saved.zones)) {
-    zones = saved.zones.map((z) => mkZone(z.tz, z.name));
+    picked = userRows(saved.zones, home);
     if ([2, 4, 6, 8].includes(saved.len)) state.len = saved.len;
+  } else {
+    picked = userRows(["America/New_York", "Europe/London", "Asia/Singapore", "Australia/Sydney"].map((tz) => ({ tz })), home);
   }
-  zones = zones.filter((z) => validTz(z.tz));
-  if (zones.length < MIN_ZONES) {
-    zones = [mkZone(localTz)];
-    for (const tz of ["America/New_York", "Europe/London", "Asia/Singapore", "Australia/Sydney"]) {
-      if (zones.length >= 4) break;
-      if (!zones.some((z) => z.tz === tz)) zones.push(mkZone(tz));
-    }
-  }
-  state.zones = zones.slice(0, MAX_ZONES);
+  state.zones = [mkZone(home), ...picked.rows.map((z) => mkZone(z.tz, z.name))];
+  if (picked.dropped > 0) toast(S.linkDropped(picked.dropped));
 };
 const save = () => {
-  try { localStorage.setItem(STORE_KEY, JSON.stringify({ zones: state.zones.map(({ tz, name }) => ({ tz, name })), len: state.len })); } catch { /* ignore */ }
+  try { localStorage.setItem(STORE_KEY, JSON.stringify({ zones: state.zones.slice(1).map(({ tz, name }) => ({ tz, name })), len: state.len })); } catch { /* ignore */ }
 };
-const shareURL = () => {
-  const z = state.zones.map((x) => `${encodeURIComponent(x.tz)}~${encodeURIComponent(x.name)}`).join(",");
-  return `${location.origin}${location.pathname}#z=${z}&d=${state.date}&l=${state.len}`;
-};
+const shareURL = () => `${location.origin}${location.pathname}#z=${rowsToLink(state.zones)}&d=${state.date}&l=${state.len}`;
 
 // ---------- Model ----------
 let model = null;
@@ -147,7 +142,7 @@ const el = {
   rows: $("rows"), axis: $("axis"), scrub: $("scrub"), selbar: $("selbar"), timeline: $("timeline"),
   meetingTime: $("meetingTime"), meetingSub: $("meetingSub"), verdict: $("verdict"), suggestions: $("suggestions"),
   lengthSeg: $("lengthSeg"), dateInput: $("dateInput"), dateLabel: $("dateLabel"), zoneCount: $("zoneCount"),
-  addZone: $("addZone"), editBtn: $("editBtn"), copyBtn: $("copyBtn"), shareBtn: $("shareBtn"),
+  addZone: $("addZone"), zoneLimit: $("zoneLimit"), editBtn: $("editBtn"), copyBtn: $("copyBtn"), shareBtn: $("shareBtn"),
   sheet: $("zoneSheet"), search: $("zoneSearch"), results: $("results"), sheetNote: $("sheetNote"), toast: $("toast")
 };
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -197,17 +192,18 @@ const renderRows = () => {
         <div class="row-name"><b>${idx === 0 ? `<svg aria-label="${esc(S.HOME_ZONE)}" role="img"><use href="#i-home"/></svg>` : ""}${esc(z.name)}</b><span>${esc(sub)}</span></div>
         <div class="row-at" data-at></div>
         <div class="row-actions">
-          ${idx === 0 ? "" : `<button class="icon-btn icon-btn-soft" type="button" data-act="home" data-idx="${idx}" aria-label="${esc(S.makeHome(z.name))}"><svg><use href="#i-home"/></svg></button>`}
-          <button class="icon-btn icon-btn-soft" type="button" data-act="remove" data-idx="${idx}" aria-label="${esc(S.removeZone(z.name))}" ${state.zones.length <= MIN_ZONES ? "disabled" : ""}><svg><use href="#i-x"/></svg></button>
+          ${idx === 0 ? "" : `<button class="icon-btn icon-btn-soft" type="button" data-act="remove" data-idx="${idx}" aria-label="${esc(S.removeZone(z.name))}"><svg><use href="#i-x"/></svg></button>`}
         </div>
       </div>
       <div class="strip" aria-hidden="true">${segmentsHTML(model.grid[idx].bands, model.grid[idx].parts)}</div>
     </li>`;
   });
   el.rows.innerHTML = html;
-  el.zoneCount.textContent = S.zoneCount(state.zones.length, MAX_ZONES);
-  el.addZone.disabled = state.zones.length >= MAX_ZONES;
-  el.addZone.querySelector("span").textContent = state.zones.length >= MAX_ZONES ? S.ZONES_MAX : S.ADD_ZONE;
+  const users = state.zones.length - 1;
+  el.zoneCount.textContent = S.zoneCount(users, MAX_USER_ZONES);
+  el.addZone.disabled = users >= MAX_USER_ZONES;
+  el.zoneLimit.textContent = S.ZONES_FULL;
+  el.zoneLimit.hidden = users < MAX_USER_ZONES;
   el.rows.setAttribute("aria-label", S.rowsLabel(homeName));
 };
 
@@ -362,13 +358,9 @@ el.rows.addEventListener("click", (e) => {
   if (!btn) return;
   const i = +btn.dataset.idx;
   const z = state.zones[i];
-  if (btn.dataset.act === "remove" && state.zones.length > MIN_ZONES) {
+  if (btn.dataset.act === "remove" && i > 0 && z) {
     state.zones.splice(i, 1);
     toast(S.removed(z.name));
-  } else if (btn.dataset.act === "home") {
-    state.zones.splice(i, 1);
-    state.zones.unshift(z);
-    toast(S.nowHome(z.name));
   }
   render();
 });
@@ -459,14 +451,16 @@ const renderResults = () => {
   pool = pool || searchPool();
   const q = norm(el.search.value.trim());
   const list = (q ? pool.filter((c) => norm(`${c.city} ${c.country} ${c.tz}`).includes(q)) : CITIES).slice(0, 40);
-  const full = state.zones.length >= MAX_ZONES;
-  el.sheetNote.textContent = full ? S.SHEET_FULL : S.zonesAdded(state.zones.length, MAX_ZONES);
+  const users = state.zones.length - 1;
+  const full = users >= MAX_USER_ZONES;
+  el.sheetNote.textContent = full ? S.ZONES_FULL : S.zonesAdded(users, MAX_USER_ZONES);
   if (!list.length) { el.results.innerHTML = `<li class="sheet-note">${esc(S.noMatch(el.search.value))}</li>`; return; }
   const now = Date.now();
   el.results.innerHTML = list.map((c) => {
     const added = state.zones.some((z) => z.tz === c.tz && z.name === c.city);
+    const isHome = c.tz === state.zones[0].tz;
     const p = localParts(c.tz, now);
-    return `<li><button type="button" class="result" role="option" data-tz="${esc(c.tz)}" data-name="${esc(c.city)}" ${added || full ? "disabled" : ""} aria-selected="false">
+    return `<li><button type="button" class="result" role="option" data-tz="${esc(c.tz)}" data-name="${esc(c.city)}" ${added || isHome || full ? "disabled" : ""} aria-selected="false">
       <span class="r-main"><b>${esc(c.city)}</b><span>${esc(c.country)} · ${offLabel(p.off)}</span></span>
       ${added ? icon("check") : `<span class="r-time">${hhmm(p)}<span>${esc(S.BAND_LABEL[classify(p.mod)])}</span></span>`}
     </button></li>`;
@@ -486,17 +480,31 @@ el.results.addEventListener("click", (e) => {
   const b = e.target.closest(".result");
   if (!b || b.disabled) return;
   const z = mkZone(b.dataset.tz, b.dataset.name);
+  if (z.tz === state.zones[0].tz || state.zones.length - 1 >= MAX_USER_ZONES || state.zones.some((x) => x.tz === z.tz && x.name === z.name)) return;
   const c = CITIES.find((x) => x.tz === z.tz && x.city === z.name);
   z.country = c ? c.country : "";
   state.zones.push(z);
   render({ keepStart: true });
   toast(S.added(z.name));
-  if (state.zones.length >= MAX_ZONES) el.sheet.close(); else renderResults();
+  if (state.zones.length - 1 >= MAX_USER_ZONES) el.sheet.close(); else renderResults();
 });
 el.sheet.addEventListener("click", (e) => { if (e.target === el.sheet) el.sheet.close(); });
 
 addEventListener("resize", () => renderSelection());
-addEventListener("hashchange", () => { load(); render(); });
+addEventListener("hashchange", () => { load(); render(); if (el.sheet.open) renderResults(); });
+
+// The home row follows the device zone, e.g. after travel.
+const checkHome = () => {
+  const tz = deviceTz();
+  if (tz === state.zones[0].tz) return;
+  state.zones = [mkZone(tz), ...followHome(state.zones.slice(1), tz)];
+  render();
+  if (el.sheet.open) renderResults();
+  toast(S.nowIn(state.zones[0].name));
+};
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") checkHome(); });
+addEventListener("focus", checkHome);
+setInterval(checkHome, 60000);
 
 load();
 render();

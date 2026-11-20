@@ -9,10 +9,8 @@ export const durLabel = (m) => m < 60 ? `${m} min` : `${m / 60} h`.replace(".5 h
 // Rows
 export const EVERYONE = "Everyone";
 export const HOME_ZONE = "Home zone";
-export const makeHome = (name) => `Make ${name} the home zone`;
 export const removeZone = (name) => `Remove ${name}`;
 export const zoneCount = (n, max) => `${n} of ${max}`;
-export const ZONES_MAX = "8 zones max";
 export const ADD_ZONE = "Add zone";
 export const rowsLabel = (homeName) => `Hours for each zone. Day runs on ${homeName} time.`;
 
@@ -43,12 +41,13 @@ export const COPY_PROMPT = "Copy this text:";
 
 // Toasts
 export const removed = (name) => `Removed ${name}`;
-export const nowHome = (name) => `${name} is now home`;
+export const nowIn = (name) => `You're now in ${name} time`;
+export const linkDropped = (n) => `Left out ${n} ${n === 1 ? "zone" : "zones"} from the link. Maximum of 7 time zones.`;
 export const TIMES_COPIED = "Meeting times copied";
 export const LINK_COPIED = "Link to this plan copied";
 export const added = (name) => `Added ${name}`;
 
 // Zone sheet
-export const SHEET_FULL = "You have 8 zones, the maximum. Remove one to add another.";
+export const ZONES_FULL = "Maximum of 7 time zones. Remove one to add another.";
 export const zonesAdded = (n, max) => `${n} of ${max} zones added`;
 export const noMatch = (query) => `Nothing matches “${query}”. Try a nearby major city.`;

@@ -1,4 +1,4 @@
-import { BAND_NAME, classify, dayDiff, goodStep, homeDay, localParts, localeHour12, pad, offLabel, weekday, slotAt, zoneTag } from "./js/time.js";
+import { BAND_NAME, changeWall, classify, createDstWatch, dayDiff, goodStep, homeDay, localParts, localeHour12, pad, offLabel, weekday, slotAt, zoneTag } from "./js/time.js";
 import { createClock } from "./js/clock.js";
 import * as S from "./js/strings.js";
 import { MAX_USER_ZONES, validTz, rowsToLink, rawParam, linkToRows, followHome, replaceRow } from "./js/zones.js";
@@ -123,7 +123,8 @@ const el = {
   meetingTime: $("meetingTime"), meetingSub: $("meetingSub"), verdict: $("verdict"), suggestions: $("suggestions"),
   lengthSeg: $("lengthSeg"), filterSeg: $("filterSeg"), filterEmpty: $("filterEmpty"), clockSeg: $("clockSeg"), legendBest: $("legendBest"), legendGood: $("legendGood"), dateInput: $("dateInput"), dateLabel: $("dateLabel"), zoneCount: $("zoneCount"),
   addZone: $("addZone"), zoneLimit: $("zoneLimit"), editBtn: $("editBtn"), copyBtn: $("copyBtn"), shareBtn: $("shareBtn"),
-  sheet: $("zoneSheet"), sheetTitle: $("sheetTitle"), search: $("zoneSearch"), results: $("results"), sheetNote: $("sheetNote"), toast: $("toast")
+  sheet: $("zoneSheet"), sheetTitle: $("sheetTitle"), search: $("zoneSearch"), results: $("results"), sheetNote: $("sheetNote"), toast: $("toast"),
+  dstSheet: $("dstSheet"), dstTitle: $("dstTitle"), dstText: $("dstText")
 };
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const icon = (id) => `<svg class="ico" aria-hidden="true"><use href="#i-${id}"/></svg>`;
@@ -215,7 +216,14 @@ const renderRows = () => {
     live.append(make("small", null, S.NOW), " ", make("span", "row-time"));
     const day = make("span", "row-day");
     day.hidden = true;
-    name.append(b, live, make("span", "row-tag"), day);
+    const dst = make("span", "row-dst", S.DST);
+    dst.hidden = true;
+    const warn = actBtn("dst", idx, "", "alert");
+    warn.className = "row-warn";
+    warn.hidden = true;
+    const tags = make("div", "row-tags");
+    tags.append(make("span", "row-tag"), dst, warn);
+    name.append(b, live, tags, day);
     const at = make("div", "row-at");
     at.dataset.at = "";
     const actions = make("div", "row-actions");
@@ -242,23 +250,47 @@ const renderRows = () => {
 };
 
 const setText = (node, text) => { if (node.textContent !== text) node.textContent = text; };
-/** Each row header's live time, abbreviation and offset, and day difference; writes only what changed, never rebuilds rows. */
+const setHidden = (node, hidden) => { if (node.hidden !== hidden) node.hidden = hidden; };
+// One cached DST watch: scans each zone once per UTC day, so a tick does no scanning.
+const dstWatch = createDstWatch();
+/** A clock change's local date on the old clock: "Sun 25 Oct". */
+const changeDate = (change) => changeWall(change).date.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" });
+// The rows' warnings ("idx:at" per row with one) as renderLive last saw them.
+let lastWarnings = "";
+/** Each row header's live time, abbreviation and offset, day difference and DST badges; writes only what changed, never rebuilds rows.
+ * Returns whether the rows' warnings changed since the last run. */
 const renderLive = () => {
-  if (lift) return;
+  if (lift) return false;
   const now = Date.now();
   const home = zoneOf(state.zones[0]);
   const h12 = hour12();
+  const warnings = [];
   el.rows.querySelectorAll(".row[data-idx]").forEach((row) => {
     const idx = +row.dataset.idx;
-    const tz = zoneOf(state.zones[idx]);
+    const z = state.zones[idx];
+    const tz = zoneOf(z);
     setText(row.querySelector(".row-time"), S.clock(localParts(tz, now), h12));
     setText(row.querySelector(".row-tag"), zoneTag(tz, now));
     const label = idx === 0 ? "" : S.dayDiffLabel(dayDiff(tz, home, now));
     const day = row.querySelector(".row-day");
     setText(day, label);
-    if (day.hidden !== !label) day.hidden = !label;
+    setHidden(day, !label);
+    const { dst, change } = dstWatch.status(tz, now);
+    setHidden(row.querySelector(".row-dst"), !dst);
+    const warn = row.querySelector(".row-warn");
+    setHidden(warn, !change);
+    if (!change) return;
+    warnings.push(`${idx}:${change.at}`);
+    const name = S.clockChangeLabel(z.name, changeDate(change));
+    if (warn.getAttribute("aria-label") !== name) warn.setAttribute("aria-label", name);
   });
+  const key = warnings.join(" ");
+  const changed = key !== lastWarnings;
+  lastWarnings = key;
+  return changed;
 };
+/** A live refresh: the row headers, then the readouts once when a warning appeared, moved or lapsed. */
+const liveTick = () => { if (renderLive()) renderSelection(); };
 
 /** Longest run where every zone is at least `min`. */
 const longestRun = (min) => {
@@ -329,6 +361,8 @@ const renderSelection = () => {
   // per-row readouts
   const h12 = hour12();
   const homeKey = model.grid[0].parts[s].dayKey;
+  const now = Date.now();
+  const startT = model.t0 + s * SLOT_MS;
   el.rows.querySelectorAll(".row[data-idx]").forEach((row) => {
     const i = +row.dataset.idx;
     const g = model.grid[i];
@@ -337,7 +371,9 @@ const renderSelection = () => {
     const band = w.worst[i];
     row.dataset.at = BAND_NAME[band];
     const dayBadge = p.dayKey !== homeKey ? `<span class="day">${weekday(p.date)}</span>` : "";
-    row.querySelector("[data-at]").innerHTML = `<b>${dayBadge}${esc(S.clockRange(p, q, h12))}</b><span><i class="mark mark-${BAND_NAME[band]}" aria-hidden="true"></i>${esc(S.BAND_LABEL[band])}</span>`;
+    const { change } = dstWatch.status(zoneOf(state.zones[i]), now);
+    const after = change && startT >= change.at ? `<span class="row-after">${esc(S.AFTER_CHANGE)}</span>` : "";
+    row.querySelector("[data-at]").innerHTML = `<b>${dayBadge}${esc(S.clockRange(p, q, h12))}</b><span><i class="mark mark-${BAND_NAME[band]}" aria-hidden="true"></i>${esc(S.BAND_LABEL[band])}</span>${after}`;
   });
 
   // bar geometry, in slots from the start of the tracks
@@ -474,6 +510,10 @@ el.rows.addEventListener("click", (e) => {
   }
   const i = +btn.dataset.idx;
   const z = state.zones[i];
+  if (btn.dataset.act === "dst") {
+    if (z) openDst(i);
+    return;
+  }
   if (btn.dataset.act === "change" && i > 0 && z) {
     replacing = { idx: i, zone: zoneOf(z), name: z.name };
     openSheet(S.changeTitle(z.name));
@@ -667,7 +707,7 @@ const endLift = ({ live = true } = {}) => {
   el.rows.classList.remove("reordering");
   // the click that follows this pointerup is swallowed; a later keyboard click is not
   setTimeout(() => { reordered = false; });
-  if (live) renderLive();
+  if (live) liveTick();
 };
 const cancelReorder = ({ live } = {}) => { endPending(); endLift({ live }); };
 
@@ -909,11 +949,35 @@ el.sheet.addEventListener("close", () => {
   el.sheetTitle.textContent = S.ADD_TITLE;
 });
 
+// ---------- Clock-change sheet ----------
+el.dstTitle.textContent = S.CLOCK_CHANGE_TITLE;
+// While it is open: the row whose warning opened it, as it was then.
+let dstOpener = null;
+const openDst = (idx) => {
+  const z = state.zones[idx];
+  const { change } = dstWatch.status(zoneOf(z), Date.now());
+  if (!change) return;
+  const minutes = Math.abs(change.after - change.before);
+  el.dstText.textContent = S.clockChange(z.name, change.after > change.before, minutes, changeDate(change), S.clock(changeWall(change), hour12()));
+  dstOpener = { idx, zone: zoneOf(z) };
+  el.dstSheet.showModal();
+};
+el.dstSheet.addEventListener("click", (e) => { if (e.target === el.dstSheet) el.dstSheet.close(); });
+el.dstSheet.addEventListener("close", () => {
+  const opener = dstOpener;
+  dstOpener = null;
+  if (!opener) return;
+  const btn = el.rows.querySelector(`button.row-warn[data-idx="${opener.idx}"]`);
+  const cur = state.zones[opener.idx];
+  if (btn && !btn.hidden && cur && zoneOf(cur) === opener.zone) btn.focus();
+  else el.rows.focus();
+});
+
 // After the rows change underneath it: a Change closes, since its row may have moved; Add refreshes.
 const refreshSheet = () => { if (replacing) el.sheet.close(); else renderResults(); };
 
 addEventListener("resize", () => { cancelReorder(); renderSelection(); placeNow(); });
-addEventListener("hashchange", () => { load(); render(); if (el.sheet.open) refreshSheet(); });
+addEventListener("hashchange", () => { load(); render(); if (el.sheet.open) refreshSheet(); if (el.dstSheet.open) el.dstSheet.close(); });
 addEventListener("pagehide", () => saver.flush());
 
 // The home row follows the device zone, e.g. after travel.
@@ -923,6 +987,7 @@ const checkHome = () => {
   state.zones = [mkZone(tz), ...followHome(state.zones.slice(1), tz)];
   render();
   if (el.sheet.open) refreshSheet();
+  if (el.dstSheet.open) el.dstSheet.close();
   toast(S.nowIn(state.zones[0].name));
 };
 
@@ -930,9 +995,9 @@ const checkHome = () => {
 const clock = createClock();
 clock.subscribe(placeNow);
 clock.subscribe(checkHome);
-clock.subscribe(renderLive);
+clock.subscribe(liveTick);
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") clock.resume(); else clock.pause(); });
-addEventListener("focus", () => { checkHome(); placeNow(); renderLive(); });
+addEventListener("focus", () => { checkHome(); placeNow(); liveTick(); });
 
 load();
 render();

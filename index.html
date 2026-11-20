@@ -26,6 +26,7 @@
     <symbol id="i-edit" viewBox="0 0 24 24"><path d="M15.5 5.5l3 3L9 18H6v-3z"/><path d="M13.5 7.5l3 3"/></symbol>
     <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></symbol>
     <symbol id="i-grip" viewBox="0 0 24 24"><path d="M5 8h14M5 12h14M5 16h14"/></symbol>
+    <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 4.5l8.5 15h-17z"/><path d="M12 10.5v4M12 17.25v.01"/></symbol>
   </svg>
 
   <header class="masthead">
@@ -137,6 +138,17 @@
       </label>
       <p class="sheet-note" id="sheetNote"></p>
       <ul class="results" id="results" role="listbox" aria-label="Matching zones"></ul>
+    </form>
+  </dialog>
+
+  <dialog class="sheet" id="dstSheet" aria-labelledby="dstTitle">
+    <form method="dialog" class="sheet-inner">
+      <div class="sheet-grip" aria-hidden="true"></div>
+      <div class="sheet-head">
+        <h2 id="dstTitle">Clock change</h2>
+        <button class="icon-btn icon-btn-soft" value="cancel" aria-label="Close"><svg><use href="#i-x"/></svg></button>
+      </div>
+      <p class="sheet-text" id="dstText"></p>
     </form>
   </dialog>
 

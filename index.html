@@ -93,6 +93,10 @@
         <h2 id="boardTitle">Zones <span class="count" id="zoneCount"></span></h2>
         <div class="board-actions">
           <button class="btn btn-ghost" type="button" id="nowBtn" hidden>Now</button>
+          <div class="seg seg-clock" role="radiogroup" id="clockSeg">
+            <button type="button" role="radio" data-h12="true"></button>
+            <button type="button" role="radio" data-h12="false"></button>
+          </div>
           <button class="btn btn-ghost" type="button" id="editBtn" aria-pressed="false">Edit</button>
         </div>
       </div>
@@ -110,8 +114,8 @@
       </div>
 
       <ul class="legend" aria-label="Legend">
-        <li><span class="sw sw-biz"></span>Best <small>9–17</small></li>
-        <li><span class="sw sw-edge"></span>Good <small>6–9, 17–20</small></li>
+        <li><span class="sw sw-biz"></span>Best <small id="legendBest">9–17</small></li>
+        <li><span class="sw sw-edge"></span>Good <small id="legendGood">6–9, 17–20</small></li>
         <li><span class="sw sw-night"></span>Unsuitable</li>
       </ul>
     </section>

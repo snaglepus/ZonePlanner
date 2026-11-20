@@ -46,6 +46,22 @@ export const rowsLabel = (homeName) => `Hours for each zone. Day runs on ${homeN
 /** A zone's date against home: "" (same day), "Tomorrow", "Yesterday", "+2 days", "−2 days". */
 export const dayDiffLabel = (n) => n === 0 ? "" : n === 1 ? "Tomorrow" : n === -1 ? "Yesterday" : `${n < 0 ? "−" : "+"}${Math.abs(n)} days`;
 
+// Daylight saving
+export const DST = "DST";
+export const AFTER_CHANGE = "After clock change";
+export const CLOCK_CHANGE_TITLE = "Clock change";
+export const clockChangeLabel = (name, date) => `Clocks change in ${name} on ${date}`;
+/** A clock shift: "30 minutes", "1 hour", "1 hour 30 minutes", "2 hours". */
+export const shiftSize = (minutes) => {
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return [h ? `${h} ${h === 1 ? "hour" : "hours"}` : "", m ? `${m} minutes` : ""].filter(Boolean).join(" ");
+};
+export const clockChange = (name, forward, minutes, date, time) => {
+  const size = shiftSize(minutes);
+  return `Clocks in ${name} go ${forward ? "forward" : "back"} ${size} on ${date} at ${time}. Meetings after that are ${size} ${forward ? "later" : "earlier"} for ${name} relative to zones that do not change.`;
+};
+
 // Overlap summary
 export const overlapBiz = (range) => `Best ${range}`;
 export const overlapEdge = (range) => `Good ${range}`;

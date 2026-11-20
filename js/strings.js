@@ -11,7 +11,7 @@ export const EVERYONE = "Everyone";
 export const HOME_ZONE = "Home zone";
 export const removeZone = (name) => `Remove ${name}`;
 export const zoneCount = (n, max) => `${n} of ${max}`;
-export const ADD_ZONE = "Add zone";
+export const ADD_CITY = "Add City";
 export const rowsLabel = (homeName) => `Hours for each zone. Day runs on ${homeName} time.`;
 
 // Overlap summary

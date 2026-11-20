@@ -230,11 +230,24 @@ svg { flex: none; }
 .row-live small { font-size: 11px; font-weight: 600; color: var(--muted); }
 .row-live .row-time { font-size: 13px; font-weight: 700; color: var(--ink); }
 .row-day[hidden] { display: none; }
+/* the abbreviation and offset, then the DST badge and the clock-change warning, wrapping under it when they don't fit */
+.row-tags { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 6px; margin-top: 2px; font-size: 12px; color: var(--muted); }
+.row-tag { min-width: 0; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.row-dst { font-size: 11px; font-weight: 700; line-height: 16px; color: var(--ink-soft); background: var(--paper-deep); border-radius: 6px; padding: 0 5px; }
+/* a 20px badge at the foot of a 44px hit area; the negative margins keep the line short and reach up over the text above, never down onto the Edit buttons */
+.row-warn {
+  position: relative; display: inline-grid; place-items: end center; width: 44px; height: 44px; margin: -24px -12px 0; padding: 0 0 3px; border: 0;
+  background: transparent; color: var(--terra);
+}
+.row-warn::before { content: ""; position: absolute; inset: 24px 12px 0; border-radius: 6px; background: var(--terra-tint); }
+.row-warn svg { position: relative; width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.row-dst[hidden], .row-warn[hidden] { display: none; }
 .row-at { font-variant-numeric: tabular-nums; }
 .row-at b { display: block; font-size: 14px; font-weight: 700; line-height: 1.2; }
 .row-at span { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 600; color: var(--muted); margin-top: 2px; }
 .row-at .day { font-size: 11px; font-weight: 700; color: var(--terra); background: var(--terra-tint); border-radius: 6px; padding: 1px 5px; margin-right: 4px; vertical-align: 1px; }
 .row[data-at="night"] .row-at span { color: var(--terra); }
+.row-at .row-after { display: flex; color: var(--terra); }
 .row-actions { display: none; gap: 6px; }
 .timeline.editing .row-actions { display: flex; }
 .timeline.editing .row-at { display: none; }
@@ -354,6 +367,7 @@ svg { flex: none; }
 .search:focus-within { outline: 2.5px solid var(--gold); outline-offset: 1px; }
 .search input { flex: 1; min-width: 0; border: 0; background: transparent; font: 500 16px var(--sans); color: var(--ink); outline: none; }
 .search input::placeholder { color: #67625A; }
+.sheet-text { font-size: 15px; line-height: 1.5; color: var(--ink); margin: 0 2px 8px; overflow-wrap: anywhere; }
 .sheet-note { flex: none; font-size: 13px; color: var(--muted); margin: 10px 2px 4px; min-height: 1em; overflow-wrap: anywhere; }
 .results { list-style: none; margin: 0 -4px; padding: 0 0 8px; overflow-y: auto; overscroll-behavior: contain; }
 .result {

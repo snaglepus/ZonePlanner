@@ -21,8 +21,13 @@ tests and `npm run sw:stamp` stamps `sw.js`.
   the slot position of an instant (`slotAt`), the locale's default
   clock (`localeHour12`, from the `hourCycle`), the zone abbreviation
   (`zoneAbbr`/`zoneTag`: `Intl` short names tried in `en-AU`, `en-GB`,
-  `en-US` order; GMT/UTC-style names fall back to the UTC offset alone) and
-  the day difference from home (`dayDiff`). A zone is an IANA ID string
+  `en-US` order; GMT/UTC-style names fall back to the UTC offset alone),
+  the day difference from home (`dayDiff`) and daylight saving: the next
+  offset change found by scanning `Intl` (`nextTransition`, a day at a time
+  then bisected to the minute; no bundled tz rules), the year's standard
+  offset and DST now (`standardOffset`/`isDst`), a per-zone watch cached by
+  UTC day (`createDstWatch`: DST now and any change within 14 days) and a
+  change's wall time on the old clock (`changeWall`). A zone is an IANA ID string
   or a fixed offset as a number of minutes from UTC (no `Etc/GMT` IDs).
 - `js/clock.js`: the shared minute clock: aligned to the wall-clock minute,
   pause and resume, injectable time source.
@@ -70,8 +75,9 @@ tests and `npm run sw:stamp` stamps `sw.js`.
   `VERSION` and `PRECACHE` lines.
 - `test/`: unit tests (`node:test`) for the time engine, the shared clock,
   the zone rules, the stored state, the city data, the wheel scroll decision, the row reorder,
-  the hour filter, the time formatter (`test/strings.test.js`) and the weekend
-  rules (`test/weekend.test.js`), plus a static
+  the hour filter, daylight saving (transitions, DST and the 14-day watch, in
+  `test/time.test.js`), the time formatter (`test/strings.test.js`) and the
+  weekend rules (`test/weekend.test.js`), plus a static
   CSP check of `index.html` (`test/csp.test.js`) and a static `styles.css`
   token check (heat-step contrast and order, `test/tokens.test.js`) and the
   service worker's stamp and manifest rules (`test/sw.test.js`).
@@ -123,7 +129,8 @@ Rules that hold across the app:
   or `history`, so they import in Node.
 - Every `$("id")` / `getElementById` lookup stays in `app.js` with a literal id.
 - Live updates (the now line, the home-zone re-check, the row headers' live
-  time, abbreviation and day difference) subscribe to the one
+  time, abbreviation, day difference and DST and clock-change badges)
+  subscribe to the one
   shared clock in `app.js`; don't add your own `setInterval` or minute timers.
 - Touch targets are at least 44px; no horizontal scroll at 390px wide.
 - Any change that adds, removes, renames or edits a file the page loads

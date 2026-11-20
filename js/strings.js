@@ -22,6 +22,9 @@ export const overlapBiz = (range) => `Best ${range}`;
 export const overlapEdge = (range) => `Good ${range}`;
 export const NO_SHARED = "No shared hours";
 
+// Hour filter
+export const filterEmpty = (band) => `No hours are ${band} for everyone on this day`;
+
 // Suggestion chips
 export const NO_WINDOWS = "No windows this day.";
 export const inconvenientCount = (n) => `Unsuitable for ${n} zones`;

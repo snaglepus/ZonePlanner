@@ -94,6 +94,12 @@
         <button class="btn btn-ghost" type="button" id="editBtn" aria-pressed="false">Edit</button>
       </div>
       <p id="zoneLimit" class="sheet-note" hidden></p>
+      <div class="seg seg-filter" role="radiogroup" aria-label="Show hours" id="filterSeg">
+        <button type="button" role="radio" data-filter="all">All</button>
+        <button type="button" role="radio" data-filter="good">Good</button>
+        <button type="button" role="radio" data-filter="best">Best</button>
+      </div>
+      <p id="filterEmpty" class="filter-empty" role="status" hidden></p>
 
       <div class="timeline" id="timeline">
         <input type="range" id="scrub" class="scrub" min="0" max="92" step="1" value="0" aria-label="Meeting start time">

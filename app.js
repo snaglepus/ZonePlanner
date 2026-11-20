@@ -1,9 +1,10 @@
 import { BAND_NAME, classify, goodStep, homeDay, cellLabel, localParts, pad, hhmm, offLabel, weekday } from "./js/time.js";
 import * as S from "./js/strings.js";
 import { MAX_USER_ZONES, validTz, rowsToLink, rawParam, linkToRows, followHome } from "./js/zones.js";
-import { STATE_KEY, BACKUP_KEY, LEGACY_KEY, LENS, loadState, serializeState, createSaver } from "./js/state.js";
+import { STATE_KEY, BACKUP_KEY, LEGACY_KEY, LENS, FILTERS, loadState, serializeState, createSaver } from "./js/state.js";
 import { wheelScroll } from "./js/scroll.js";
 import { moveRow } from "./js/reorder.js";
+import { keptSlots, windowKept } from "./js/filter.js";
 import { zoneInfo, abbreviationZones, searchCities } from "./js/search.js";
 
 const SLOT_MIN = 15;
@@ -83,7 +84,7 @@ const buildModel = () => {
     return { bands, heat, parts };
   });
   const all = Array.from({ length: n }, (_, i) => Math.min(...grid.map((g) => g.bands[i])));
-  model = { t0, n, cols, grid, all };
+  model = { t0, n, cols, grid, all, kept: keptSlots(all, state.filter) };
 };
 
 /** Lower cost is better. Each zone costs its worst slot in the window. */
@@ -99,7 +100,7 @@ const suggestions = () => {
   const out = [];
   const L = state.len;
   const mid = model.n / 2 + 4; // nudge toward home afternoon
-  for (let s = 0; s + L <= model.n; s += 2) out.push(windowStats(s));
+  for (let s = 0; s + L <= model.n; s += 2) if (windowKept(model.kept, s, L)) out.push(windowStats(s));
   out.sort((a, b) => a.cost - b.cost || a.soft - b.soft || Math.abs(a.s - mid) - Math.abs(b.s - mid));
   const picked = [];
   for (const w of out) {
@@ -116,7 +117,7 @@ const $ = (id) => document.getElementById(id);
 const el = {
   rows: $("rows"), scrub: $("scrub"), selbar: $("selbar"), timeline: $("timeline"),
   meetingTime: $("meetingTime"), meetingSub: $("meetingSub"), verdict: $("verdict"), suggestions: $("suggestions"),
-  lengthSeg: $("lengthSeg"), dateInput: $("dateInput"), dateLabel: $("dateLabel"), zoneCount: $("zoneCount"),
+  lengthSeg: $("lengthSeg"), filterSeg: $("filterSeg"), filterEmpty: $("filterEmpty"), dateInput: $("dateInput"), dateLabel: $("dateLabel"), zoneCount: $("zoneCount"),
   addZone: $("addZone"), zoneLimit: $("zoneLimit"), editBtn: $("editBtn"), copyBtn: $("copyBtn"), shareBtn: $("shareBtn"),
   sheet: $("zoneSheet"), search: $("zoneSearch"), results: $("results"), sheetNote: $("sheetNote"), toast: $("toast")
 };
@@ -147,15 +148,15 @@ const actBtn = (act, idx, label, id) => {
   return b;
 };
 
-/** One hour cell per column over the 15-minute band runs; labels only when a zone is given, Good heat steps only when heat is. */
+/** One hour cell per column over the 15-minute band runs; labels only when a zone is given, Good heat steps only when heat is. Slots the filter drops are dimmed. */
 const trackEl = (bands, z, heat) => {
   const track = make("div", "track");
   track.setAttribute("aria-hidden", "true");
   const runs = make("div", "bands");
   for (let i = 0; i < model.n;) {
     let j = i;
-    while (j < model.n && bands[j] === bands[i] && (!heat || heat[j] === heat[i])) j++;
-    const seg = make("div", `seg-${BAND_NAME[bands[i]]}${heat && heat[i] ? ` heat-${heat[i]}` : ""}`);
+    while (j < model.n && bands[j] === bands[i] && (!heat || heat[j] === heat[i]) && model.kept[j] === model.kept[i]) j++;
+    const seg = make("div", `seg-${BAND_NAME[bands[i]]}${heat && heat[i] ? ` heat-${heat[i]}` : ""}${model.kept[i] ? "" : " dim"}`);
     seg.style.setProperty("--w", String(j - i));
     runs.append(seg);
     i = j;
@@ -341,11 +342,23 @@ const renderLength = () => {
   el.lengthSeg.querySelectorAll("button").forEach((b) => b.setAttribute("aria-checked", String(+b.dataset.len === state.len)));
 };
 
+const renderFilter = () => {
+  el.filterSeg.querySelectorAll("button").forEach((b) => {
+    const on = b.dataset.filter === state.filter;
+    b.setAttribute("aria-checked", String(on));
+    b.tabIndex = on ? 0 : -1;
+  });
+  const empty = state.filter !== "all" && !model.kept.includes(true);
+  el.filterEmpty.textContent = empty ? S.filterEmpty(S.BAND_LABEL[state.filter === "best" ? 2 : 1]) : "";
+  el.filterEmpty.hidden = !empty;
+};
+
 const render = ({ keepStart = false } = {}) => {
   cancelReorder();
   buildModel();
   renderDate();
   renderLength();
+  renderFilter();
   renderRows();
   const list = suggestions();
   if (!keepStart || state.start == null || state.start > model.n - state.len) state.start = list.length ? list[0].s : 0;
@@ -626,6 +639,24 @@ el.lengthSeg.addEventListener("keydown", (e) => {
   state.len = opts[i];
   render();
   el.lengthSeg.querySelector(`[data-len="${state.len}"]`).focus();
+});
+
+const setFilter = (f) => {
+  state.filter = f;
+  render({ keepStart: true });
+  el.filterSeg.querySelector(`[data-filter="${f}"]`).focus();
+};
+el.filterSeg.addEventListener("click", (e) => {
+  const b = e.target.closest("button[data-filter]");
+  if (b) setFilter(b.dataset.filter);
+});
+el.filterSeg.addEventListener("keydown", (e) => {
+  const step = { ArrowLeft: -1, ArrowUp: -1, ArrowRight: 1, ArrowDown: 1 }[e.key];
+  if (!step) return;
+  e.preventDefault();
+  const i = FILTERS.indexOf(state.filter) + step;
+  if (i < 0 || i >= FILTERS.length) return;
+  setFilter(FILTERS[i]);
 });
 
 const shiftDay = (delta) => {

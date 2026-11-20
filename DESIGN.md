@@ -24,6 +24,8 @@ colors:
   good-3-hatch: "#E7C2A2"
   night: "#EBE2D7"
   night-line: "#DDD1C3"
+  weekend-wash: "rgba(251, 247, 240, .3)"
+  weekend-line: "rgba(42, 44, 40, .5)"
   gold: "#C99247"
   terra: "#A65A3F"
   terra-tint: "#F6E3D9"
@@ -217,11 +219,12 @@ A warm-paper palette with one deep sage voice, a peach-and-clay band pair, and t
 - **Pressed Paper** (`paper-deep`): segmented-control track, soft icon-button hover.
 - **Cream Card** (`card`): every card, the sheet, the date pill and floating icon buttons.
 - **Pale Clay** (`night`): Unsuitable-hour segments (20–06) and empty overlap tracks. Outlined by **Clay Rule** (`night-line`), the 1px inset that keeps pale tracks from dissolving into the card.
+- **Weekend overlay**: zone rows lay a translucent layer over the slots that fall on that zone's weekend: a 45° fine line of **Weekend Line** (`weekend-line`, Ink at 50%) every 6px over a light **Weekend Wash** (`weekend-wash`, Cream Card at 30%). It sits between the bands and the hour labels, keeps the track's 9px rounding and takes no pointer events, so the Best, Good heat step or Unsuitable band under it stays readable. The Everyone row has none; its weekend slots already show as Unsuitable. The legend's Weekend swatch shows the same overlay over half Best Sage, half Pale Clay.
 - **Ink** (`ink`): primary text. **Soft Ink** (`ink-soft`): legend and small headings. **Field Grey-Brown** (`muted`): secondary text, unselected segments.
 - **Paper Rule** (`line`): row dividers, chip borders, the sheet grip.
 
 ### Named Rules
-**The Two-Channel Band Rule.** Every hour band carries a second channel besides hue: Best is solid, Good is hatched at 135° on every heat step, Unsuitable is pale and outlined (hollow in marks). A band that only differs by colour is a bug.
+**The Two-Channel Band Rule.** Every hour band carries a second channel besides hue: Best is solid, Good is hatched at 135° on every heat step, Unsuitable is pale and outlined (hollow in marks). The weekend overlay is a fourth channel laid on top: a 45° fine ink line, never a 135° hatch or a solid fill, so it reads apart from Good and Best in greyscale. A band that only differs by colour is a bug.
 
 **The Gold Is the Hand Rule.** Gold marks only what the user is holding or focusing: the selection bar and focus rings. It never decorates, labels or warns.
 
@@ -311,7 +314,7 @@ There is no nav bar. The toolbar is the navigation: previous/next-day icon butto
 ### Hour grid and selection bar (signature)
 The board is one native horizontal scroller. Each row is a sticky header cell (176px, Cream Card, opaque) holding the zone name (ellipsis when long), the country and UTC offset, and the meeting readout, followed by a track of hour cells. Each user row's header ends in a 44px grab handle (≡, Field Grey-Brown) spanning its full height at the right edge; the home and Everyone rows have none. Columns are the home zone's hours of the selected day (23, 24 or 25 on daylight-saving days; a 30-minute change leaves a half-width last column), so each column is the same instant in every row. Full cells are 44px wide on a 32px, 9px-radius band inside a track at least 44px tall, separated by a faint 1px rule.
 
-Each cell is labelled, left-aligned in 10.5px/700 tabular figures, with that zone's local time at the column start: `9` on the hour, `3:30` or `3:45` for offset zones. Bands keep their 15-minute accuracy under the cells, so an offset zone changes band or heat step part-way through a column: Best Sage solid, the Good heat steps 135° hatched, Pale Clay plain with the Clay Rule inset. Each label sits on its own small Cream Card backing (3px radius) in Ink, so it stays legible whatever band runs under it, including where the band changes inside the column. Checked contrast: Ink on Cream Card is 13.2:1, and Ink is at least 4.5:1 on every heat-step colour (4.9:1 at the darkest, `good-1-hatch`); `test/tokens.test.js` holds both. A 1px Paper Rule edges the header column.
+Each cell is labelled, left-aligned in 10.5px/700 tabular figures, with that zone's local time at the column start: `9` on the hour, `3:30` or `3:45` for offset zones. Bands keep their 15-minute accuracy under the cells, so an offset zone changes band or heat step part-way through a column: Best Sage solid, the Good heat steps 135° hatched, Pale Clay plain with the Clay Rule inset. Slots on the zone's weekend carry the weekend overlay (45° fine ink line on a light wash) above the band and below the labels. Each label sits on its own small Cream Card backing (3px radius) in Ink, so it stays legible whatever band runs under it, including where the band changes inside the column. Checked contrast: Ink on Cream Card is 13.2:1, and Ink is at least 4.5:1 on every heat-step colour (4.9:1 at the darkest, `good-1-hatch`); `test/tokens.test.js` holds both. A 1px Paper Rule edges the header column.
 
 The overlap row ("Everyone") sits first with a serif name and the shared-hours summary; its cells have no labels, since the home row's labels already mark the time. Swiping scrolls the cells of every row together while the header column stays put; tapping a cell starts the meeting at the quarter-hour under the finger. A single transparent bar with a 2px gold border, a gold tab on top and Gold Glow spans every row at the chosen time, passing under the header column; it moves on `transform` only, on the shared ease (0.45s), and its width changes without animation. When the selection changes from a chip, the length control, the keyboard or a new day, the grid scrolls just enough to show the whole bar.
 

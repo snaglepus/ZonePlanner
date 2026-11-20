@@ -28,6 +28,8 @@ tests.
   (`wheelScroll`).
 - `js/reorder.js`: the pure row reorder for drag-to-reorder (`moveRow`); the
   home row stays fixed at index 0.
+- `js/weekend.js`: weekend rules (`weekendSlots`, `scoredBands`,
+  `overlapBands`): which slots fall on each zone's weekend, scored Unsuitable.
 - `js/search.js`: city search and zone naming (pure, reads `js/cities.js`).
 - `js/cities.js`: generated city data (about 500 cities), the country-to-weekend
   map and the time zone abbreviation table. DOM-free. City data from GeoNames,
@@ -38,7 +40,8 @@ tests.
   downloads it from GeoNames). Don't hand-edit `js/cities.js`; change the
   generator (or `scripts/pinned-cities.js`, the 68 cities it pins) and rerun it.
 - `test/`: unit tests (`node:test`) for the time engine, the zone rules, the
-  stored state, the city data, the wheel scroll decision and the row reorder,
+  stored state, the city data, the wheel scroll decision, the row reorder and
+  the weekend rules (`test/weekend.test.js`),
   plus a static
   CSP check of `index.html` (`test/csp.test.js`) and a static `styles.css`
   token check (heat-step contrast and order, `test/tokens.test.js`).
@@ -51,6 +54,11 @@ Rules that hold across the app:
 - Bands never rely on colour alone (solid, hatched, pale). Zone rows shade
   Good runs in three hatched heat steps by local hour (`goodStep`); the
   Everyone row's Good is flat.
+- Each row's weekend comes from its city's country (`cc` from `zoneInfo`)
+  via `weekendFor`, Sat-Sun when unknown, judged per slot by local weekday.
+  Weekend slots carry a 45° line overlay on zone rows and score as
+  Unsuitable in the Everyone row, the overlap summary, the verdict and the
+  suggestions.
 - The home row is always the device zone, recomputed on load and followed
   live; it is never stored or read from a link. The rest are at most 7 user
   rows.
@@ -72,8 +80,8 @@ Rules that hold across the app:
   text and never escape. Any strings-module result that goes into `innerHTML`
   is wrapped in `esc()` at the call site in `app.js`, so it is escaped exactly
   once; `textContent`, `setAttribute` and `window.prompt` take it as is.
-- `js/time.js`, `js/zones.js`, `js/state.js`, `js/scroll.js`, `js/reorder.js`
-  and `js/cities.js` stay DOM-free: no `document`, `window`, `location`, `localStorage`, `navigator`
+- `js/time.js`, `js/zones.js`, `js/state.js`, `js/scroll.js`, `js/reorder.js`,
+  `js/weekend.js` and `js/cities.js` stay DOM-free: no `document`, `window`, `location`, `localStorage`, `navigator`
   or `history`, so they import in Node.
 - Every `$("id")` / `getElementById` lookup stays in `app.js` with a literal id.
 - Touch targets are at least 44px; no horizontal scroll at 390px wide.

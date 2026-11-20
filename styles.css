@@ -294,6 +294,16 @@ svg { flex: none; }
 .cell span { padding: 1px 3px; border-radius: 3px; background: var(--card); color: var(--ink); line-height: 1.2; }
 /* 12-hour am/pm cue, stacked under the number on the same backing */
 .cell span small { display: block; font-size: 9px; font-weight: 700; line-height: 1.1; font-variant-numeric: tabular-nums; }
+/* day dividers: a line at each local date change at its exact position, its date in a lane above the band */
+.row:not(.row-all) > .track { padding: 18px 0; }
+.daymark { position: absolute; top: 0; bottom: 0; left: calc(var(--x) * var(--slot)); width: 2px; background: var(--ink); pointer-events: none; }
+.daymark span {
+  position: absolute; bottom: calc(100% + 3px); left: 4px; color: var(--ink-soft); pointer-events: none;
+  font-size: 10.5px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.2; white-space: nowrap;
+}
+.daymark-lead span { left: auto; right: 4px; }
+/* an hour label's backing sits over a divider crossing it, so a :15/:45 date change never strikes through the time */
+.cells .cell span { position: relative; z-index: 1; }
 
 /* room above the first row for the bar's tab */
 .row-all > .row-head, .row-all > .track { padding-top: 20px; }

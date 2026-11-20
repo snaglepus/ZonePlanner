@@ -1,4 +1,4 @@
-import { BAND_NAME, changeWall, classify, createDstWatch, dayDiff, goodStep, homeDay, localParts, localeHour12, pad, offLabel, weekday, slotAt, zoneTag } from "./js/time.js";
+import { BAND_NAME, changeWall, classify, createDstWatch, dayDiff, dayStarts, goodStep, homeDay, localParts, localeHour12, pad, offLabel, weekday, slotAt, zoneTag } from "./js/time.js";
 import { createClock } from "./js/clock.js";
 import * as S from "./js/strings.js";
 import { MAX_USER_ZONES, validTz, rowsToLink, rawParam, linkToRows, followHome, replaceRow } from "./js/zones.js";
@@ -11,6 +11,7 @@ import { weekendSlots, scoredBands, overlapBands } from "./js/weekend.js";
 
 const SLOT_MIN = 15;
 const SLOT_MS = SLOT_MIN * 60000;
+const DAY_LABEL_SLOTS = 6;
 
 // ---------- State ----------
 const deviceTz = () => {
@@ -75,7 +76,7 @@ let model = null;
 const buildModel = () => {
   const [y, m, d] = state.date.split("-").map(Number);
   const home = state.zones[0];
-  const { t0, slots: n, cols } = homeDay(home.tz, y, m, d);
+  const { t0, t1, slots: n, cols } = homeDay(home.tz, y, m, d);
   const grid = state.zones.map((z) => {
     const bands = new Array(n);
     const heat = new Array(n);
@@ -90,7 +91,7 @@ const buildModel = () => {
     return { bands, heat, parts, weekend, score: scoredBands(bands, weekend) };
   });
   const all = overlapBands(grid);
-  model = { t0, n, cols, grid, all, kept: keptSlots(all, state.filter) };
+  model = { t0, t1, n, cols, grid, all, kept: keptSlots(all, state.filter) };
 };
 
 /** Lower cost is better. Each zone costs its worst scored slot in the window (weekend slots are Unsuitable). */
@@ -155,7 +156,7 @@ const actBtn = (act, idx, label, id) => {
   return b;
 };
 
-/** One hour cell per column over the 15-minute band runs; labels only when a zone is given, Good heat steps only when heat is, a weekend overlay only when weekend is. Slots the filter drops are dimmed.
+/** One hour cell per column over the 15-minute band runs; labels and day dividers only when a zone is given, Good heat steps only when heat is, a weekend overlay only when weekend is. Slots the filter drops are dimmed.
  * On a 12-hour clock the first cell and each cell where am/pm changes carry the meridiem cue. */
 const trackEl = (bands, z, heat, weekend) => {
   const track = make("div", "track");
@@ -184,6 +185,14 @@ const trackEl = (bands, z, heat, weekend) => {
     const w = Math.min(4, model.n - 4 * c);
     if (w < 4) cell.style.setProperty("--w", String(w));
     cells.append(cell);
+  }
+  // a divider at each local date change, at its exact slot position; near the track's end its label goes on the left
+  if (z) for (const { t, label } of dayStarts(zoneOf(z), model.t0, model.t1)) {
+    const x = (t - model.t0) / SLOT_MS;
+    const mark = make("div", model.n - x < DAY_LABEL_SLOTS ? "daymark daymark-lead" : "daymark");
+    mark.style.setProperty("--x", String(x));
+    mark.append(make("span", null, label));
+    cells.append(mark);
   }
   track.append(runs);
   if (weekend) {

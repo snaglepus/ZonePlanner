@@ -17,8 +17,10 @@ tests and `npm run sw:stamp` stamps `sw.js`.
 - `app.js`: the entry point. DOM lookups, state, load/save/share, scoring,
   rendering and interactions.
 - `js/time.js`: the time engine (`Intl.DateTimeFormat`): offsets, local parts,
-  zoned midnight, band classification, Good heat steps, UTC offset labels,
-  the slot position of an instant (`slotAt`), the locale's default
+  zoned midnight, the home day (which starts where the home zone's date
+  really starts, even when local midnight doesn't exist), date changes (day
+  dividers, `dayStarts`), band classification, Good heat steps, UTC offset
+  labels, the slot position of an instant (`slotAt`), the locale's default
   clock (`localeHour12`, from the `hourCycle`), the zone abbreviation
   (`zoneAbbr`/`zoneTag`: `Intl` short names tried in `en-AU`, `en-GB`,
   `en-US` order; GMT/UTC-style names fall back to the UTC offset alone),

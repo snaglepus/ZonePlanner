@@ -1,12 +1,17 @@
 // Time engine: pure functions over Intl.DateTimeFormat, no DOM.
 
-// Business 09–17, edge 06–09 & 17–20, everything else inconvenient.
+// Best 09–17, Good 06–09 & 17–20, everything else Unsuitable.
 export const BAND = { biz: 2, edge: 1, night: 0 };
 export const BAND_NAME = { 2: "biz", 1: "edge", 0: "night" };
 export const classify = (minuteOfDay) => {
   if (minuteOfDay >= 540 && minuteOfDay < 1020) return BAND.biz;
   if ((minuteOfDay >= 360 && minuteOfDay < 540) || (minuteOfDay >= 1020 && minuteOfDay < 1200)) return BAND.edge;
   return BAND.night;
+};
+/** Good-hours heat step: hours from the Best window (1 nearest, 3 farthest), 0 outside Good. */
+export const goodStep = (minuteOfDay) => {
+  if (classify(minuteOfDay) !== BAND.edge) return 0;
+  return minuteOfDay < 540 ? Math.ceil((540 - minuteOfDay) / 60) : Math.floor((minuteOfDay - 1020) / 60) + 1;
 };
 
 export const fmtCache = new Map();

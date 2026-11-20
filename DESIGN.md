@@ -13,9 +13,15 @@ colors:
   sage-press: "#33453C"
   sage-tint: "#E3E9E3"
   on-sage: "#F4EDE2"
-  biz: "#56705F"
-  edge: "#E6B089"
-  edge-hatch: "#D99C72"
+  best: "#56705F"
+  good: "#E6B089"
+  good-hatch: "#D99C72"
+  good-1: "#D4976B"
+  good-1-hatch: "#C88B60"
+  good-2: "#E6B089"
+  good-2-hatch: "#D99C72"
+  good-3: "#F0D2B8"
+  good-3-hatch: "#E7C2A2"
   night: "#EBE2D7"
   night-line: "#DDD1C3"
   gold: "#C99247"
@@ -81,7 +87,7 @@ components:
   button-primary-hover:
     backgroundColor: "{colors.sage-press}"
   button-on-band:
-    backgroundColor: "{colors.edge}"
+    backgroundColor: "{colors.good}"
     textColor: "{colors.ink}"
     typography: "{typography.label}"
     rounded: "{rounded.pill}"
@@ -138,12 +144,12 @@ components:
     backgroundColor: "{colors.card}"
     rounded: "{rounded.card}"
     padding: "20px 18px 18px"
-  verdict-business:
+  verdict-best:
     backgroundColor: "{colors.sage-tint}"
     textColor: "{colors.sage}"
     rounded: "{rounded.field}"
     padding: "11px 14px"
-  verdict-inconvenient:
+  verdict-unsuitable:
     backgroundColor: "{colors.terra-tint}"
     textColor: "{colors.terra}"
     rounded: "{rounded.field}"
@@ -179,7 +185,7 @@ components:
 
 ZonePlanner is a working instrument dressed in warm, layered paper. A cut-paper sunrise valley in peach, clay and sage crowns the page; the sage band closes in a waved paper contour, and the instrument's first cream card rests on that contour. Everything below the masthead is calm and legible: one meeting answer, then an hour grid that scrolls sideways under a fixed column of zone names, with one gold bar standing across every row. The world comes from the user's inspiration image and keeps its materials (paper grain, soft sage-tinted lift, pill controls, a serif voice for answers) while dropping its decoration (rays, birds, trees, waterfalls).
 
-Density is mobile-first and moderate: a single 720px column, 44px touch targets, 14px between stacked cards. The serif is reserved for what the page is saying (the wordmark, the meeting time, section titles); the grotesk carries every control and every number a person scans. Colour carries meaning first and mood second: sage is business and action, peach is the edge of the day, pale clay is the hours to avoid, gold is the thing you are holding, terracotta is the cost someone pays.
+Density is mobile-first and moderate: a single 720px column, 44px touch targets, 14px between stacked cards. The serif is reserved for what the page is saying (the wordmark, the meeting time, section titles); the grotesk carries every control and every number a person scans. Colour carries meaning first and mood second: sage is Best hours and action, peach is the Good hours either side, pale clay is the Unsuitable hours to avoid, gold is the thing you are holding, terracotta is the cost someone pays.
 
 **Key Characteristics:**
 - Warm paper neutrals only; no cool greys and no pure white surfaces.
@@ -195,26 +201,27 @@ A warm-paper palette with one deep sage voice, a peach-and-clay band pair, and t
 
 ### Primary
 - **Valley Sage** (`sage`): the shell and action colour. Primary pill buttons, the selected meeting-length segment, the toast, card titles in the sheet, the darkest masthead ridge and the wordmark. Presses to **Deep Fold Sage** (`sage-press`). Text on it is **Paper on Sage** (`on-sage`), the same warm paper as the ground.
-- **Business Sage** (`biz`): the solid fill of business-hour segments (09–17), the filled business mark and its legend swatch. A shade lighter than Valley Sage so the bands read as data, not chrome.
-- **Sage Wash** (`sage-tint`): selected chips, ghost-button hover, and the business-tone verdict panel.
+- **Best Sage** (`best`): the solid fill of Best-hour segments (09–17), the filled Best mark and its legend swatch. A shade lighter than Valley Sage so the bands read as data, not chrome.
+- **Sage Wash** (`sage-tint`): selected chips, ghost-button hover, and the Best-tone verdict panel.
 
 ### Secondary
-- **Dawn Peach** (`edge`): edge hours (06–09, 17–20), always laid as a 135° hatch with **Baked Peach** (`edge-hatch`). On the sage band at the top of the page it becomes the fill of the primary action, because sage-on-sage would vanish there.
+- **Dawn Peach** (`good`): Good hours (06–09, 17–20), always laid as a 135° hatch with **Baked Peach** (`good-hatch`). On the sage band at the top of the page it becomes the fill of the primary action, because sage-on-sage would vanish there.
+- **Good heat steps**: zone rows shade Good hours by how far they sit from the Best window, each step still a 135° hatch of a base and a hatch token. **Ember Peach** (`good-1`, `good-1-hatch`) covers 08–09 and 17–18, nearest Best; **Dawn Peach** (`good-2`, `good-2-hatch`, the same values as `good` and `good-hatch`) covers 07–08 and 18–19; **Faded Peach** (`good-3`, `good-3-hatch`) covers 06–07 and 19–20, nearest Unsuitable. The Everyone row and the marks use flat Dawn Peach, with no steps. The legend's Good swatch shows the three steps side by side, nearest Best on the left.
 
 ### Tertiary
 - **Lantern Gold** (`gold`): the selection bar, its tab, and every focus ring. Nothing else.
-- **Terracotta** (`terra`): cost and warning. The inconvenient verdict, the "no shared hours" overlap answer, the next/previous-day badge, and the inconvenient label at a row's selected time. Its panel and badge ground is **Clay Blush** (`terra-tint`).
+- **Terracotta** (`terra`): cost and warning. The Unsuitable verdict, the "no shared hours" overlap answer, the next/previous-day badge, and the Unsuitable label at a row's selected time. Its panel and badge ground is **Clay Blush** (`terra-tint`).
 
 ### Neutral
 - **Warm Paper** (`paper`): page ground, soft icon buttons, the search field.
 - **Pressed Paper** (`paper-deep`): segmented-control track, soft icon-button hover.
 - **Cream Card** (`card`): every card, the sheet, the date pill and floating icon buttons.
-- **Pale Clay** (`night`): inconvenient-hour segments (20–06) and empty overlap tracks. Outlined by **Clay Rule** (`night-line`), the 1px inset that keeps pale tracks from dissolving into the card.
+- **Pale Clay** (`night`): Unsuitable-hour segments (20–06) and empty overlap tracks. Outlined by **Clay Rule** (`night-line`), the 1px inset that keeps pale tracks from dissolving into the card.
 - **Ink** (`ink`): primary text. **Soft Ink** (`ink-soft`): legend and small headings. **Field Grey-Brown** (`muted`): secondary text, unselected segments.
 - **Paper Rule** (`line`): row dividers, chip borders, the sheet grip.
 
 ### Named Rules
-**The Two-Channel Band Rule.** Every hour band carries a second channel besides hue: business is solid, edge is hatched at 135°, inconvenient is pale and outlined (hollow in marks). A band that only differs by colour is a bug.
+**The Two-Channel Band Rule.** Every hour band carries a second channel besides hue: Best is solid, Good is hatched at 135° on every heat step, Unsuitable is pale and outlined (hollow in marks). A band that only differs by colour is a bug.
 
 **The Gold Is the Hand Rule.** Gold marks only what the user is holding or focusing: the selection bar and focus rings. It never decorates, labels or warns.
 
@@ -292,7 +299,7 @@ A Pressed Paper pill track with 4px inset; options are 38px pills in muted Label
 - **Internal Padding:** 20px top, 18px sides and bottom.
 
 ### Verdict panel
-A 14px-radius status panel led by a 10px mark that repeats the band's second channel: Sage Wash with a filled dot for business, peach blush with a hatched dot for edge, Clay Blush with a hollow terracotta ring for inconvenient.
+A 14px-radius status panel led by a 10px mark that repeats the band's second channel: Sage Wash with a filled dot for Best, peach blush with a hatched dot for Good, Clay Blush with a hollow terracotta ring for Unsuitable.
 
 ### Inputs / Fields
 - **Style:** the search field is a 48px Warm Paper well with 14px radius, a muted search icon and 16px text (prevents iOS zoom).
@@ -304,7 +311,7 @@ There is no nav bar. The toolbar is the navigation: previous/next-day icon butto
 ### Hour grid and selection bar (signature)
 The board is one native horizontal scroller. Each row is a sticky header cell (176px, Cream Card, opaque) holding the zone name (ellipsis when long), the country and UTC offset, and the meeting readout, followed by a track of hour cells. Each user row's header ends in a 44px grab handle (≡, Field Grey-Brown) spanning its full height at the right edge; the home and Everyone rows have none. Columns are the home zone's hours of the selected day (23, 24 or 25 on daylight-saving days; a 30-minute change leaves a half-width last column), so each column is the same instant in every row. Full cells are 44px wide on a 32px, 9px-radius band inside a track at least 44px tall, separated by a faint 1px rule.
 
-Each cell is labelled, left-aligned in 10.5px/700 tabular figures, with that zone's local time at the column start: `9` on the hour, `3:30` or `3:45` for offset zones. Bands keep their 15-minute accuracy under the cells, so an offset zone changes band part-way through a column: Business Sage solid, Dawn Peach 135° hatched, Pale Clay plain with the Clay Rule inset. Each label sits on its own small Cream Card backing (3px radius) in Ink, so it stays legible whatever band runs under it, including where the band changes inside the column. A 1px Paper Rule edges the header column.
+Each cell is labelled, left-aligned in 10.5px/700 tabular figures, with that zone's local time at the column start: `9` on the hour, `3:30` or `3:45` for offset zones. Bands keep their 15-minute accuracy under the cells, so an offset zone changes band or heat step part-way through a column: Best Sage solid, the Good heat steps 135° hatched, Pale Clay plain with the Clay Rule inset. Each label sits on its own small Cream Card backing (3px radius) in Ink, so it stays legible whatever band runs under it, including where the band changes inside the column. Checked contrast: Ink on Cream Card is 13.2:1, and Ink is at least 4.5:1 on every heat-step colour (4.9:1 at the darkest, `good-1-hatch`); `test/tokens.test.js` holds both. A 1px Paper Rule edges the header column.
 
 The overlap row ("Everyone") sits first with a serif name and the shared-hours summary; its cells have no labels, since the home row's labels already mark the time. Swiping scrolls the cells of every row together while the header column stays put; tapping a cell starts the meeting at the quarter-hour under the finger. A single transparent bar with a 2px gold border, a gold tab on top and Gold Glow spans every row at the chosen time, passing under the header column; it moves on `transform` only, on the shared ease (0.45s), and its width changes without animation. When the selection changes from a chip, the length control, the keyboard or a new day, the grid scrolls just enough to show the whole bar.
 
@@ -321,7 +328,7 @@ One easing curve, `cubic-bezier(.16, 1, .3, 1)`, on 0.2–0.45s transitions. Red
 ## Do's and Don'ts
 
 ### Do:
-- **Do** encode every hour band twice: solid Business Sage, 135° hatched Dawn Peach, plain outlined Pale Clay, with a legend on the board.
+- **Do** encode every hour band twice: solid Best Sage, 135° hatched Good heat steps, plain outlined Pale Clay, with a legend on the board.
 - **Do** keep every touch target at least 44px and every control a pill.
 - **Do** set the meeting time and section titles in Libre Baskerville 400, and everything a user taps or scans in Hanken Grotesk with tabular figures.
 - **Do** lift cards with Paper Lift only; let controls on the sage band sit flat.

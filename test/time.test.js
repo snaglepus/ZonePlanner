@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { BAND, cellLabel, classify, homeDay, localParts, offLabel, offsetMin, zonedMidnight } from "../js/time.js";
+import { BAND, cellLabel, classify, goodStep, homeDay, localParts, offLabel, offsetMin, zonedMidnight } from "../js/time.js";
 
 const JAN_15 = Date.UTC(2026, 0, 15);
 const HOUR = 3600000;
@@ -32,21 +32,47 @@ test("Sydney 2026-04-05 is 25 hours", () => assert.equal(dayHours("Australia/Syd
 test("New York 2026-03-08 is 23 hours", () => assert.equal(dayHours("America/New_York", 2026, 3, 8), 23));
 test("New York 2026-11-01 is 25 hours", () => assert.equal(dayHours("America/New_York", 2026, 11, 1), 25));
 
-test("06:00 is the night/edge boundary", () => {
+test("06:00 is the Unsuitable/Good boundary", () => {
   assert.equal(classify(359), BAND.night);
   assert.equal(classify(360), BAND.edge);
 });
-test("09:00 is the edge/business boundary", () => {
+test("09:00 is the Good/Best boundary", () => {
   assert.equal(classify(539), BAND.edge);
   assert.equal(classify(540), BAND.biz);
 });
-test("17:00 is the business/edge boundary", () => {
+test("17:00 is the Best/Good boundary", () => {
   assert.equal(classify(1019), BAND.biz);
   assert.equal(classify(1020), BAND.edge);
 });
-test("20:00 is the edge/night boundary", () => {
+test("20:00 is the Good/Unsuitable boundary", () => {
   assert.equal(classify(1199), BAND.edge);
   assert.equal(classify(1200), BAND.night);
+});
+
+test("goodStep counts hours from the Best window across each Good hour", () => {
+  const steps = { 6: 3, 7: 2, 8: 1, 17: 1, 18: 2, 19: 3 };
+  for (const [h, step] of Object.entries(steps)) {
+    assert.equal(goodStep(h * 60), step, `${h}:00`);
+    assert.equal(goodStep(h * 60 + 59), step, `${h}:59`);
+  }
+});
+test("goodStep boundaries match classify", () => {
+  assert.equal(goodStep(359), 0);
+  assert.equal(goodStep(539), 1);
+  assert.equal(goodStep(540), 0);
+  assert.equal(goodStep(1019), 0);
+  assert.equal(goodStep(1020), 1);
+  assert.equal(goodStep(1199), 3);
+  assert.equal(goodStep(1200), 0);
+});
+test("goodStep is 0 in Best and Unsuitable hours", () => {
+  for (const h of [0, 1, 2, 3, 4, 5, 9, 10, 11, 12, 13, 14, 15, 16, 20, 21, 22, 23]) {
+    assert.equal(goodStep(h * 60), 0, `${h}:00`);
+    assert.equal(goodStep(h * 60 + 59), 0, `${h}:59`);
+  }
+});
+test("goodStep is non-zero exactly when classify is Good", () => {
+  for (let m = 0; m < 1440; m++) assert.equal(goodStep(m) !== 0, classify(m) === BAND.edge, `minute ${m}`);
 });
 
 const SYD_9AM = zonedMidnight("Australia/Sydney", 2027, 1, 15) + 9 * HOUR;

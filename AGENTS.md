@@ -17,7 +17,7 @@ tests.
 - `app.js`: the entry point. DOM lookups, state, load/save/share, scoring,
   rendering and interactions.
 - `js/time.js`: the time engine (`Intl.DateTimeFormat`): offsets, local parts,
-  zoned midnight, band classification and UTC offset labels.
+  zoned midnight, band classification, Good heat steps and UTC offset labels.
 - `js/zones.js`: the zone list rules: zone validation, user rows (home
   dropped, capped at 7), share-link `z` encoding and parsing, and following a
   new device zone.
@@ -40,14 +40,17 @@ tests.
 - `test/`: unit tests (`node:test`) for the time engine, the zone rules, the
   stored state, the city data, the wheel scroll decision and the row reorder,
   plus a static
-  CSP check of `index.html` (`test/csp.test.js`).
+  CSP check of `index.html` (`test/csp.test.js`) and a static `styles.css`
+  token check (heat-step contrast and order, `test/tokens.test.js`).
 - `assets/fonts/`: self-hosted woff2 fonts. Don't add CDN or third-party requests.
 
 Rules that hold across the app:
 
-- Business 09:00–17:00, edge 06:00–09:00 and 17:00–20:00, inconvenient
+- Best 09:00–17:00, Good 06:00–09:00 and 17:00–20:00, Unsuitable
   otherwise, local to each zone. 15-minute slots across the home zone's day.
-- Bands never rely on colour alone (solid, hatched, pale).
+- Bands never rely on colour alone (solid, hatched, pale). Zone rows shade
+  Good runs in three hatched heat steps by local hour (`goodStep`); the
+  Everyone row's Good is flat.
 - The home row is always the device zone, recomputed on load and followed
   live; it is never stored or read from a link. The rest are at most 7 user
   rows.

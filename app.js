@@ -121,7 +121,7 @@
     try { saved = JSON.parse(localStorage.getItem(STORE_KEY) || "null"); } catch { /* storage unavailable */ }
     let zones = [];
     if (hash.get("z")) {
-      zones = hash.get("z").split(",").map((s) => { const [tz, name] = s.split("~"); return mkZone(decodeURIComponent(tz), name ? decodeURIComponent(name) : undefined); });
+      zones = hash.get("z").split(",").map((s) => { const [tz, name] = s.split("~"); return mkZone(decodeURIComponent(tz), name ? decodeURIComponent(name).slice(0, 60) : undefined); });
       if (/^\d{4}-\d{2}-\d{2}$/.test(hash.get("d") || "")) state.date = hash.get("d");
       if (["2", "4", "6", "8"].includes(hash.get("l"))) state.len = +hash.get("l");
     } else if (saved && Array.isArray(saved.zones)) {
@@ -295,7 +295,7 @@
       const tone = w.night ? "night" : w.edge ? "edge" : "biz";
       const bad = state.zones.map((z, i) => (w.worst[i] === 0 ? `${z.name} ${hhmm(model.grid[i].parts[w.s])}` : null)).filter(Boolean);
       const note = w.night ? (bad.length > 1 ? `Inconvenient for ${bad.length} zones` : `Inconvenient: ${bad[0]}`) : w.edge ? `${w.biz} business, ${w.edge} edge` : "All in business hours";
-      return `<button type="button" class="chip" data-s="${w.s}" aria-pressed="${w.s === state.start}"><span class="mark mark-${tone}" aria-hidden="true"></span>${hhmm(p)} <small>${note}</small></button>`;
+      return `<button type="button" class="chip" data-s="${w.s}" aria-pressed="${w.s === state.start}"><span class="mark mark-${tone}" aria-hidden="true"></span>${hhmm(p)} <small>${esc(note)}</small></button>`;
     }).join("");
   };
 

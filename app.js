@@ -1,4 +1,4 @@
-import { BAND_NAME, classify, zonedMidnight, localParts, pad, hhmm, offLabel, weekday } from "./js/time.js";
+import { BAND_NAME, classify, homeDay, cellLabel, localParts, pad, hhmm, offLabel, weekday } from "./js/time.js";
 import * as S from "./js/strings.js";
 import { MAX_USER_ZONES, validTz, userRows, rowsToLink, rawParam, linkToRows, followHome } from "./js/zones.js";
 
@@ -93,10 +93,7 @@ let model = null;
 const buildModel = () => {
   const [y, m, d] = state.date.split("-").map(Number);
   const home = state.zones[0];
-  const t0 = zonedMidnight(home.tz, y, m, d);
-  const next = new Date(Date.UTC(y, m - 1, d + 1));
-  const t1 = zonedMidnight(home.tz, next.getUTCFullYear(), next.getUTCMonth() + 1, next.getUTCDate());
-  const n = Math.round((t1 - t0) / SLOT_MS);
+  const { t0, slots: n, cols } = homeDay(home.tz, y, m, d);
   const grid = state.zones.map((z) => {
     const bands = new Array(n);
     const parts = new Array(n);
@@ -108,7 +105,7 @@ const buildModel = () => {
     return { bands, parts };
   });
   const all = Array.from({ length: n }, (_, i) => Math.min(...grid.map((g) => g.bands[i])));
-  model = { t0, n, grid, all };
+  model = { t0, n, cols, grid, all };
 };
 
 /** Lower cost is better. Each zone costs its worst slot in the window. */
@@ -139,7 +136,7 @@ const suggestions = () => {
 // ---------- DOM ----------
 const $ = (id) => document.getElementById(id);
 const el = {
-  rows: $("rows"), axis: $("axis"), scrub: $("scrub"), selbar: $("selbar"), timeline: $("timeline"),
+  rows: $("rows"), scrub: $("scrub"), selbar: $("selbar"), timeline: $("timeline"),
   meetingTime: $("meetingTime"), meetingSub: $("meetingSub"), verdict: $("verdict"), suggestions: $("suggestions"),
   lengthSeg: $("lengthSeg"), dateInput: $("dateInput"), dateLabel: $("dateLabel"), zoneCount: $("zoneCount"),
   addZone: $("addZone"), zoneLimit: $("zoneLimit"), editBtn: $("editBtn"), copyBtn: $("copyBtn"), shareBtn: $("shareBtn"),
@@ -148,57 +145,93 @@ const el = {
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const icon = (id) => `<svg class="ico" aria-hidden="true"><use href="#i-${id}"/></svg>`;
 
-const segmentsHTML = (bands, parts) => {
-  const n = bands.length;
-  let html = "";
-  let i = 0;
-  while (i < n) {
-    let j = i;
-    while (j < n && bands[j] === bands[i]) j++;
-    html += `<div class="seg-${BAND_NAME[bands[i]]}" style="width:${((j - i) / n) * 100}%"></div>`;
-    i = j;
-  }
-  if (parts) {
-    // local hour numbers every 3 local hours
-    for (let k = 0; k < n; k++) {
-      const p = parts[k];
-      if (p.m === 0 && p.h % 3 === 0 && k + 4 <= n) {
-        html += `<span class="tick on-${BAND_NAME[bands[k + 1]]}" style="left:${((k + 2) / n) * 100}%">${p.h}</span>`;
-      }
-    }
-  }
-  return html;
+const SVG_NS = "http://www.w3.org/2000/svg";
+const make = (tag, cls, text) => {
+  const node = document.createElement(tag);
+  if (cls) node.className = cls;
+  if (text != null) node.textContent = text;
+  return node;
+};
+const svgUse = (id) => {
+  const svg = document.createElementNS(SVG_NS, "svg");
+  const use = document.createElementNS(SVG_NS, "use");
+  use.setAttribute("href", `#i-${id}`);
+  svg.append(use);
+  return svg;
+};
+const actBtn = (act, idx, label, id) => {
+  const b = make("button", "icon-btn icon-btn-soft");
+  b.type = "button";
+  b.dataset.act = act;
+  b.dataset.idx = String(idx);
+  b.setAttribute("aria-label", label);
+  b.append(svgUse(id));
+  return b;
 };
 
-const renderAxis = () => {
-  const homeParts = model.grid[0].parts;
-  let html = "";
-  for (let k = 0; k <= model.n; k++) {
-    const p = k === model.n ? { h: 24, m: 0 } : homeParts[k];
-    if (p.m === 0 && p.h % 6 === 0) html += `<span style="left:${(k / model.n) * 100}%">${pad(p.h)}</span>`;
+/** One hour cell per column over the 15-minute band runs; labels only when a zone is given. */
+const trackEl = (bands, z) => {
+  const track = make("div", "track");
+  track.setAttribute("aria-hidden", "true");
+  const runs = make("div", "bands");
+  for (let i = 0; i < model.n;) {
+    let j = i;
+    while (j < model.n && bands[j] === bands[i]) j++;
+    const seg = make("div", `seg-${BAND_NAME[bands[i]]}`);
+    seg.style.setProperty("--w", String(j - i));
+    runs.append(seg);
+    i = j;
   }
-  el.axis.innerHTML = html;
+  const cells = make("div", "cells");
+  for (let c = 0; c < model.cols; c++) {
+    const cell = make("div", "cell", z ? cellLabel(z.tz, model.t0 + c * 3600000) : null);
+    const w = Math.min(4, model.n - 4 * c);
+    if (w < 4) cell.style.setProperty("--w", String(w));
+    if (z) cell.classList.add(`on-${BAND_NAME[bands[Math.min(4 * c + 1, model.n - 1)]]}`);
+    cells.append(cell);
+  }
+  track.append(runs, cells);
+  return track;
 };
 
 const renderRows = () => {
   const homeName = state.zones[0].name;
   const ov = overlapSummary();
-  let html = `<li class="row row-all" data-all="${ov.tone}"><div class="row-top"><div class="row-name"><b>${esc(S.EVERYONE)}</b></div><div class="row-at"><b>${esc(ov.text)}</b></div></div><div class="strip" aria-hidden="true">${segmentsHTML(model.all)}</div></li>`;
+  const allRow = make("div", "row row-all");
+  allRow.dataset.all = ov.tone;
+  const allHead = make("div", "row-head");
+  const allName = make("div", "row-name");
+  allName.append(make("b", null, S.EVERYONE));
+  const allAt = make("div", "row-at");
+  allAt.append(make("b", null, ov.text));
+  allHead.append(allName, allAt);
+  allRow.append(allHead, trackEl(model.all));
+  const rows = [allRow];
   state.zones.forEach((z, idx) => {
     const nowP = localParts(z.tz, Date.now());
     const sub = [z.country, offLabel(nowP.off)].filter(Boolean).join(" · ");
-    html += `<li class="row" data-idx="${idx}">
-      <div class="row-top">
-        <div class="row-name"><b>${idx === 0 ? `<svg aria-label="${esc(S.HOME_ZONE)}" role="img"><use href="#i-home"/></svg>` : ""}${esc(z.name)}</b><span>${esc(sub)}</span></div>
-        <div class="row-at" data-at></div>
-        <div class="row-actions">
-          ${idx === 0 ? "" : `<button class="icon-btn icon-btn-soft" type="button" data-act="remove" data-idx="${idx}" aria-label="${esc(S.removeZone(z.name))}"><svg><use href="#i-x"/></svg></button>`}
-        </div>
-      </div>
-      <div class="strip" aria-hidden="true">${segmentsHTML(model.grid[idx].bands, model.grid[idx].parts)}</div>
-    </li>`;
+    const row = make("div", "row");
+    row.dataset.idx = String(idx);
+    const head = make("div", "row-head");
+    const name = make("div", "row-name");
+    const b = make("b", null, z.name);
+    if (idx === 0) {
+      const homeIco = svgUse("home");
+      homeIco.setAttribute("role", "img");
+      homeIco.setAttribute("aria-label", S.HOME_ZONE);
+      b.prepend(homeIco);
+    }
+    name.append(b, make("span", null, sub));
+    const at = make("div", "row-at");
+    at.dataset.at = "";
+    const actions = make("div", "row-actions");
+    if (idx !== 0) actions.append(actBtn("remove", idx, S.removeZone(z.name), "x"));
+    head.append(name, at, actions);
+    row.append(head, trackEl(model.grid[idx].bands, z));
+    rows.push(row);
   });
-  el.rows.innerHTML = html;
+  el.rows.style.setProperty("--n", String(model.n));
+  el.rows.replaceChildren(...rows, el.selbar);
   const users = state.zones.length - 1;
   el.zoneCount.textContent = S.zoneCount(users, MAX_USER_ZONES);
   el.addZone.disabled = users >= MAX_USER_ZONES;
@@ -274,7 +307,7 @@ const renderSelection = () => {
   }
 
   // per-row readouts
-  const homeDay = model.grid[0].parts[s].dayKey;
+  const homeKey = model.grid[0].parts[s].dayKey;
   el.rows.querySelectorAll(".row[data-idx]").forEach((row) => {
     const i = +row.dataset.idx;
     const g = model.grid[i];
@@ -282,18 +315,34 @@ const renderSelection = () => {
     const q = localParts(state.zones[i].tz, endT);
     const band = w.worst[i];
     row.dataset.at = BAND_NAME[band];
-    const dayBadge = p.dayKey !== homeDay ? `<span class="day">${weekday(p.date)}</span>` : "";
+    const dayBadge = p.dayKey !== homeKey ? `<span class="day">${weekday(p.date)}</span>` : "";
     row.querySelector("[data-at]").innerHTML = `<b>${dayBadge}${hhmm(p)}–${hhmm(q)}</b><span><i class="mark mark-${BAND_NAME[band]}" aria-hidden="true"></i>${esc(S.BAND_LABEL[band])}</span>`;
   });
 
-  // bar geometry
-  const track = el.rows.getBoundingClientRect().width;
-  el.selbar.style.width = `${(L / model.n) * track}px`;
-  el.selbar.style.transform = `translateX(${(s / model.n) * track}px)`;
+  // bar geometry, in slots from the start of the tracks
+  const { left, slot } = trackGeom();
+  el.selbar.style.width = `${L * slot}px`;
+  el.selbar.style.transform = `translateX(${left + s * slot}px)`;
   el.scrub.max = String(model.n - L);
   el.scrub.value = String(s);
   el.scrub.setAttribute("aria-valuetext", S.scrubText(hhmm(a), hhmm(b), home.name, el.verdict.textContent));
   el.suggestions.querySelectorAll(".chip").forEach((c) => c.setAttribute("aria-pressed", String(+c.dataset.s === s)));
+};
+
+/** Track start inside the scroller and the width of one 15-minute slot. */
+const trackGeom = () => {
+  const runs = el.rows.querySelector(".bands");
+  return { left: runs.offsetLeft, slot: runs.offsetWidth / model.n };
+};
+/** Scroll the grid, if needed, so the whole bar shows to the right of the header column. */
+const revealSelection = () => {
+  const { left, slot } = trackGeom();
+  const a = state.start * slot;
+  const b = (state.start + state.len) * slot;
+  const x = el.rows.scrollLeft;
+  const view = el.rows.clientWidth - left;
+  if (a < x) el.rows.scrollLeft = a - slot;
+  else if (b > x + view) el.rows.scrollLeft = b - view + slot;
 };
 
 const renderDate = () => {
@@ -312,12 +361,12 @@ const render = ({ keepStart = false } = {}) => {
   buildModel();
   renderDate();
   renderLength();
-  renderAxis();
   renderRows();
   const list = suggestions();
   if (!keepStart || state.start == null || state.start > model.n - state.len) state.start = list.length ? list[0].s : 0;
   renderSuggestions(list);
   renderSelection();
+  revealSelection();
   el.timeline.classList.toggle("editing", state.editing);
   save();
   if (location.hash) history.replaceState(null, "", shareURL());
@@ -331,31 +380,18 @@ const setStart = (s) => {
   renderSelection();
 };
 
-el.scrub.addEventListener("input", () => { el.timeline.classList.add("dragging"); setStart(+el.scrub.value); });
-el.scrub.addEventListener("change", () => el.timeline.classList.remove("dragging"));
-
-// drag anywhere on the strips
-let dragging = false;
-const slotAt = (clientX) => {
-  const r = el.rows.getBoundingClientRect();
-  const x = (clientX - r.left) / r.width;
-  return Math.round(x * model.n - state.len / 2);
-};
-el.rows.addEventListener("pointerdown", (e) => {
-  if (state.editing || e.target.closest("button")) return;
-  dragging = true;
-  el.timeline.classList.add("dragging");
-  el.rows.setPointerCapture(e.pointerId);
-  setStart(slotAt(e.clientX));
-});
-el.rows.addEventListener("pointermove", (e) => { if (dragging) setStart(slotAt(e.clientX)); });
-const endDrag = () => { dragging = false; el.timeline.classList.remove("dragging"); };
-el.rows.addEventListener("pointerup", endDrag);
-el.rows.addEventListener("pointercancel", endDrag);
+el.scrub.addEventListener("input", () => { setStart(+el.scrub.value); revealSelection(); });
 
 el.rows.addEventListener("click", (e) => {
   const btn = e.target.closest("button[data-act]");
-  if (!btn) return;
+  if (!btn) {
+    // tap a track: start at the quarter-hour under the pointer
+    const track = e.target.closest(".track");
+    if (!track || state.editing) return;
+    const r = track.querySelector(".bands").getBoundingClientRect();
+    setStart(Math.floor((e.clientX - r.left) / (r.width / model.n)));
+    return;
+  }
   const i = +btn.dataset.idx;
   const z = state.zones[i];
   if (btn.dataset.act === "remove" && i > 0 && z) {
@@ -367,7 +403,9 @@ el.rows.addEventListener("click", (e) => {
 
 el.suggestions.addEventListener("click", (e) => {
   const c = e.target.closest(".chip");
-  if (c) setStart(+c.dataset.s);
+  if (!c) return;
+  setStart(+c.dataset.s);
+  revealSelection();
 });
 
 el.lengthSeg.addEventListener("click", (e) => {

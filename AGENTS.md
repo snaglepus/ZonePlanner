@@ -9,7 +9,11 @@ from `docs/inspiraton.jpg` and is binding.
 
 Plain static HTML, CSS and vanilla JavaScript ES modules. No build step and no
 runtime dependencies; `package.json` exists only so `npm test` runs the unit
-tests and `npm run sw:stamp` stamps `sw.js`.
+tests, `npm run sw:stamp` stamps `sw.js` and `npm run test:e2e` runs the
+end-to-end tests. Its only dependency is `@playwright/test`, a dev dependency
+pinned to an exact version. No lockfile is committed (`package-lock.json` is
+gitignored): `factory/checks.sh` runs `npm ci` when one exists, and the gate
+must keep working with nothing installed.
 
 - `index.html`: markup and the SVG icon sprite. Loads `app.js` with
   `<script type="module">`.
@@ -83,6 +87,21 @@ tests and `npm run sw:stamp` stamps `sw.js`.
   CSP check of `index.html` (`test/csp.test.js`) and a static `styles.css`
   token check (heat-step contrast and order, `test/tokens.test.js`) and the
   service worker's stamp and manifest rules (`test/sw.test.js`).
+- `playwright.config.js`: the dev-only Playwright config. It starts its own
+  `python3 -m http.server 4173 --bind 127.0.0.1` (never reusing a running
+  server), pins the locale to `en-GB` (24-hour times) and has two projects:
+  `phone` (WebKit, iPhone 13, 390x844) and `desktop` (Chromium). No visual
+  snapshots.
+- `e2e/`: the end-to-end tests (`*.spec.js`, helpers in `e2e/helpers.js`),
+  never loaded by the page or by `npm test`. They cover the use cases UC1 to
+  UC4 (glance, find a slot, confirm it, travel), adding, changing, deleting
+  and dragging zones, stored state and corrupt-state recovery, a share-link
+  round trip, a London clock-change day, offline reload through the service
+  worker, and a privacy and CSP check (no third-party requests, no CSP
+  violations). Every test pins the clock (`page.clock.setFixedTime`) and the
+  `timezoneId` before its first navigation. UC4 changes the zone on a live
+  page through CDP, so it runs on `desktop` only. Drive the app only through
+  its existing markup; don't add test ids or hooks to the page.
 - `assets/fonts/`: self-hosted woff2 fonts. Don't add CDN or third-party requests.
 
 Rules that hold across the app:
@@ -146,7 +165,15 @@ Rules that hold across the app:
 
 A fresh checkout needs nothing installed beyond `python3` (for the dev
 server, `python3 -m http.server`; the page needs a static server) and `node`
-(for the syntax check and `npm test` in `factory/checks.sh`). No `npm install`.
+(for the syntax check and `npm test` in `factory/checks.sh`). The unit tests
+and the gate need no `npm install`.
+
+The end-to-end tests need a one-off install (network, about 300 MB):
+
+```bash
+npm install
+npx playwright install chromium webkit
+```
 
 ## Dev server
 
@@ -193,7 +220,15 @@ npm test
 ```
 
 runs the unit tests in `test/` with `node --test`; it needs no install.
-Rendering and interaction have no automated tests; verify them in the browser.
+
+```bash
+npm run test:e2e
+```
+
+runs the Playwright suite in `e2e/` on the `phone` and `desktop` projects
+(after the install in Setup). The gate doesn't run it, so run it yourself when
+a change touches rendering or interaction. The suite covers the core flows
+only; check layout and anything it doesn't cover in the browser.
 
 ## Software factory
 

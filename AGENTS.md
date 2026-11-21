@@ -83,7 +83,8 @@ must keep working with nothing installed.
   never precached. Builds the GitHub Pages site: `precacheFiles` plus
   `sw.js`, copied byte for byte into a new directory.
 - `.github/workflows/deploy.yml`: the GitHub Actions workflow that runs
-  `factory/checks.sh` and then deploys to GitHub Pages (see Deploy).
+  `factory/checks.sh`, then uploads the site and deploys it to GitHub Pages
+  in separate jobs (see Deploy).
 - `test/`: unit tests (`node:test`) for the time engine, the shared clock,
   the zone rules, the stored state, the city data, the wheel scroll decision, the row reorder,
   the hour filter, daylight saving (transitions, DST and the 14-day watch, in
@@ -243,6 +244,10 @@ in GitHub Actions (`.github/workflows/deploy.yml`), then deploys only the
 page's files plus `sw.js` to GitHub Pages, at the project's Pages URL
 (`https://<owner>.github.io/<repo>/`).
 
+- The workflow runs in three jobs: `test` (the checks), `upload` (build,
+  freshness check and artifact upload) and `deploy` (`deploy-pages` alone).
+  The upload has its own job because an artifact uploaded in the same job
+  can be missing when `deploy-pages` looks it up (actions/deploy-pages#451).
 - One-time manual step: Settings, Pages, Source: "GitHub Actions". A private
   repo also needs a plan that supports Pages.
 - A new file the page loads is published automatically once `index.html`,
@@ -250,7 +255,12 @@ page's files plus `sw.js` to GitHub Pages, at the project's Pages URL
 - Deploys ship the committed bytes, so run `npm run sw:stamp` before merging
   as before.
 - A run whose commit is no longer the tip of `main` (an out-of-order run or a
-  re-run) tests but skips publishing, so the newest tested commit stays live.
+  re-run) tests but uploads nothing and the deploy job is skipped, so the
+  newest tested commit stays live.
+- The deploy runs only in the same attempt as the freshness check, so
+  re-running only the failed deploy job publishes nothing (the deploy is
+  skipped). To retry a failed deploy, start a manual run (Actions, Run
+  workflow, on `main`).
 
 ## Software factory
 

@@ -79,6 +79,11 @@ must keep working with nothing installed.
   `index.html`, the `url()`s in `styles.css` and the import graph from
   `app.js`) and its content hash; the stamp writes both into `sw.js`'s
   `VERSION` and `PRECACHE` lines.
+- `scripts/pages-site.js` (`node scripts/pages-site.js <out-dir>`): dev-only,
+  never precached. Builds the GitHub Pages site: `precacheFiles` plus
+  `sw.js`, copied byte for byte into a new directory.
+- `.github/workflows/deploy.yml`: the GitHub Actions workflow that runs
+  `factory/checks.sh` and then deploys to GitHub Pages (see Deploy).
 - `test/`: unit tests (`node:test`) for the time engine, the shared clock,
   the zone rules, the stored state, the city data, the wheel scroll decision, the row reorder,
   the hour filter, daylight saving (transitions, DST and the 14-day watch, in
@@ -86,7 +91,8 @@ must keep working with nothing installed.
   weekend rules (`test/weekend.test.js`), plus a static
   CSP check of `index.html` (`test/csp.test.js`) and a static `styles.css`
   token check (heat-step contrast and order, `test/tokens.test.js`) and the
-  service worker's stamp and manifest rules (`test/sw.test.js`).
+  service worker's stamp and manifest rules (`test/sw.test.js`) and the
+  Pages site list, copy and workflow rules (`test/pages.test.js`).
 - `playwright.config.js`: the dev-only Playwright config. It starts its own
   `python3 -m http.server 4173 --bind 127.0.0.1` (never reusing a running
   server), pins the locale to `en-GB` (24-hour times) and has two projects:
@@ -229,6 +235,22 @@ runs the Playwright suite in `e2e/` on the `phone` and `desktop` projects
 (after the install in Setup). The gate doesn't run it, so run it yourself when
 a change touches rendering or interaction. The suite covers the core flows
 only; check layout and anything it doesn't cover in the browser.
+
+## Deploy
+
+Every push to `main` (and a manual run from `main`) runs `factory/checks.sh`
+in GitHub Actions (`.github/workflows/deploy.yml`), then deploys only the
+page's files plus `sw.js` to GitHub Pages, at the project's Pages URL
+(`https://<owner>.github.io/<repo>/`).
+
+- One-time manual step: Settings, Pages, Source: "GitHub Actions". A private
+  repo also needs a plan that supports Pages.
+- A new file the page loads is published automatically once `index.html`,
+  `styles.css` or the import graph references it.
+- Deploys ship the committed bytes, so run `npm run sw:stamp` before merging
+  as before.
+- A run whose commit is no longer the tip of `main` (an out-of-order run or a
+  re-run) tests but skips publishing, so the newest tested commit stays live.
 
 ## Software factory
 

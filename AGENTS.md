@@ -104,9 +104,12 @@ must keep working with nothing installed.
   UC4 (glance, find a slot, confirm it, travel), adding, changing, deleting
   and dragging zones, stored state and corrupt-state recovery, a share-link
   round trip, a London clock-change day, offline reload through the service
-  worker, and a privacy and CSP check (no third-party requests, no CSP
-  violations). Every test pins the clock (`page.clock.setFixedTime`) and the
-  `timezoneId` before its first navigation. UC4 changes the zone on a live
+  worker, a privacy and CSP check (no third-party requests, no CSP
+  violations) and the phone fold layout check (`e2e/layout.spec.js`, `phone`
+  only, at 390x664: the Everyone row and the whole home row show on load in
+  24h, 12h and with a long weekend verdict). Every test pins the clock
+  (`page.clock.setFixedTime`) and the `timezoneId` before its first
+  navigation. UC4 changes the zone on a live
   page through CDP, so it runs on `desktop` only. Drive the app only through
   its existing markup; don't add test ids or hooks to the page.
 - `assets/fonts/`: self-hosted woff2 fonts. Don't add CDN or third-party requests.

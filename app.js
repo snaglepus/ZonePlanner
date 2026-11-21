@@ -245,14 +245,14 @@ const renderRows = () => {
     const warn = actBtn("dst", idx, "", "alert");
     warn.className = "row-warn";
     warn.hidden = true;
-    const tags = make("div", "row-tags");
-    tags.append(make("span", "row-tag"), dst, warn);
-    name.append(b, live, tags, day);
+    name.append(b, live);
     const at = make("div", "row-at");
     at.dataset.at = "";
+    const meta = make("div", "row-meta");
+    meta.append(make("span", "row-band"), make("span", "row-tag"), day, dst, warn);
     const actions = make("div", "row-actions");
     if (idx !== 0) actions.append(actBtn("change", idx, S.changeZone(z.name), "edit"), actBtn("remove", idx, S.removeZone(z.name), "x"));
-    head.append(name, at, actions);
+    head.append(name, at, meta, actions);
     if (idx !== 0) {
       const grip = make("div", "row-grip");
       grip.setAttribute("aria-hidden", "true");
@@ -400,7 +400,8 @@ const renderSelection = () => {
     const dayBadge = p.dayKey !== homeKey ? `<span class="day">${weekday(p.date)}</span>` : "";
     const { change } = dstWatch.status(zoneOf(state.zones[i]), now);
     const after = change && startT >= change.at ? `<span class="row-after">${esc(S.AFTER_CHANGE)}</span>` : "";
-    row.querySelector("[data-at]").innerHTML = `<b>${dayBadge}${esc(S.clockRange(p, q, h12))}</b><span><i class="mark mark-${BAND_NAME[band]}" aria-hidden="true"></i>${esc(label)}</span>${after}`;
+    row.querySelector("[data-at]").innerHTML = `<b>${dayBadge}${esc(S.clockRange(p, q, h12))}</b>${after}`;
+    row.querySelector(".row-band").innerHTML = `<i class="mark mark-${BAND_NAME[band]}" aria-hidden="true"></i>${esc(label)}`;
   });
 
   // bar geometry, in slots from the start of the tracks

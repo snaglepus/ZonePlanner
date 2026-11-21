@@ -56,6 +56,7 @@ third-party requests.
 | `js/strings.js` | Every user-facing string (en-AU) |
 | `js/scroll.js`, `js/reorder.js` | Wheel-to-horizontal scroll and drag-to-reorder logic |
 | `test/` | Unit tests (`node:test`) |
+| `e2e/`, `playwright.config.js` | End-to-end tests (Playwright, dev only): WebKit phone and Chromium desktop |
 
 The modules under `js/` don't touch the DOM, so they import and test cleanly
 in Node. All DOM work lives in `app.js`.
@@ -70,7 +71,13 @@ More detail:
 ## Running it in dev
 
 You need `python3` (for a static server) and `node` (for the checks and
-tests). There's nothing to install: no `npm install`.
+tests). The app, the unit tests and the checks need nothing installed. Only
+the end-to-end tests do, once (network, about 300 MB):
+
+```bash
+npm install
+npx playwright install chromium webkit
+```
 
 ```bash
 python3 -m http.server 8080
@@ -84,10 +91,12 @@ must be served over HTTP; opening it from `file://` won't work.
 ```bash
 npm test                  # unit tests in test/ via node --test
 bash factory/checks.sh    # syntax check, file references, ids, then npm test
+npm run test:e2e          # Playwright end-to-end tests in e2e/ (needs the install above)
 ```
 
-Rendering and interaction have no automated tests, so check those in the
-browser, including at a 390px-wide viewport.
+The checks don't run the end-to-end tests. They cover the core flows on a
+390px WebKit phone and a Chromium desktop; check layout and anything else in
+the browser too.
 
 ### Regenerating the city data
 

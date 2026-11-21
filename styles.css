@@ -89,16 +89,17 @@ svg { flex: none; }
 .ico, .icon-btn svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 
 /* ---------- Masthead ---------- */
-.masthead { position: relative; height: 268px; overflow: hidden; }
+.masthead { position: relative; height: calc(146px + env(safe-area-inset-top)); overflow: hidden; }
 .masthead { background: linear-gradient(#EFC9A6, #F3DCC4 65%, #F4EDE2); }
 .landscape { position: absolute; inset: 0; width: 100%; height: 100%; }
-.sun { position: absolute; top: 58px; right: max(28px, calc(50% - 300px)); width: 68px; height: 68px; border-radius: 50%; background: #FBE7D2; box-shadow: 0 0 0 10px rgba(247, 214, 182, .55); }
-.brand { position: relative; padding: calc(22px + env(safe-area-inset-top)) var(--gutter) 0; max-width: 720px; margin: 0 auto; }
-.brand h1 { font: 400 32px/1.05 var(--serif); letter-spacing: -.015em; color: var(--sage); }
-.brand p { margin-top: 6px; font-size: 13px; font-weight: 500; color: #5E4A3E; letter-spacing: .01em; }
+.sun { position: absolute; top: calc(4px + env(safe-area-inset-top)); right: max(28px, calc(50% - 300px)); width: 40px; height: 40px; border-radius: 50%; background: #FBE7D2; box-shadow: 0 0 0 8px rgba(247, 214, 182, .55); }
+.brand { position: relative; padding: calc(10px + env(safe-area-inset-top)) var(--gutter) 0; max-width: 720px; margin: 0 auto; }
+.brand h1 { font: 400 26px/1.05 var(--serif); letter-spacing: -.015em; color: var(--sage); white-space: nowrap; }
+/* the tagline shows from 560px up */
+.brand p { display: none; margin-top: 6px; font-size: 13px; font-weight: 500; color: #5E4A3E; letter-spacing: .01em; }
 
 /* ---------- Layout ---------- */
-.app { max-width: 720px; margin: -94px auto 0; padding: 0 var(--gutter) calc(32px + env(safe-area-inset-bottom)); position: relative; display: grid; gap: 14px; }
+.app { max-width: 720px; margin: -86px auto 0; padding: 0 var(--gutter) calc(32px + env(safe-area-inset-bottom)); position: relative; display: grid; gap: 8px; }
 .card { background: var(--card); border-radius: var(--r-card); box-shadow: var(--shadow); }
 
 /* ---------- Buttons ---------- */
@@ -139,18 +140,22 @@ svg { flex: none; }
 .date-pill:focus-within { outline: 2.5px solid var(--gold); outline-offset: 2px; }
 
 /* ---------- Meeting card ---------- */
-.meeting { padding: 20px 18px 18px; display: grid; gap: 14px; }
-.meeting-head { display: flex; flex-direction: column; gap: 14px; }
-.meeting-time { font: 400 clamp(26px, 7.6vw, 34px)/1.05 var(--serif); white-space: nowrap; letter-spacing: -.02em; color: var(--sage); font-variant-numeric: lining-nums tabular-nums; }
-.meeting-sub { margin-top: 6px; font-size: 13px; color: var(--muted); }
+.meeting { padding: 14px 16px; display: grid; gap: 8px; }
+/* phones: the time on its own line, then the sub-line beside the actions */
+.meeting-head { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px; }
+.meeting-head > div:first-child { display: contents; }
+.meeting-time { grid-column: 1 / -1; font: 400 28px/1.05 var(--serif); white-space: nowrap; letter-spacing: -.02em; color: var(--sage); font-variant-numeric: lining-nums tabular-nums; }
+.meeting-sub { font-size: 13px; color: var(--muted); }
 .meeting-actions { display: flex; gap: 8px; }
-.meeting-actions .btn { flex: 1; }
 
+/* phones clamp the verdict to 2 lines (the full sentence stays in the DOM); the mark hangs in the left padding.
+   The bottom 8px is a transparent border, not padding, so the clipped third line never shows in it */
 .verdict {
-  display: flex; align-items: flex-start; gap: 10px; padding: 11px 14px; border-radius: 14px;
-  background: var(--sage-tint); color: var(--sage); font-size: 14px; font-weight: 550; line-height: 1.35;
+  position: relative; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
+  padding: 8px 12px 0 30px; border-bottom: 8px solid transparent; border-radius: 14px;
+  background: var(--sage-tint); color: var(--sage); font-size: 13px; font-weight: 550; line-height: 1.3;
 }
-.verdict::before { content: ""; flex: none; width: 10px; height: 10px; margin-top: 4px; border-radius: 50%; background: currentColor; }
+.verdict::before { content: ""; position: absolute; top: 11.5px; left: 12px; width: 10px; height: 10px; border-radius: 50%; background: currentColor; }
 .verdict[data-tone="edge"] { background: #F7E6D6; color: #7A4A2A; }
 .verdict[data-tone="edge"]::before { background: repeating-linear-gradient(135deg, var(--good) 0 2px, #9C6036 2px 3px); }
 .verdict[data-tone="bad"] { background: var(--terra-tint); color: var(--terra); }
@@ -164,11 +169,14 @@ svg { flex: none; }
 }
 .seg button[aria-checked="true"] { background: var(--sage); color: var(--on-sage); }
 .seg button:not([aria-checked="true"]):hover { color: var(--ink); }
-/* time-format toggle in the board header: full 44px targets */
+/* time-format toggle in the board header: full 44px targets; phones drop the track's vertical padding so the control is 44px tall */
+.seg-clock { padding-block: 0; }
 .seg-clock button { min-height: 44px; min-width: 44px; padding: 0 8px; }
 
-.suggest h3 { font-size: 13px; font-weight: 650; color: var(--ink-soft); margin-bottom: 8px; }
-.chips { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; margin: 0 -18px; padding: 0 18px 2px; scroll-padding: 18px; }
+/* phones: "Suggested" beside the chip rail, which bleeds to the card's right edge */
+.suggest { display: flex; align-items: center; gap: 10px; }
+.suggest h3 { flex: none; font-size: 13px; font-weight: 650; color: var(--ink-soft); }
+.chips { flex: 1; min-width: 0; display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; margin-right: -16px; padding: 0 16px 2px 0; scroll-padding: 0 16px 0 0; }
 .chips::-webkit-scrollbar { display: none; }
 .chip {
   flex: none; display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 14px 0 10px;
@@ -189,18 +197,18 @@ svg { flex: none; }
 .mark-night { border: 2px solid #A2948A; }
 
 /* ---------- Board ---------- */
-.board { padding: 16px 0 16px; }
-.board-head { display: flex; align-items: center; justify-content: space-between; padding: 0 12px 0 18px; }
+.board { padding: 10px 0 16px; }
+.board-head { display: flex; align-items: center; justify-content: space-between; min-height: 44px; padding: 0 8px 0 10px; }
 .board-head h2 { font: 400 20px/1.2 var(--serif); color: var(--ink); }
 .board-actions { display: flex; align-items: center; gap: 4px; }
 #nowBtn[hidden] { display: none; }
 .count { font: 600 13px var(--sans); color: var(--muted); margin-left: 4px; }
 .board > .sheet-note { margin: 6px 18px 0; }
-.seg-filter { margin: 12px 18px 0; }
-.seg-filter button { min-height: 44px; }
+.seg-filter { margin: 6px 10px 0; padding-block: 0; }
+.seg-filter button { min-height: 44px; min-width: 44px; }
 .filter-empty { margin: 10px 18px 0; font-size: 14px; color: var(--muted); }
 
-.timeline { position: relative; margin-top: 10px; }
+.timeline { position: relative; margin-top: 4px; }
 
 /* keyboard-only scrubber: focusable, drawn as the focus ring on the bar */
 .scrub { position: absolute; top: 0; left: 0; width: 1px; height: 1px; margin: 0; padding: 0; opacity: 0; overflow: hidden; clip-path: inset(50%); }
@@ -208,7 +216,7 @@ svg { flex: none; }
 .scrub:focus-visible ~ .rows .selbar { outline: 2.5px solid var(--gold); outline-offset: 3px; }
 
 /* one native scroller: sticky header column, hour cells aligned on absolute time */
-.rows { --slot: 11px; --head: 176px; position: relative; overflow-x: auto; overflow-y: hidden; touch-action: pan-x pan-y; }
+.rows { --slot: 11px; --head: 152px; position: relative; overflow-x: auto; overflow-y: hidden; touch-action: pan-x pan-y; }
 /* the focused grid's ring is drawn on a layer above the sticky header column, inset so the card never hides it */
 .rows:focus-visible { outline: none; }
 .timeline:has(> .rows:focus-visible)::after {
@@ -217,45 +225,54 @@ svg { flex: none; }
 }
 .row { display: flex; width: max-content; min-width: 100%; }
 .row + .row { border-top: 1px solid var(--line); }
+/* three lines: name and live time, the meeting readout, the meta line; Edit mode adds an actions line last */
 .row-head {
-  position: sticky; left: 0; z-index: 3; flex: none; width: var(--head); padding: 8px 44px 8px 18px;
-  display: flex; flex-direction: column; justify-content: center; gap: 4px; background: var(--card);
+  position: sticky; left: 0; z-index: 3; flex: none; width: var(--head); padding: 6px 8px 6px 10px;
+  display: flex; flex-wrap: wrap; align-content: center; background: var(--card);
   box-shadow: 1px 0 0 var(--line); -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
 }
-.row-name { min-width: 0; }
-.row-name b { display: flex; align-items: center; gap: 6px; font-size: 15px; font-weight: 650; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.row-name b svg { width: 15px; height: 15px; fill: none; stroke: var(--sage); stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
-.row-name > span { display: block; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.row-name > .row-live { overflow: visible; text-overflow: clip; margin-top: 3px; line-height: 1.2; }
-.row-live small { font-size: 11px; font-weight: 600; color: var(--muted); }
-.row-live .row-time { font-size: 13px; font-weight: 700; color: var(--ink); }
+.row-name, .row-at, .row-meta { flex: 1 0 100%; min-width: 0; }
+/* the name shrinks first; the live time is never clipped */
+.row-name { display: flex; align-items: center; gap: 6px; line-height: 18px; }
+.row-name b { flex: 0 1 auto; min-width: 0; font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.row-name b svg { width: 14px; height: 14px; margin-right: 5px; vertical-align: -2px; fill: none; stroke: var(--sage); stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.row-live { flex: none; margin-left: auto; font-size: 12px; font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; white-space: nowrap; }
+/* phones keep the "Now" word for screen readers only (the .scrub pattern) */
+.row-live small { position: absolute; top: 0; left: 0; width: 1px; height: 1px; margin: 0; padding: 0; opacity: 0; overflow: hidden; clip-path: inset(50%); font-size: 11px; font-weight: 600; color: var(--muted); }
+.row-at { font-variant-numeric: tabular-nums; }
+.row-at b { display: block; font-size: 13px; font-weight: 600; line-height: 18px; }
+.row-at .day { font-size: 11px; font-weight: 700; color: var(--terra); background: var(--terra-tint); border-radius: 6px; padding: 1px 5px; margin-right: 4px; vertical-align: 1px; }
+.row-at .row-after { display: flex; font-size: 11px; font-weight: 600; line-height: 16px; color: var(--terra); }
+/* the band label, the abbreviation and offset, the day difference, then the DST badge and the clock-change warning; wraps only when they don't fit.
+   On phones it may run into the header's right padding, so "Weekend AEST · UTC+10" stays on one line */
+.row-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 0 4px; margin-right: -6px; font-size: 11px; line-height: 16px; color: var(--muted); }
+.row-band { display: inline-flex; align-items: center; gap: 3px; font-weight: 600; white-space: nowrap; }
+.row-band .mark { width: 8px; height: 8px; }
+.row-band .mark-night { border-width: 1.5px; }
+.row[data-at="night"] .row-band { color: var(--terra); }
+.row-tag { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.row-day { white-space: nowrap; }
 .row-day[hidden] { display: none; }
-/* the abbreviation and offset, then the DST badge and the clock-change warning, wrapping under it when they don't fit */
-.row-tags { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 6px; margin-top: 2px; font-size: 12px; color: var(--muted); }
-.row-tag { min-width: 0; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .row-dst { font-size: 11px; font-weight: 700; line-height: 16px; color: var(--ink-soft); background: var(--paper-deep); border-radius: 6px; padding: 0 5px; }
-/* a 20px badge at the foot of a 44px hit area; the negative margins keep the line short and reach up over the text above, never down onto the Edit buttons */
+/* a 20px badge at the foot of a 44px hit area; the negative margins keep the line short and reach up over the text above, never down onto the Edit buttons below.
+   The left margin stays inside the header's 10px padding when the badge wraps to the start of a line */
 .row-warn {
-  position: relative; display: inline-grid; place-items: end center; width: 44px; height: 44px; margin: -24px -12px 0; padding: 0 0 3px; border: 0;
+  position: relative; display: inline-grid; place-items: end center; width: 44px; height: 44px; margin: -24px -12px 0 -8px; padding: 0 0 3px; border: 0;
   background: transparent; color: var(--terra);
 }
 .row-warn::before { content: ""; position: absolute; inset: 24px 12px 0; border-radius: 6px; background: var(--terra-tint); }
 .row-warn svg { position: relative; width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
 .row-dst[hidden], .row-warn[hidden] { display: none; }
-.row-at { font-variant-numeric: tabular-nums; }
-.row-at b { display: block; font-size: 14px; font-weight: 700; line-height: 1.2; }
-.row-at span { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 600; color: var(--muted); margin-top: 2px; }
-.row-at .day { font-size: 11px; font-weight: 700; color: var(--terra); background: var(--terra-tint); border-radius: 6px; padding: 1px 5px; margin-right: 4px; vertical-align: 1px; }
-.row[data-at="night"] .row-at span { color: var(--terra); }
-.row-at .row-after { display: flex; color: var(--terra); }
-.row-actions { display: none; gap: 6px; }
+/* Edit mode: Change, Remove and (on phones) the grip, three 44px targets on the header's last line */
+.row-actions { display: none; gap: 1px; }
 .timeline.editing .row-actions { display: flex; }
-.timeline.editing .row-at { display: none; }
-/* grab handle at the right of each user row's header; reorder lifts the row and slides the others aside */
+.timeline.editing .row-at, .timeline.editing .row-band { display: none; }
+/* grab handle: on phones only in Edit mode, after Change and Remove; from 560px a full-height column at the right of each user row's header. Reorder lifts the row and slides the others aside */
 .row-grip {
-  position: absolute; top: 0; right: 0; bottom: 0; width: 44px; display: flex; align-items: center; justify-content: center;
+  display: none; width: 44px; height: 44px; margin-left: 1px; align-items: center; justify-content: center;
   color: var(--muted); cursor: grab; touch-action: none;
 }
+.timeline.editing .row-grip { display: flex; }
 .row-grip svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
 .rows.reordering .row:not(.lifted) { transition: transform .22s var(--ease); }
 .rows.reordering .selbar { opacity: 0; }
@@ -295,7 +312,7 @@ svg { flex: none; }
 /* 12-hour am/pm cue, stacked under the number on the same backing */
 .cell span small { display: block; font-size: 9px; font-weight: 700; line-height: 1.1; font-variant-numeric: tabular-nums; }
 /* day dividers: a line at each local date change at its exact position, its date in a lane above the band */
-.row:not(.row-all) > .track { padding: 18px 0; }
+.row:not(.row-all) > .track { padding: 18px 0 8px; }
 .daymark { position: absolute; top: 0; bottom: 0; left: calc(var(--x) * var(--slot)); width: 2px; background: var(--ink); pointer-events: none; }
 .daymark span {
   position: absolute; bottom: calc(100% + 3px); left: 4px; color: var(--ink-soft); pointer-events: none;
@@ -305,14 +322,14 @@ svg { flex: none; }
 /* an hour label's backing sits over a divider crossing it, so a :15/:45 date change never strikes through the time */
 .cells .cell span { position: relative; z-index: 1; }
 
-/* room above the first row for the bar's tab */
-.row-all > .row-head, .row-all > .track { padding-top: 20px; }
-.row-all .row-name b { font-family: var(--serif); font-weight: 400; font-size: 15px; }
-.row-all .row-at b { font-size: 13px; white-space: normal; }
+/* room above the first row's band for the bar's tab and the now line's dot */
+.row-all > .track { padding-top: 14px; }
+.row-all .row-name b { font-family: var(--serif); font-weight: 400; font-size: 16px; }
+.row-all .row-at b { font-size: 12px; line-height: 15px; white-space: normal; }
 .row-all[data-all="none"] .row-at b { color: var(--terra); }
 
 .selbar {
-  position: absolute; top: 12px; bottom: 2px; left: 0; width: 0;
+  position: absolute; top: 10px; bottom: 2px; left: 0; width: 0;
   border: 2px solid var(--gold); border-radius: 12px; background: transparent;
   box-shadow: 0 6px 18px -8px rgba(201, 146, 71, .55);
   pointer-events: none; z-index: 2;
@@ -326,7 +343,7 @@ svg { flex: none; }
 
 /* now line: ink, round dot cap in the Everyone row's top padding, jumps a minute at a time */
 .nowline {
-  position: absolute; top: 12px; bottom: 2px; left: 0; width: 2px; margin-left: -1px;
+  position: absolute; top: 8px; bottom: 2px; left: 0; width: 2px; margin-left: -1px;
   background: var(--ink); pointer-events: none; z-index: 2;
 }
 .nowline::before {
@@ -406,10 +423,43 @@ svg { flex: none; }
 @media (min-width: 560px) {
   :root { --gutter: 24px; }
   .masthead { height: 284px; }
+  .sun { top: 58px; width: 68px; height: 68px; box-shadow: 0 0 0 10px rgba(247, 214, 182, .55); }
+  .brand { padding-top: calc(22px + env(safe-area-inset-top)); }
   .brand h1 { font-size: 40px; }
+  .brand p { display: block; }
+  .app { margin-top: -94px; gap: 14px; }
+  .meeting { padding: 20px 18px 18px; gap: 14px; }
+  .meeting-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; gap: 14px; }
+  .meeting-head > div:first-child { display: block; }
   .meeting-time { font-size: 42px; }
-  .meeting-head { flex-direction: row; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; }
-  .meeting-actions .btn { flex: none; }
+  .meeting-sub { margin-top: 6px; }
+  .verdict { display: flex; align-items: flex-start; gap: 10px; overflow: visible; padding: 11px 14px; border-bottom: 0; font-size: 14px; line-height: 1.35; }
+  .verdict::before { position: static; flex: none; margin-top: 4px; }
+  .suggest { display: block; }
+  .suggest h3 { margin-bottom: 8px; }
+  .chips { margin: 0 -18px; padding: 0 18px 2px; scroll-padding: 18px; }
+  .board { padding-top: 16px; }
+  .board-head { min-height: 0; padding: 0 12px 0 18px; }
+  .seg-clock, .seg-filter { padding-block: 4px; }
+  .seg-filter { margin: 12px 18px 0; }
+  .timeline { margin-top: 10px; }
+  .rows { --head: 176px; }
+  .row-head { padding: 8px 8px 8px 18px; }
+  .row[data-idx]:not([data-idx="0"]) > .row-head { padding-right: 44px; }
+  .row-name { flex-wrap: wrap; }
+  .row-name b { font-size: 15px; font-weight: 650; }
+  .row-name b svg { width: 15px; height: 15px; margin-right: 6px; }
+  .row-live { font-size: 13px; }
+  .row-live small { position: static; width: auto; height: auto; opacity: 1; overflow: visible; clip-path: none; }
+  .row-at b { font-size: 14px; font-weight: 700; }
+  .row-meta { margin-right: 0; font-size: 12px; }
+  .row-actions { gap: 6px; }
+  .row-grip { display: flex; position: absolute; top: 0; right: 0; bottom: 0; height: auto; margin: 0; }
+  .row:not(.row-all) > .track { padding-bottom: 18px; }
+  .row-all > .row-head, .row-all > .track { padding-top: 20px; }
+  .row-all .row-name b { font-size: 15px; }
+  .row-all .row-at b { font-size: 13px; }
+  .selbar, .nowline { top: 12px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

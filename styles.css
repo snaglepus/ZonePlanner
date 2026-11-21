@@ -449,7 +449,7 @@ svg { flex: none; }
   .row-name { flex-wrap: wrap; }
   .row-name b { font-size: 15px; font-weight: 650; }
   .row-name b svg { width: 15px; height: 15px; margin-right: 6px; }
-  .row-live { font-size: 13px; }
+  .row-live { flex-basis: 100%; margin-left: 0; font-size: 13px; }
   .row-live small { position: static; width: auto; height: auto; opacity: 1; overflow: visible; clip-path: none; }
   .row-at b { font-size: 14px; font-weight: 700; }
   .row-meta { margin-right: 0; font-size: 12px; }

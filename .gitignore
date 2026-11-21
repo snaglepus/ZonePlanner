@@ -7,3 +7,7 @@ ImpeccableVersion.zip
 /.impeccable/hook.cache.json
 /factory/jobs/
 /.worktrees/
+node_modules/
+playwright-report/
+test-results/
+package-lock.json

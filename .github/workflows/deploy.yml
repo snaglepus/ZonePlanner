@@ -1,6 +1,11 @@
 # Runs factory/checks.sh on every push to main (and on a manual run), then
-# deploys the page's files plus sw.js to GitHub Pages. A run whose commit is
-# no longer the tip of main tests but skips publishing.
+# deploys the page's files plus sw.js to GitHub Pages. It runs in three jobs:
+# test (the checks); upload (build, freshness check and artifact upload); and
+# deploy (the deploy alone). The upload has its own job because an artifact
+# uploaded in the same job can be missing when deploy-pages looks it up
+# (actions/deploy-pages#451). A run whose commit is no longer the tip of main
+# tests but skips publishing. The deploy runs only in the same attempt as the
+# freshness check, so a deploy-only re-run publishes nothing.
 name: Deploy to GitHub Pages
 
 on:
@@ -28,17 +33,15 @@ jobs:
           node-version: 24
       - run: bash factory/checks.sh
 
-  deploy:
+  upload:
     needs: test
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      pages: write
-      id-token: write
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+    outputs:
+      current: ${{ steps.fresh.outputs.current }}
+      attempt: ${{ github.run_attempt }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -67,6 +70,18 @@ jobs:
         if: steps.fresh.outputs.current == 'true'
         with:
           path: ${{ runner.temp }}/site
+
+  deploy:
+    needs: upload
+    if: github.ref == 'refs/heads/main' && needs.upload.outputs.current == 'true' && needs.upload.outputs.attempt == github.run_attempt
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
       - id: deployment
         uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
-        if: steps.fresh.outputs.current == 'true'

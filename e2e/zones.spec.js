@@ -31,8 +31,10 @@ test("Change and delete in edit mode", async ({ page }) => {
   expect(await count()).toBe(before - 1);
 });
 
-test("Drag reorder: the last user row moves above the first", async ({ page }) => {
+test("Drag reorder: the last user row moves above the first", async ({ page }, testInfo) => {
   await open(page);
+  // below 560px the grip shows only in Edit mode
+  if (testInfo.project.name === "phone") await page.locator("#editBtn").click();
   const names = await rowNames(page);
   const last = names.length - 1;
   const grip = row(page, last).locator(".row-grip");

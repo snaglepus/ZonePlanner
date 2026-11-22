@@ -266,11 +266,11 @@ At 560px+ the masthead is 284px tall with the tagline under a 40px wordmark and 
 
 The zone board is one horizontal scroller that runs edge to edge across the card, with an 18px pad before the zone names and after the last hour, so the selection bar and every row's hour cells share exact coordinates.
 
-Below 560px the meeting card puts the time on its own full-width line, then the sub-line on the left with Share and Copy times (with its label, both 44px) on the right; the sub-line wraps within its column. "Suggested" sits inline to the left of the chip rail. Above 560px the meeting card's time and actions move side by side, with the sub-line under the time, and "Suggested" heads the rail; when a long time (a 12-hour `11:30 am – 12:30 pm`) leaves no room, the actions wrap below it.
+Below 560px the meeting card loads collapsed into a short answer strip, so the first two user rows show on a first load: the time, then the verdict on one line with a 44px soft round disclosure button (a chevron, "Meeting details", `aria-expanded`) at its right, then Share and Copy times on the right; the strip pads 10px top and bottom with 6px between its parts. The sub-line, the length control and Suggested are hidden. The button opens the full card and closes it again; the chevron points down while collapsed and up while open. Open or closed lasts only for the page session: it is never stored or put in a share link, so a reload starts collapsed. Expanded, the card puts the time on its own full-width line, then the sub-line on the left with Share and Copy times (with its label, both 44px) on the right; the sub-line wraps within its column. The verdict follows with the button at its right, then the length control. "Suggested" sits inline to the left of the chip rail. At 560px and wider the button is hidden and the card is always whole. Above 560px the meeting card's time and actions move side by side, with the sub-line under the time, and "Suggested" heads the rail; when a long time (a 12-hour `11:30 am – 12:30 pm`) leaves no room, the actions wrap below it.
 
 The board tightens on phones: 10px top padding, a 44px board-head row, 6px down to the filter, whose track drops its vertical padding so the control is 44px tall with 44px options (the 12h/24h toggle likewise), and 4px down to the grid; the board-head, filter and row headers start 10px from the card edge. Safe-area insets pad the masthead top, the column bottom, the sheet and the toast. Horizontal page scroll is clipped; the suggestion chip rail scrolls on its own and bleeds to the card edges.
 
-**The Answer-Above-the-Grid Rule.** The meeting card (time, verdict, length, suggestions) always comes before the zone rows; the rows explain the answer, they never precede it.
+**The Answer-Above-the-Grid Rule.** The meeting card (time, verdict, length, suggestions) always comes before the zone rows; the rows explain the answer, they never precede it. It still holds on phones: the collapsed strip, with the time and the verdict, sits above the rows, and the length and suggestions are one tap away inside the same card.
 
 ## Elevation & Depth
 
@@ -320,7 +320,7 @@ The time-format variant (`.seg-clock`, "12h / 24h") sits in the zone board heade
 ### Verdict panel
 A 14px-radius status panel led by a 10px mark that repeats the band's second channel: Sage Wash with a filled dot for Best, peach blush with a hatched dot for Good, Clay Blush with a hollow terracotta ring for Unsuitable.
 
-Below 560px the verdict is 13px, pads 8px 12px and is clamped to 2 lines with an ellipsis, the mark hanging in the left padding. The full sentence stays in the DOM, so `role="status"` and the scrubber's value text still carry all of it, and each row's meta line shows that zone's band. At 560px+ it is 14px, pads 11px 14px and is never clamped.
+Below 560px the verdict is 13px, pads 8px 12px and is clamped with an ellipsis, to 1 line while the meeting card is collapsed and to 2 lines when it is expanded, the mark hanging in the left padding. The full sentence stays in the DOM, so `role="status"` and the scrubber's value text still carry all of it, and each row's meta line shows that zone's band. At 560px+ it is 14px, pads 11px 14px and is never clamped.
 
 ### Inputs / Fields
 - **Style:** the search field is a 48px Warm Paper well with 14px radius, a muted search icon and 16px text (prevents iOS zoom).

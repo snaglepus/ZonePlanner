@@ -125,7 +125,7 @@ const el = {
   rows: $("rows"), scrub: $("scrub"), selbar: $("selbar"), nowLine: $("nowLine"), nowBtn: $("nowBtn"), timeline: $("timeline"),
   meetingTime: $("meetingTime"), meetingSub: $("meetingSub"), verdict: $("verdict"), suggestions: $("suggestions"),
   lengthSeg: $("lengthSeg"), filterSeg: $("filterSeg"), filterEmpty: $("filterEmpty"), clockSeg: $("clockSeg"), legendBest: $("legendBest"), legendGood: $("legendGood"), dateInput: $("dateInput"), dateLabel: $("dateLabel"), zoneCount: $("zoneCount"),
-  addZone: $("addZone"), zoneLimit: $("zoneLimit"), editBtn: $("editBtn"), copyBtn: $("copyBtn"), shareBtn: $("shareBtn"), meetingCard: $("meetingCard"), meetingToggle: $("meetingToggle"),
+  addZone: $("addZone"), zoneLimit: $("zoneLimit"), editBtn: $("editBtn"), copyBtn: $("copyBtn"), meetingCard: $("meetingCard"), meetingToggle: $("meetingToggle"),
   sheet: $("zoneSheet"), sheetTitle: $("sheetTitle"), search: $("zoneSearch"), results: $("results"), sheetNote: $("sheetNote"), toast: $("toast"),
   dstSheet: $("dstSheet"), dstTitle: $("dstTitle"), dstText: $("dstText")
 };
@@ -890,11 +890,6 @@ el.copyBtn.addEventListener("click", () => {
     return `${z.name}: ${weekday(p.date)} ${timeText(p)}–${timeText(q)}`;
   });
   copyText(lines.join("\n"), S.TIMES_COPIED);
-});
-el.shareBtn.addEventListener("click", () => {
-  const url = shareURL();
-  history.replaceState(null, "", url);
-  copyText(url, S.LINK_COPIED);
 });
 
 let toastTimer;

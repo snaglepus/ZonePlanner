@@ -141,12 +141,12 @@ svg { flex: none; }
 
 /* ---------- Meeting card ---------- */
 .meeting { padding: 14px 16px; display: grid; gap: 8px; }
-/* phones: the time on its own line, then the sub-line beside the actions */
+/* phones: the time with the copy icon at its right, then the sub-line at full width */
 .meeting-head { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px; }
 .meeting-head > div:first-child { display: contents; }
-.meeting-time { grid-column: 1 / -1; font: 400 28px/1.05 var(--serif); white-space: nowrap; letter-spacing: -.02em; color: var(--sage); font-variant-numeric: lining-nums tabular-nums; }
-.meeting-sub { font-size: 13px; color: var(--muted); }
-.meeting-actions { display: flex; gap: 8px; }
+.meeting-time { font: 400 26px/1.05 var(--serif); white-space: nowrap; letter-spacing: -.02em; color: var(--sage); font-variant-numeric: lining-nums tabular-nums; }
+.meeting-sub { grid-column: 1 / -1; font-size: 13px; color: var(--muted); }
+.meeting-actions { grid-area: 1 / 2; display: flex; gap: 8px; }
 
 /* phones clamp the verdict to 2 lines (the full sentence stays in the DOM); the mark hangs in the left padding.
    The bottom 8px is a transparent border, not padding, so the clipped third line never shows in it */
@@ -165,10 +165,8 @@ svg { flex: none; }
 .verdict-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px; }
 .meeting-toggle svg { transform: rotate(-90deg); transition: transform .2s var(--ease); }
 @media (max-width: 559.98px) {
-  /* collapsed: the time, the one-line verdict with the button, then Share and Copy times, on tighter spacing so row 2 fits */
+  /* collapsed: the time with the copy icon, then the one-line verdict with the button, on tighter spacing so row 2 fits */
   .meeting.collapsed { padding-block: 10px; gap: 6px; }
-  .meeting.collapsed .meeting-head { display: contents; }
-  .meeting.collapsed .meeting-actions { order: 1; justify-self: end; }
   .meeting.collapsed .meeting-sub, .meeting.collapsed .meeting-controls, .meeting.collapsed .suggest { display: none; }
   .meeting.collapsed .verdict { -webkit-line-clamp: 1; }
   .meeting.collapsed .meeting-toggle svg { transform: rotate(90deg); }

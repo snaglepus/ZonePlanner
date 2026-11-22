@@ -100,7 +100,6 @@ export const removed = (name) => `Removed ${name}`;
 export const nowIn = (name) => `You're now in ${name} time`;
 export const linkDropped = (n) => `Left out ${n} ${n === 1 ? "zone" : "zones"} from the link. Maximum of 7 time zones.`;
 export const TIMES_COPIED = "Meeting times copied";
-export const LINK_COPIED = "Link to this plan copied";
 export const added = (name) => `Added ${name}`;
 export const changed = (from, to) => `Changed ${from} to ${to}`;
 export const STATE_RESET = "Your saved zones couldn't be read, so the defaults are back.";

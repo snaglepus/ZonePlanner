@@ -27,6 +27,7 @@ export const clockRange = (a, b, hour12) => {
 export const legendBest = (hour12) => (hour12 ? "9 am–5 pm" : "9–17");
 export const legendGood = (hour12) => (hour12 ? "6–9 am, 5–8 pm" : "6–9, 17–20");
 export const TIME_FORMAT = "Time format";
+export const MEETING_DETAILS = "Meeting details";
 export const CLOCK_12 = "12h";
 export const CLOCK_24 = "24h";
 export const CLOCK_12_LABEL = "12-hour clock";

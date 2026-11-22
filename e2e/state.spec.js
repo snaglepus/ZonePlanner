@@ -1,6 +1,6 @@
 // Stored state, corrupt-state recovery and the share link.
 import { test, expect } from "@playwright/test";
-import { SYDNEY_MORNING, addBySearch, open, rowNames } from "./helpers.js";
+import { SYDNEY_MORNING, addBySearch, expandMeeting, open, rowNames } from "./helpers.js";
 
 test.use({ timezoneId: "Australia/Sydney" });
 
@@ -9,6 +9,7 @@ test("State survives reload: rows, filter and length", async ({ page }) => {
   await addBySearch(page, "Tokyo", '.result[data-name="Tokyo"]');
   await page.keyboard.press("Escape");
   await page.locator('#filterSeg [data-filter="good"]').click();
+  await expandMeeting(page);
   await page.locator('#lengthSeg [data-len="8"]').click();
   const names = await rowNames(page);
   await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem("zoneplanner.state") || "{}")))
@@ -36,6 +37,7 @@ test("Share link round trip: rows, date and length", async ({ page, browser }) =
   await open(page);
   await addBySearch(page, "+5:30", ".result[data-offset]");
   await page.keyboard.press("Escape");
+  await expandMeeting(page);
   await page.locator('#lengthSeg [data-len="8"]').click();
   await page.locator("#dateInput").fill("2026-06-17");
   await page.locator("#dateInput").dispatchEvent("change");

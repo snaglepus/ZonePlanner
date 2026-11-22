@@ -1,6 +1,6 @@
 // The core use cases: glance, find a slot, confirm it, travel.
 import { test, expect } from "@playwright/test";
-import { open, pickSlot, row, rowNames } from "./helpers.js";
+import { expandMeeting, open, pickSlot, row, rowNames } from "./helpers.js";
 
 test.use({ timezoneId: "Australia/Sydney" });
 
@@ -21,6 +21,7 @@ test("UC2 Find a slot: the Best filter keeps the shared Best hours", async ({ pa
   await page.locator('#filterSeg [data-filter="best"]').click();
   await expect(page.locator('#filterSeg [data-filter="best"]')).toHaveAttribute("aria-checked", "true");
   await expect(page.locator("#filterEmpty")).toBeHidden();
+  await expandMeeting(page);
   const chips = page.locator("#suggestions .chip");
   await expect(page.locator("#suggestions .chips-empty")).toHaveCount(0);
   expect(await chips.count()).toBeGreaterThan(0);

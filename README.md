@@ -25,8 +25,9 @@ zones is the main result.
   live if you travel. Add cities through a ranked search of about 500 cities
   (with abbreviations such as `PST` or `AEST`) or type a fixed offset such as
   `GMT+11`, `UTC-7` or `+5:30`. Drag rows to reorder them.
-- **Share and copy:** copy the meeting times as text, or copy a link that
-  carries the zone list in the URL hash.
+- **Copy times:** copy the meeting times as text, one line per zone. Share
+  links made by earlier versions (the zone list in the URL hash) still open,
+  but the app no longer creates them.
 - **Correct time maths:** DST and half-hour or 45-minute offsets (India
   +5:30, Nepal +5:45) are handled by the browser's `Intl` APIs.
 - **Accessible:** bands never rely on colour alone (solid, hatched, pale),

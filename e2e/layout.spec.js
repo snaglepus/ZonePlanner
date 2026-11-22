@@ -72,6 +72,61 @@ test("Phone fold: zones show on load in 24h, in 12h and with a long weekend verd
   await expect(page.locator("#lengthSeg")).toBeHidden();
 });
 
+/** The copy icon beside the meeting time: its box overlaps the time's line, misses the time's text, and the page doesn't scroll sideways. */
+const expectCopyBesideTime = async (page) => {
+  const m = await page.evaluate(() => {
+    const time = document.getElementById("meetingTime");
+    const range = document.createRange();
+    range.selectNodeContents(time);
+    const box = (r) => ({ left: r.left, right: r.right, top: r.top, bottom: r.bottom });
+    return {
+      icon: box(document.getElementById("copyBtn").getBoundingClientRect()), line: box(time.getBoundingClientRect()),
+      text: box(range.getBoundingClientRect()), scrollWidth: document.documentElement.scrollWidth
+    };
+  });
+  expect(m.icon.top).toBeLessThan(m.line.bottom);
+  expect(m.icon.bottom).toBeGreaterThan(m.line.top);
+  expect(m.text.right).toBeLessThanOrEqual(m.line.right);
+  expect(m.text.right).toBeLessThanOrEqual(m.icon.left);
+  expect(m.scrollWidth).toBeLessThanOrEqual(390);
+};
+
+test("Phone card: the copy icon shares the meeting time's line, collapsed and expanded, in 24h and 12h", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "phone", "the phone card layout is for the phone project");
+  await open(page);
+  const copy = page.getByRole("button", { name: "Copy times" });
+  await expect(copy).toBeVisible();
+  // collapsed: the icon's line, then the verdict row, and nothing below it in the card
+  const card = await page.evaluate(() => {
+    const r = (id) => document.getElementById(id).getBoundingClientRect();
+    return { icon: r("copyBtn").bottom, verdictTop: r("verdict").top, toggle: r("meetingToggle").bottom, card: r("meetingCard").bottom };
+  });
+  expect(card.icon).toBeLessThanOrEqual(card.verdictTop);
+  expect(card.card - card.toggle).toBeLessThanOrEqual(12);
+  await expectCopyBesideTime(page);
+
+  const toggle = page.locator("#meetingToggle");
+  await toggle.click();
+  await expect(toggle).toHaveAttribute("aria-expanded", "true");
+  await expectCopyBesideTime(page);
+  const sub = await page.evaluate(() => {
+    const r = (id) => document.getElementById(id).getBoundingClientRect();
+    return { sub: r("meetingSub"), time: r("meetingTime"), icon: r("copyBtn") };
+  });
+  expect(sub.sub.top).toBeGreaterThanOrEqual(sub.icon.bottom);
+  expect(sub.sub.left).toBe(sub.time.left);
+  expect(sub.sub.right).toBe(sub.icon.right);
+
+  await page.locator('#clockSeg [data-h12="true"]').click();
+  await expect(page.locator('#clockSeg [data-h12="true"]')).toHaveAttribute("aria-checked", "true");
+  await page.evaluate(() => { document.getElementById("meetingTime").textContent = "11:30 am – 12:30 pm"; });
+  await expectCopyBesideTime(page);
+  await toggle.click();
+  await expect(toggle).toHaveAttribute("aria-expanded", "false");
+  await page.evaluate(() => { document.getElementById("meetingTime").textContent = "11:30 am – 12:30 pm"; });
+  await expectCopyBesideTime(page);
+});
+
 test("Wide card: at 560px the disclosure button is hidden and the whole card shows", async ({ page }) => {
   await page.setViewportSize({ width: 560, height: 800 });
   await open(page);

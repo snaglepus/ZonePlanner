@@ -38,7 +38,7 @@ typography:
     letterSpacing: "-0.015em"
   headline:
     fontFamily: "Libre Baskerville, Georgia, serif"
-    fontSize: "28px"
+    fontSize: "26px"
     fontWeight: 400
     lineHeight: 1.05
     letterSpacing: "-0.02em"
@@ -245,7 +245,7 @@ Both are self-hosted variable WOFF2 files (Latin and Latin Extended subsets), pr
 
 ### Hierarchy
 - **Display** (400, 26px on one line below 560px, 40px at 560px+, 1.05, -0.015em): the ZonePlanner wordmark in Valley Sage, on the masthead sky.
-- **Headline** (400, 28px below 560px, 42px at 560px+, 1.05, -0.02em, lining tabular numerals): the meeting time range, the page's answer. `11:30 am – 12:30 pm` fits on one line at 390px.
+- **Headline** (400, 26px below 560px, 42px at 560px+, 1.05, -0.02em, lining tabular numerals): the meeting time range, the page's answer. `11:30 am – 12:30 pm` fits on one line beside the copy icon at 390px.
 - **Title** (400, 20px, 1.2; 22px in the sheet): card and sheet titles ("Zones", "Add City"), and the serif "Everyone" row name that sets the overlap row apart.
 - **Body** (400, 15px, 1.45): running text and footnotes (footnote at 12.5px, max 60ch).
 - **Label** (650, 14px, 0.005em): buttons, chips, segments, date pill, toast. Zone names step up to 16px/650 and row times to 16px/700.
@@ -266,7 +266,7 @@ At 560px+ the masthead is 284px tall with the tagline under a 40px wordmark and 
 
 The zone board is one horizontal scroller that runs edge to edge across the card, with an 18px pad before the zone names and after the last hour, so the selection bar and every row's hour cells share exact coordinates.
 
-Below 560px the meeting card loads collapsed into a short answer strip, so the first two user rows show on a first load: the time, then the verdict on one line with a 44px soft round disclosure button (a chevron, "Meeting details", `aria-expanded`) at its right, then Share and Copy times on the right; the strip pads 10px top and bottom with 6px between its parts. The sub-line, the length control and Suggested are hidden. The button opens the full card and closes it again; the chevron points down while collapsed and up while open. Open or closed lasts only for the page session: it is never stored or put in a share link, so a reload starts collapsed. Expanded, the card puts the time on its own full-width line, then the sub-line on the left with Share and Copy times (with its label, both 44px) on the right; the sub-line wraps within its column. The verdict follows with the button at its right, then the length control. "Suggested" sits inline to the left of the chip rail. At 560px and wider the button is hidden and the card is always whole. Above 560px the meeting card's time and actions move side by side, with the sub-line under the time, and "Suggested" heads the rail; when a long time (a 12-hour `11:30 am – 12:30 pm`) leaves no room, the actions wrap below it.
+Below 560px the meeting card loads collapsed into a short answer strip, so the first two user rows show on a first load: the time with the copy-times icon at its right on the same line, then the verdict on one line with a 44px soft round disclosure button (a chevron, "Meeting details", `aria-expanded`) at its right, and nothing else; the strip pads 10px top and bottom with 6px between its parts. The sub-line, the length control and Suggested are hidden. The button opens the full card and closes it again; the chevron points down while collapsed and up while open. Open or closed lasts only for the page session: it is never stored or put in a share link, so a reload starts collapsed. Expanded, the card keeps the time and the copy-times icon on the first line, then the sub-line below at full width. The copy-times icon is a 44px soft round icon button (the copy icon, accessible name "Copy times", no visible label) vertically centred on the time's line at the card's right edge; it copies the meeting times as text. There is no share-link button: existing share links still open, but the card no longer creates them. The verdict follows with the button at its right, then the length control. "Suggested" sits inline to the left of the chip rail. At 560px and wider the button is hidden and the card is always whole. Above 560px the meeting card's time block and the copy-times icon move side by side, the icon at the right of the card head and top-aligned with the time block, with the sub-line under the time, and "Suggested" heads the rail; when a long time (a 12-hour `11:30 am – 12:30 pm`) leaves no room, the icon wraps below it.
 
 The board tightens on phones: 10px top padding, a 44px board-head row, 6px down to the filter, whose track drops its vertical padding so the control is 44px tall with 44px options (the 12h/24h toggle likewise), and 4px down to the grid; the board-head, filter and row headers start 10px from the card edge. Safe-area insets pad the masthead top, the column bottom, the sheet and the toast. Horizontal page scroll is clipped; the suggestion chip rail scrolls on its own and bleeds to the card edges.
 

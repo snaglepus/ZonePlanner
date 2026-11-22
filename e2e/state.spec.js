@@ -1,6 +1,6 @@
-// Stored state, corrupt-state recovery and the share link.
+// Stored state, corrupt-state recovery, opening a share link and copying the meeting times.
 import { test, expect } from "@playwright/test";
-import { SYDNEY_MORNING, addBySearch, expandMeeting, open, rowNames } from "./helpers.js";
+import { addBySearch, expandMeeting, open, rowNames } from "./helpers.js";
 
 test.use({ timezoneId: "Australia/Sydney" });
 
@@ -30,32 +30,32 @@ test("Corrupt state recovers to the defaults and keeps a backup", async ({ page 
   expect(await page.evaluate(() => localStorage.getItem("zoneplanner.state.bak"))).toBe(corrupt);
 });
 
-test("Share link round trip: rows, date and length", async ({ page, browser }) => {
+test("Share link opens: rows, date and length, and the hash follows changes", async ({ page }) => {
+  await open(page, { hash: "#z=America%2FNew_York~New%20York,@330&d=2026-06-17&l=8" });
+  expect(await rowNames(page)).toEqual(["Sydney", "New York", "UTC+05:30"]);
+  await expect(page.locator("#dateInput")).toHaveValue("2026-06-17");
+  await expect(page.locator('#lengthSeg [data-len="8"]')).toHaveAttribute("aria-checked", "true");
+  await expandMeeting(page);
+  await page.locator('#lengthSeg [data-len="4"]').click();
+  await expect(page.locator('#lengthSeg [data-len="4"]')).toHaveAttribute("aria-checked", "true");
+  await expect.poll(() => page.evaluate(() => location.hash)).toContain("l=4");
+});
+
+test("Copy times: one line per row and a toast", async ({ page }) => {
   await page.addInitScript(() => {
     Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText: async (text) => { window.copied = text; } } });
   });
   await open(page);
-  await addBySearch(page, "+5:30", ".result[data-offset]");
-  await page.keyboard.press("Escape");
-  await expandMeeting(page);
-  await page.locator('#lengthSeg [data-len="8"]').click();
-  await page.locator("#dateInput").fill("2026-06-17");
-  await page.locator("#dateInput").dispatchEvent("change");
-  await expect(page.locator("#dateInput")).toHaveValue("2026-06-17");
   const names = await rowNames(page);
-  await page.locator("#shareBtn").click();
+  await page.getByRole("button", { name: "Copy times" }).click();
   await expect.poll(() => page.evaluate(() => window.copied)).toBeTruthy();
-  const url = await page.evaluate(() => window.copied);
-  expect(url).toContain("d=2026-06-17");
-  expect(url).toContain("l=8");
-
-  const context = await browser.newContext({ timezoneId: "Australia/Sydney", locale: "en-GB", viewport: page.viewportSize() });
-  const fresh = await context.newPage();
-  await fresh.clock.setFixedTime(SYDNEY_MORNING);
-  await fresh.goto(url);
-  await expect(fresh.locator("#rows .row[data-idx]").first()).toBeVisible();
-  expect(await rowNames(fresh)).toEqual(names);
-  await expect(fresh.locator("#dateInput")).toHaveValue("2026-06-17");
-  await expect(fresh.locator('#lengthSeg [data-len="8"]')).toHaveAttribute("aria-checked", "true");
-  await context.close();
+  const lines = (await page.evaluate(() => window.copied)).split("\n");
+  // the config's en-GB locale gives 24-hour times
+  const parsed = lines.map((l) => l.match(/^(.+): (Mon|Tue|Wed|Thu|Fri|Sat|Sun) (\d\d:\d\d)–(\d\d:\d\d)$/));
+  for (const [i, m] of parsed.entries()) expect(m, lines[i]).not.toBeNull();
+  expect(parsed.map((m) => m[1])).toEqual(names);
+  // the home line matches the card's meeting time on the pinned Tuesday
+  const [start, end] = (await page.locator("#meetingTime").textContent()).split(" – ");
+  expect(lines[0]).toBe(`Sydney: Tue ${start}–${end}`);
+  await expect(page.locator("#toast")).toHaveText("Meeting times copied");
 });

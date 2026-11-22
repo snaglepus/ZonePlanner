@@ -1,7 +1,7 @@
 // ZonePlanner service worker: precaches the files the page loads and serves
 // them cache-first, so the app works offline once loaded. VERSION and PRECACHE
 // are stamped by `npm run sw:stamp`; never edit those two lines by hand.
-const VERSION = "1f4bd5412f3219d7";
+const VERSION = "43fefa5b8288356c";
 const PRECACHE = ["app.js","assets/fonts/hanken-grotesk-latin-ext.woff2","assets/fonts/hanken-grotesk-latin.woff2","assets/fonts/libre-baskerville-latin-ext.woff2","assets/fonts/libre-baskerville-latin.woff2","index.html","js/cities.js","js/clock.js","js/filter.js","js/reorder.js","js/scroll.js","js/search.js","js/state.js","js/strings.js","js/time.js","js/weekend.js","js/zones.js","styles.css"];
 
 // Caches are named per installation (scope) and version, so two copies of the

@@ -64,7 +64,7 @@
       <button class="btn btn-primary" type="button" id="addZone"><svg class="ico"><use href="#i-plus"/></svg><span>Add City</span></button>
     </section>
 
-    <section class="meeting card" aria-labelledby="meetingTime">
+    <section class="meeting card collapsed" id="meetingCard" aria-labelledby="meetingTime">
       <div class="meeting-head">
         <div>
           <h2 id="meetingTime" class="meeting-time">--:--</h2>
@@ -75,7 +75,10 @@
           <button class="btn btn-primary" type="button" id="copyBtn"><svg class="ico"><use href="#i-copy"/></svg><span>Copy times</span></button>
         </div>
       </div>
-      <p class="verdict" id="verdict" role="status"></p>
+      <div class="verdict-row">
+        <p class="verdict" id="verdict" role="status"></p>
+        <button class="icon-btn icon-btn-soft meeting-toggle" type="button" id="meetingToggle" aria-expanded="false"><svg><use href="#i-right"/></svg></button>
+      </div>
       <div class="meeting-controls">
         <div class="seg" role="radiogroup" aria-label="Meeting length" id="lengthSeg">
           <button type="button" role="radio" data-len="2">30m</button>

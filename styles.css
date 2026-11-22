@@ -161,6 +161,19 @@ svg { flex: none; }
 .verdict[data-tone="bad"] { background: var(--terra-tint); color: var(--terra); }
 .verdict[data-tone="bad"]::before { background: transparent; border: 2px solid currentColor; }
 
+/* phones: the disclosure button sits right of the verdict; its chevron points down while the card is collapsed */
+.verdict-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px; }
+.meeting-toggle svg { transform: rotate(-90deg); transition: transform .2s var(--ease); }
+@media (max-width: 559.98px) {
+  /* collapsed: the time, the one-line verdict with the button, then Share and Copy times, on tighter spacing so row 2 fits */
+  .meeting.collapsed { padding-block: 10px; gap: 6px; }
+  .meeting.collapsed .meeting-head { display: contents; }
+  .meeting.collapsed .meeting-actions { order: 1; justify-self: end; }
+  .meeting.collapsed .meeting-sub, .meeting.collapsed .meeting-controls, .meeting.collapsed .suggest { display: none; }
+  .meeting.collapsed .verdict { -webkit-line-clamp: 1; }
+  .meeting.collapsed .meeting-toggle svg { transform: rotate(90deg); }
+}
+
 .seg { display: flex; padding: 4px; background: var(--paper-deep); border-radius: var(--r-pill); }
 .seg button {
   flex: 1; min-height: 38px; border: 0; background: transparent; border-radius: var(--r-pill);
@@ -435,6 +448,8 @@ svg { flex: none; }
   .meeting-sub { margin-top: 6px; }
   .verdict { display: flex; align-items: flex-start; gap: 10px; overflow: visible; padding: 11px 14px; border-bottom: 0; font-size: 14px; line-height: 1.35; }
   .verdict::before { position: static; flex: none; margin-top: 4px; }
+  .verdict-row { display: block; }
+  .meeting-toggle { display: none; }
   .suggest { display: block; }
   .suggest h3 { margin-bottom: 8px; }
   .chips { margin: 0 -18px; padding: 0 18px 2px; scroll-padding: 18px; }

@@ -125,7 +125,7 @@ const el = {
   rows: $("rows"), scrub: $("scrub"), selbar: $("selbar"), nowLine: $("nowLine"), nowBtn: $("nowBtn"), timeline: $("timeline"),
   meetingTime: $("meetingTime"), meetingSub: $("meetingSub"), verdict: $("verdict"), suggestions: $("suggestions"),
   lengthSeg: $("lengthSeg"), filterSeg: $("filterSeg"), filterEmpty: $("filterEmpty"), clockSeg: $("clockSeg"), legendBest: $("legendBest"), legendGood: $("legendGood"), dateInput: $("dateInput"), dateLabel: $("dateLabel"), zoneCount: $("zoneCount"),
-  addZone: $("addZone"), zoneLimit: $("zoneLimit"), editBtn: $("editBtn"), copyBtn: $("copyBtn"), shareBtn: $("shareBtn"),
+  addZone: $("addZone"), zoneLimit: $("zoneLimit"), editBtn: $("editBtn"), copyBtn: $("copyBtn"), shareBtn: $("shareBtn"), meetingCard: $("meetingCard"), meetingToggle: $("meetingToggle"),
   sheet: $("zoneSheet"), sheetTitle: $("sheetTitle"), search: $("zoneSearch"), results: $("results"), sheetNote: $("sheetNote"), toast: $("toast"),
   dstSheet: $("dstSheet"), dstTitle: $("dstTitle"), dstText: $("dstText")
 };
@@ -809,6 +809,13 @@ el.filterSeg.addEventListener("keydown", (e) => {
   const i = FILTERS.indexOf(state.filter) + step;
   if (i < 0 || i >= FILTERS.length) return;
   setFilter(FILTERS[i]);
+});
+
+// the phone meeting card opens and closes for this page session only; nothing is stored
+el.meetingToggle.setAttribute("aria-label", S.MEETING_DETAILS);
+el.meetingToggle.addEventListener("click", () => {
+  const open = el.meetingCard.classList.toggle("collapsed") === false;
+  el.meetingToggle.setAttribute("aria-expanded", String(open));
 });
 
 el.clockSeg.setAttribute("aria-label", S.TIME_FORMAT);

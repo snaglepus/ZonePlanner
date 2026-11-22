@@ -11,6 +11,14 @@ export const open = async (page, { at = SYDNEY_MORNING, hash = "" } = {}) => {
   await expect(page.locator("#rows .row[data-idx]").first()).toBeVisible();
 };
 
+/** Open the phone meeting card through its disclosure button; on a wide viewport the button is hidden and this does nothing. */
+export const expandMeeting = async (page) => {
+  const toggle = page.locator("#meetingToggle");
+  if (!(await toggle.isVisible()) || (await toggle.getAttribute("aria-expanded")) !== "false") return;
+  await toggle.click();
+  await expect(toggle).toHaveAttribute("aria-expanded", "true");
+};
+
 /** The zone row at an index (0 is home). */
 export const row = (page, idx) => page.locator(`#rows .row[data-idx="${idx}"]`);
 
